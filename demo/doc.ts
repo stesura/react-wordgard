@@ -5,7 +5,7 @@ const { nodes, marks } = schema;
 function p(...content: (string | ReturnType<typeof schema.text>)[]) {
   return nodes.paragraph.create(
     {},
-    content.map((c) => (typeof c == "string" ? schema.text(c) : c)),
+    content.map((c) => (typeof c == "string" ? schema.text(c) : c))
   );
 }
 
@@ -24,7 +24,7 @@ export const doc = nodes.doc.create({}, [
     schema.text("code", [marks.code.create()]),
     " and a ",
     schema.text("link", [marks.link.create({ url: "https://wordgard.net" })]),
-    ".",
+    "."
   ),
   nodes.list.create({}, [
     nodes.list_item.create({}, p("A list item")),
@@ -36,10 +36,7 @@ export const doc = nodes.doc.create({}, [
       cell(nodes.table_header, "Column A"),
       cell(nodes.table_header, "Column B"),
     ]),
-    nodes.table_row.create({}, [
-      cell(nodes.table_cell, "1"),
-      cell(nodes.table_cell, "2"),
-    ]),
+    nodes.table_row.create({}, [cell(nodes.table_cell, "1"), cell(nodes.table_cell, "2")]),
   ]),
   p("The end."),
 ]);

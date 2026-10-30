@@ -1,8 +1,6 @@
 import { MutableRefObject, Ref, RefCallback, useCallback } from "react";
 
-export function useMergedDOMRefs<Value>(
-  ...refs: Ref<Value>[]
-): RefCallback<Value> {
+export function useMergedDOMRefs<Value>(...refs: Ref<Value>[]): RefCallback<Value> {
   return useCallback((value: Value) => {
     refs.forEach((ref) => {
       if (typeof ref === "function") {

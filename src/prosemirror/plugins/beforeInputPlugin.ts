@@ -7,11 +7,7 @@ import { browser } from "../browser.js";
 import { CursorWrapper } from "../components/CursorWrapper.js";
 import { widget } from "../decorations/ReactWidgetType.js";
 import { DOMNode } from "../dom.js";
-import {
-  CompositionViewDesc,
-  TextViewDesc,
-  findTextInFragment,
-} from "../viewdesc.js";
+import { CompositionViewDesc, TextViewDesc, findTextInFragment } from "../viewdesc.js";
 
 import { reactKeysPluginKey } from "./reactKeys.js";
 
@@ -23,7 +19,7 @@ function insertText(
     to?: number;
     bust?: boolean;
     marks?: readonly Mark[] | null;
-  } = {},
+  } = {}
 ) {
   if (eventData === null) return false;
 
@@ -32,9 +28,7 @@ function insertText(
 
   if (
     view.someProp("handleTextInput", (f) =>
-      f(view, from, to, eventData, () =>
-        view.state.tr.insertText(eventData, from, to),
-      ),
+      f(view, from, to, eventData, () => view.state.tr.insertText(eventData, from, to))
     )
   ) {
     return true;
@@ -75,11 +69,7 @@ function handleGapCursorComposition(view: EditorView) {
   for (let i = insert.length - 1; i >= 0; i--) {
     fragment = Fragment.from(insert[i]!.createAndFill(null, fragment));
   }
-  const tr = view.state.tr.replace(
-    $from.pos,
-    $from.pos,
-    new Slice(fragment, 0, 0),
-  );
+  const tr = view.state.tr.replace($from.pos, $from.pos, new Slice(fragment, 0, 0));
   tr.setSelection(TextSelection.near(tr.doc.resolve($from.pos + 1)));
   view.dispatch(tr);
 }
@@ -101,22 +91,14 @@ export function beforeInputPlugin() {
     view.input.composing = false;
 
     if (observer) {
-      if (
-        view.input.compositionNode &&
-        view.dom.contains(view.input.compositionNode)
-      ) {
+      if (view.input.compositionNode && view.dom.contains(view.input.compositionNode)) {
         view.domObserver.queue.push(...observer.takeRecords());
         view.domObserver.flush();
       } else {
         const freezeFrom = reactKeysPluginKey.getState(view.state)?.freezeFrom;
-        const frozenNode =
-          freezeFrom == null ? null : view.state.doc.nodeAt(freezeFrom);
+        const frozenNode = freezeFrom == null ? null : view.state.doc.nodeAt(freezeFrom);
 
-        if (
-          freezeFrom != null &&
-          frozenNode != null &&
-          preCompositionSnapshot
-        ) {
+        if (freezeFrom != null && frozenNode != null && preCompositionSnapshot) {
           // This is a little hacky — it only works because we always abort
           // compositions if the node after freezeFrom changes, so we can
           // be sure that if a composition was canceled by the user/browser,
@@ -125,8 +107,8 @@ export function beforeInputPlugin() {
             view.state.tr.replaceWith(
               freezeFrom + 1,
               freezeFrom + 1 + frozenNode.content.size,
-              preCompositionSnapshot,
-            ),
+              preCompositionSnapshot
+            )
           );
         }
       }
@@ -146,7 +128,7 @@ export function beforeInputPlugin() {
       view.state.tr.setMeta(reactKeysPluginKey, {
         cursorWrapper: null,
         freezeFrom: null,
-      }),
+      })
     );
   }
 
@@ -155,8 +137,7 @@ export function beforeInputPlugin() {
       return {
         update(view) {
           if (!(view instanceof ReactEditorView)) return;
-          const frozen =
-            reactKeysPluginKey.getState(view.state)?.freezeFrom != null;
+          const frozen = reactKeysPluginKey.getState(view.state)?.freezeFrom != null;
 
           if (observer && view.composing && !frozen) {
             teardownComposition(view, Date.now());
@@ -173,37 +154,28 @@ export function beforeInputPlugin() {
             ? view.state.storedMarks
             : (view.state.storedMarks ??
               (view.state.selection instanceof TextSelection
-                ? view.state.selection.$from.marksAcross(
-                    view.state.selection.$to,
-                  )
+                ? view.state.selection.$from.marksAcross(view.state.selection.$to)
                 : null));
 
-          view.dispatch(
-            view.state.tr.deleteSelection().setStoredMarks(storedMarks),
-          );
+          view.dispatch(view.state.tr.deleteSelection().setStoredMarks(storedMarks));
 
           handleGapCursorComposition(view);
           const { selection } = view.state;
 
           const tr = view.state.tr.delete(selection.from, selection.to);
           const $from = tr.doc.resolve(tr.mapping.map(selection.from));
-          const isEmptyTextblock =
-            $from.parent.isTextblock && $from.parent.childCount === 0;
+          const isEmptyTextblock = $from.parent.isTextblock && $from.parent.childCount === 0;
 
           if (storedMarks != null || (browser.safari && isEmptyTextblock)) {
             view.dispatch(
               view.state.tr.setMeta(reactKeysPluginKey, {
-                cursorWrapper: widget(
-                  view.state.selection.from,
-                  CursorWrapper,
-                  {
-                    key: "cursor-wrapper",
-                    ...(storedMarks !== null && { marks: storedMarks }),
-                    side: 0,
-                    raw: true,
-                  },
-                ),
-              }),
+                cursorWrapper: widget(view.state.selection.from, CursorWrapper, {
+                  key: "cursor-wrapper",
+                  ...(storedMarks !== null && { marks: storedMarks }),
+                  side: 0,
+                  raw: true,
+                }),
+              })
             );
             // Pin the DOM cursor to PM's canonical position before the IME
             // captures wherever the browser happened to leave it. Without this,
@@ -217,7 +189,7 @@ export function beforeInputPlugin() {
                 view.state.selection.anchor,
                 view.state.selection.head,
                 view,
-                true, // force — skip the isEquivalentPosition early-return
+                true // force — skip the isEquivalentPosition early-return
               );
             } finally {
               view.domObserver.setCurSelection();
@@ -230,7 +202,7 @@ export function beforeInputPlugin() {
           view.dispatch(
             view.state.tr.setMeta(reactKeysPluginKey, {
               freezeFrom,
-            }),
+            })
           );
 
           const frozenDom = view.nodeDOM(freezeFrom);
@@ -239,13 +211,12 @@ export function beforeInputPlugin() {
               view.state.tr.setMeta(reactKeysPluginKey, {
                 cursorWrapper: null,
                 freezeFrom: null,
-              }),
+              })
             );
             return false;
           }
 
-          preCompositionSnapshot =
-            view.state.doc.nodeAt(freezeFrom)?.content ?? null;
+          preCompositionSnapshot = view.state.doc.nodeAt(freezeFrom)?.content ?? null;
 
           view.input.composing = true;
 
@@ -320,25 +291,14 @@ export function beforeInputPlugin() {
               });
 
               // Use someProp to directly call ProseMirror handlers
-              return (
-                view.someProp("handleKeyDown", (f) => f(view, keyEvent)) ??
-                false
-              );
+              return view.someProp("handleKeyDown", (f) => f(view, keyEvent)) ?? false;
             }
             case "insertReplacementText": {
               const ranges = event.getTargetRanges();
               event.dataTransfer?.items[0]?.getAsString((data) => {
                 for (const range of ranges) {
-                  const from = view.posAtDOM(
-                    range.startContainer,
-                    range.startOffset,
-                    1,
-                  );
-                  const to = view.posAtDOM(
-                    range.endContainer,
-                    range.endOffset,
-                    1,
-                  );
+                  const from = view.posAtDOM(range.startContainer, range.startOffset, 1);
+                  const to = view.posAtDOM(range.endContainer, range.endOffset, 1);
                   insertText(view, data, { from, to });
                 }
               });
@@ -353,16 +313,8 @@ export function beforeInputPlugin() {
                 insertText(view, event.data);
               } else {
                 for (const range of ranges) {
-                  const from = view.posAtDOM(
-                    range.startContainer,
-                    range.startOffset,
-                    1,
-                  );
-                  const to = view.posAtDOM(
-                    range.endContainer,
-                    range.endOffset,
-                    1,
-                  );
+                  const from = view.posAtDOM(range.startContainer, range.startOffset, 1);
+                  const to = view.posAtDOM(range.endContainer, range.endOffset, 1);
                   insertText(view, event.data, { from, to });
                 }
               }
@@ -380,10 +332,7 @@ export function beforeInputPlugin() {
               const targetRanges = event.getTargetRanges();
               const { tr } = view.state;
               for (const range of targetRanges) {
-                const start = view.posAtDOM(
-                  range.startContainer,
-                  range.startOffset,
-                );
+                const start = view.posAtDOM(range.startContainer, range.startOffset);
                 const end = view.posAtDOM(range.endContainer, range.endOffset);
                 const { doc } = view.state;
 
@@ -427,14 +376,8 @@ function syncCompositionViewDescs(view: ReactEditorView) {
   compositionBlockDesc.node = compositionBlock;
 
   if (desc instanceof TextViewDesc) {
-    if (
-      compositionNode.nodeValue &&
-      desc.node.text !== compositionNode.nodeValue
-    ) {
-      desc.node = view.state.schema.text(
-        compositionNode.nodeValue,
-        desc.node.marks,
-      );
+    if (compositionNode.nodeValue && desc.node.text !== compositionNode.nodeValue) {
+      desc.node = view.state.schema.text(compositionNode.nodeValue, desc.node.marks);
       desc.nodeDOM = compositionNode;
       compositionNode.pmViewDesc = desc;
     }
@@ -442,10 +385,7 @@ function syncCompositionViewDescs(view: ReactEditorView) {
   }
 
   if (desc instanceof CompositionViewDesc) {
-    if (
-      compositionNode.nodeValue != null &&
-      desc.text !== compositionNode.nodeValue
-    ) {
+    if (compositionNode.nodeValue != null && desc.text !== compositionNode.nodeValue) {
       desc.dom = compositionNode;
       desc.textDOM = compositionNode;
       desc.text = compositionNode.nodeValue;
@@ -479,7 +419,7 @@ function syncCompositionViewDescs(view: ReactEditorView) {
     compositionBlock.content,
     compositionNode.nodeValue ?? "",
     from - contentStart,
-    to - contentStart,
+    to - contentStart
   );
   if (textPos < 0) return;
   const startPos = contentStart + textPos;
@@ -489,8 +429,7 @@ function syncCompositionViewDescs(view: ReactEditorView) {
     topDOM = topDOM.parentNode;
   }
 
-  const insertIndex =
-    children.findLastIndex((c) => c.posBefore <= startPos) + 1;
+  const insertIndex = children.findLastIndex((c) => c.posBefore <= startPos) + 1;
   children.splice(
     insertIndex,
     0,
@@ -499,7 +438,7 @@ function syncCompositionViewDescs(view: ReactEditorView) {
       () => startPos,
       topDOM,
       compositionNode,
-      compositionNode.nodeValue ?? "",
-    ),
+      compositionNode.nodeValue ?? ""
+    )
   );
 }

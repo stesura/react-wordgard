@@ -3,14 +3,7 @@
 // installed version. The repo defaults to ../wordgard; set WORDGARD_REPO to
 // use another clone.
 import { execFileSync } from "node:child_process";
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -23,22 +16,18 @@ const fail = (message) => {
   process.exit(1);
 };
 
-const git = (...args) =>
-  execFileSync("git", ["-C", repo, ...args], { maxBuffer: 1 << 26 });
+const git = (...args) => execFileSync("git", ["-C", repo, ...args], { maxBuffer: 1 << 26 });
 
 const readJSON = (path) => JSON.parse(readFileSync(path, "utf8"));
 
-const { version } = readJSON(
-  join(root, "node_modules", "wordgard", "package.json"),
-);
+const { version } = readJSON(join(root, "node_modules", "wordgard", "package.json"));
 const pinned = readJSON(join(root, "package.json")).dependencies.wordgard;
 if (pinned !== version)
   fail(
-    `package.json asks for wordgard ${pinned} but ${version} is installed; run npm install first.`,
+    `package.json asks for wordgard ${pinned} but ${version} is installed; run npm install first.`
   );
 
-if (!existsSync(join(repo, ".git")))
-  fail(`No Wordgard clone at ${repo}; set WORDGARD_REPO.`);
+if (!existsSync(join(repo, ".git"))) fail(`No Wordgard clone at ${repo}; set WORDGARD_REPO.`);
 
 try {
   git("fetch", "--tags", "--quiet");
@@ -63,9 +52,7 @@ for (let i = 0; i < names.length; i++) {
   const name = names[i];
   const content = show(name);
   files.set(name, content);
-  for (const [, dep] of content
-    .toString()
-    .matchAll(/from\s+["']\.\/([^"']+\.ts)["']/g))
+  for (const [, dep] of content.toString().matchAll(/from\s+["']\.\/([^"']+\.ts)["']/g))
     if (!names.includes(dep)) names.push(dep);
 }
 
@@ -85,7 +72,7 @@ for (const name of existing) {
 }
 
 console.log(
-  `Wordgard ${version}: ${files.size} files in ${basename(target)}/ (${names.filter((n) => n.startsWith("webtest-")).length} test files).`,
+  `Wordgard ${version}: ${files.size} files in ${basename(target)}/ (${names.filter((n) => n.startsWith("webtest-")).length} test files).`
 );
 for (const [kind, list] of Object.entries(report))
   if (list.length) console.log(`  ${kind}: ${list.join(", ")}`);

@@ -60,7 +60,7 @@ export function NativeWidgetView({ widget, getPos }: Props) {
         parentRef.current,
         getPos,
         widget,
-        rootDomRef.current,
+        rootDomRef.current
       );
     } else {
       viewDescRef.current.parent = parentRef.current;

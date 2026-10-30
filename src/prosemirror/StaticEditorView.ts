@@ -42,14 +42,14 @@ export class StaticEditorView implements AbstractEditorView {
 
   someProp<PropName extends keyof EditorProps, Result>(
     propName: PropName,
-    f: (value: NonNullable<EditorProps[PropName]>) => Result,
+    f: (value: NonNullable<EditorProps[PropName]>) => Result
   ): Result | undefined;
   someProp<PropName extends keyof EditorProps>(
-    propName: PropName,
+    propName: PropName
   ): NonNullable<EditorProps[PropName]> | undefined;
   someProp<PropName extends keyof EditorProps, Result>(
     propName: PropName,
-    f?: (value: NonNullable<EditorProps[PropName]>) => Result,
+    f?: (value: NonNullable<EditorProps[PropName]>) => Result
   ) {
     const prop = this.props[propName];
     if (prop != null) {

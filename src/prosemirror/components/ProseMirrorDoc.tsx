@@ -1,12 +1,6 @@
 import { Node } from "prosemirror-model";
 import { Decoration, DecorationSource } from "prosemirror-view";
-import React, {
-  ElementType,
-  HTMLProps,
-  createContext,
-  forwardRef,
-  useContext,
-} from "react";
+import React, { ElementType, HTMLProps, createContext, forwardRef, useContext } from "react";
 
 import { useRenderStore } from "../contexts/RenderStoreContext.js";
 
@@ -21,19 +15,18 @@ export interface DocNodeViewContextValue {
 }
 
 export const DocNodeViewContext = createContext<DocNodeViewContextValue>(
-  null as unknown as DocNodeViewContextValue,
+  null as unknown as DocNodeViewContextValue
 );
 
 interface Props extends Omit<HTMLProps<HTMLElement>, "as"> {
   as?: ElementType;
 }
 
-export const ProseMirrorDoc = forwardRef<HTMLElement, Props>(
-  function ProseMirrorDoc({ as, ...props }, ref) {
-    const docProps = useContext(DocNodeViewContext);
-    const store = useRenderStore();
-    return (
-      <DocNodeView ref={ref} {...props} {...(store?.doc ?? docProps)} as={as} />
-    );
-  },
-);
+export const ProseMirrorDoc = forwardRef<HTMLElement, Props>(function ProseMirrorDoc(
+  { as, ...props },
+  ref
+) {
+  const docProps = useContext(DocNodeViewContext);
+  const store = useRenderStore();
+  return <DocNodeView ref={ref} {...props} {...(store?.doc ?? docProps)} as={as} />;
+});

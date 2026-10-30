@@ -2,13 +2,7 @@ import { act, render } from "@testing-library/react";
 import { EditorState, Plugin, TextSelection } from "prosemirror-state";
 import { doc, p } from "prosemirror-test-builder";
 import { EditorView } from "prosemirror-view";
-import React, {
-  memo,
-  useContext,
-  useLayoutEffect,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import React, { memo, useContext, useLayoutEffect, useState, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
 
 import { EditorStateContext } from "../../contexts/EditorStateContext.js";
@@ -91,9 +85,7 @@ const mountHarness = (notifyIn: "dispatch" | "render" | "layoutEffect") => {
     }, [value]);
     // Stands in for commitPendingEffects: reads the doc DOM in the commit.
     useLayoutEffect(() => {
-      log.commits.push(
-        `${value}:${document.querySelector("[data-testid=doc]")?.textContent}`,
-      );
+      log.commits.push(`${value}:${document.querySelector("[data-testid=doc]")?.textContent}`);
     });
     return <Doc store={store} />;
   };
@@ -143,17 +135,13 @@ describe("useSyncExternalStore consumer vs the parent's commit", () => {
   // Lands in the same commit, but it is a render-phase update of another
   // component: React warns and does not promise the behaviour.
   it("set and notified during the parent's render: same commit, with React's render-phase warning", () => {
-    const error = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const { dispatch, log } = mountHarness("render");
 
     dispatch(1);
 
     expect(log.commits).toEqual(["1:1"]);
-    expect(String(error.mock.calls[0]?.[0])).toContain(
-      "Cannot update a component",
-    );
+    expect(String(error.mock.calls[0]?.[0])).toContain("Cannot update a component");
     error.mockRestore();
   });
 });
@@ -185,17 +173,12 @@ for (const stableContexts of [false, true]) {
         return null;
       };
       // Memoised, so only a state subscription re-renders it.
-      const StateTextView = () => (
-        <output>{useEditorState()?.doc.textContent}</output>
-      );
+      const StateTextView = () => <output>{useEditorState()?.doc.textContent}</output>;
       const StateText = memo(StateTextView);
       // Reads the contexts directly, as React's scan sees them.
       const contextRenders: unknown[][] = [];
       const ContextProbeView = () => {
-        contextRenders.push([
-          useContext(EditorStateContext),
-          useContext(DocNodeViewContext),
-        ]);
+        contextRenders.push([useContext(EditorStateContext), useContext(DocNodeViewContext)]);
         return null;
       };
       const ContextProbe = memo(ContextProbeView);
@@ -214,7 +197,7 @@ for (const stableContexts of [false, true]) {
           EditorState.create({
             doc: doc(p("hello world")),
             plugins: [reactKeys(), ...plugins],
-          }),
+          })
         );
         const [, setTick] = useState(0);
         captured.setState = setState;
@@ -251,9 +234,7 @@ for (const stableContexts of [false, true]) {
 
       for (const offset of [3, 7, 1, 11]) {
         view.dispatch(
-          view.state.tr.setSelection(
-            TextSelection.create(view.state.doc, start + offset),
-          ),
+          view.state.tr.setSelection(TextSelection.create(view.state.doc, start + offset))
         );
         expect(domSelectionPos(view)).toBe(start + offset);
       }
@@ -268,14 +249,10 @@ for (const stableContexts of [false, true]) {
 
       view.dispatch(view.state.tr.insertText("X", start));
 
-      expect(container.querySelector("output")?.textContent).toBe(
-        "Xhello world",
-      );
+      expect(container.querySelector("output")?.textContent).toBe("Xhello world");
     });
 
-    it(`${
-      stableContexts ? "keeps" : "changes"
-    } the context values on a dispatch`, () => {
+    it(`${stableContexts ? "keeps" : "changes"} the context values on a dispatch`, () => {
       const { view, contextRenders } = mountEditor();
       const before = contextRenders.length;
 
@@ -295,9 +272,7 @@ for (const stableContexts of [false, true]) {
       view.dispatch(view.state.tr.insertText("X", start));
 
       expect(contextRenders.length - before).toBe(stableContexts ? 0 : 1);
-      expect(container.querySelector("output")?.textContent).toBe(
-        "Xhello world",
-      );
+      expect(container.querySelector("output")?.textContent).toBe("Xhello world");
     });
 
     // Not announced (a remote step, say): the context path must still render.
@@ -308,9 +283,7 @@ for (const stableContexts of [false, true]) {
       act(() => setState(next));
 
       expect(view.dom.textContent).toBe("Yhello world");
-      expect(container.querySelector("output")?.textContent).toBe(
-        "Yhello world",
-      );
+      expect(container.querySelector("output")?.textContent).toBe("Yhello world");
     });
 
     // Plugin views update in the commit's layout effects, where a dispatch
@@ -321,9 +294,7 @@ for (const stableContexts of [false, true]) {
           update: (view) => {
             const text = view.state.doc.textContent;
             if (text.startsWith("Z") && !text.endsWith("?")) {
-              view.dispatch(
-                view.state.tr.insertText("?", view.state.doc.content.size - 1),
-              );
+              view.dispatch(view.state.tr.insertText("?", view.state.doc.content.size - 1));
             }
           },
         }),
@@ -335,9 +306,7 @@ for (const stableContexts of [false, true]) {
 
       expect(view.state.doc.textContent).toBe("Zhello world?");
       expect(view.dom.textContent).toBe("Zhello world?");
-      expect(container.querySelector("output")?.textContent).toBe(
-        "Zhello world?",
-      );
+      expect(container.querySelector("output")?.textContent).toBe("Zhello world?");
     });
   });
 }

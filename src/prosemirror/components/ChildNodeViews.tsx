@@ -177,13 +177,7 @@ const InlinePartition = memo(function InlinePartition({
     return (
       <>
         {childViews.map((child) => {
-          return (
-            <ChildView
-              key={child.key}
-              child={child}
-              getInnerPos={getInnerPos}
-            />
-          );
+          return <ChildView key={child.key} child={child} getInnerPos={getInnerPos} />;
         })}
       </>
     );
@@ -203,10 +197,7 @@ const InlinePartition = memo(function InlinePartition({
   );
 });
 
-const InlineView = memo(function InlineView({
-  getInnerPos,
-  childViews,
-}: SharedMarksProps) {
+const InlineView = memo(function InlineView({ getInnerPos, childViews }: SharedMarksProps) {
   // const editorState = useEditorState();
   const partitioned = childViews.reduce((acc, child) => {
     const lastPartition = acc[acc.length - 1];
@@ -220,9 +211,7 @@ const InlineView = memo(function InlineView({
 
     if (
       (!child.marks.length && !lastChild.marks.length) ||
-      (child.marks.length &&
-        lastChild.marks.length &&
-        child.marks[0]?.eq(lastChild.marks[0]!))
+      (child.marks.length && lastChild.marks.length && child.marks[0]?.eq(lastChild.marks[0]!))
     ) {
       return [
         ...acc.slice(0, acc.length - 1),
@@ -256,7 +245,7 @@ function createKey(
   index: number,
   type: Child["type"],
   posToKey: Map<number, string> | undefined,
-  widget?: ReactWidgetDecoration | Decoration,
+  widget?: ReactWidgetDecoration | Decoration
 ) {
   const pos = innerPos + offset;
   const key = posToKey?.get(pos);
@@ -270,7 +259,7 @@ function createKey(
     if (type === "widget") {
       // eslint-disable-next-line no-console
       console.warn(
-        `Widget at position ${pos} doesn't have a key specified. React ProseMirror will generate a key partially based on this widget’s index into its parent’s children. This can cause issues if there are multiple adjacent widgets.`,
+        `Widget at position ${pos} doesn't have a key specified. React ProseMirror will generate a key partially based on this widget’s index into its parent’s children. This can cause issues if there are multiple adjacent widgets.`
       );
     }
     return `${key}-${index}`;
@@ -291,7 +280,7 @@ function createKey(
 
 function adjustWidgetMarksForward(
   lastNodeChild: ChildNode | null,
-  widgetChild: ChildWidget | ChildNativeWidget | null,
+  widgetChild: ChildWidget | ChildNativeWidget | null
 ) {
   if (
     !widgetChild ||
@@ -305,15 +294,12 @@ function adjustWidgetMarksForward(
 
   const marksToSpread = lastNodeChild.marks;
 
-  widgetChild.marks = widgetChild.marks.reduce(
-    (acc, mark) => mark.addToSet(acc),
-    marksToSpread,
-  );
+  widgetChild.marks = widgetChild.marks.reduce((acc, mark) => mark.addToSet(acc), marksToSpread);
 }
 
 function adjustWidgetMarksBack(
   widgetChildren: Array<ChildNativeWidget | ChildWidget>,
-  nodeChild: ChildNode,
+  nodeChild: ChildNode
 ) {
   if (!nodeChild.node.isInline) return;
 
@@ -332,21 +318,12 @@ function adjustWidgetMarksBack(
       continue;
     }
 
-    child.marks = child.marks.reduce(
-      (acc, mark) => mark.addToSet(acc),
-      marksToSpread,
-    );
+    child.marks = child.marks.reduce((acc, mark) => mark.addToSet(acc), marksToSpread);
   }
 }
 
 const ChildElement = memo(
-  function ChildElement({
-    child,
-    getInnerPos,
-  }: {
-    child: Child;
-    getInnerPos: () => number;
-  }) {
+  function ChildElement({ child, getInnerPos }: { child: Child; getInnerPos: () => number }) {
     const childRef = useRef<Child>(child);
     childRef.current = child;
 
@@ -367,18 +344,12 @@ const ChildElement = memo(
           node={child.node}
           innerDeco={child.innerDeco}
           getPos={getPos}
-        />,
-      );
-    } else {
-      return (
-        <InlineView
-          key={child.key}
-          childViews={[child]}
-          getInnerPos={getInnerPos}
         />
       );
+    } else {
+      return <InlineView key={child.key} childViews={[child]} getInnerPos={getInnerPos} />;
     }
-  },
+  }
   /**
    * It's safe to skip re-rendering a ChildElement component as long
    * as its child prop is shallowly equivalent to the previous render.
@@ -388,26 +359,15 @@ const ChildElement = memo(
   // (prevProps, nextProps) => areChildrenEqual(prevProps.child, nextProps.child)
 );
 
-function createChildElements(
-  children: Child[],
-  getInnerPos: () => number,
-): ReactNode[] {
+function createChildElements(children: Child[], getInnerPos: () => number): ReactNode[] {
   if (!children.length) return [];
 
   if (children.every((child) => child.type !== "node" || child.node.isInline)) {
-    return [
-      <InlineView
-        key={children[0]!.key}
-        childViews={children}
-        getInnerPos={getInnerPos}
-      />,
-    ];
+    return [<InlineView key={children[0]!.key} childViews={children} getInnerPos={getInnerPos} />];
   }
 
   return children.map((child) => {
-    return (
-      <ChildElement key={child.key} child={child} getInnerPos={getInnerPos} />
-    );
+    return <ChildElement key={child.key} child={child} getInnerPos={getInnerPos} />;
   });
 }
 
@@ -442,14 +402,7 @@ export const ChildNodeViews = memo(function ChildNodeViews({
       const widgetMarks = ((widget as any).type.spec.marks as Mark[]) ?? [];
       let key;
       if (isNative) {
-        key = createKey(
-          getInnerPos(),
-          offset,
-          index,
-          "native-widget",
-          posToKey,
-          widget,
-        );
+        key = createKey(getInnerPos(), offset, index, "native-widget", posToKey, widget);
         const child = {
           type: "native-widget",
           widget,
@@ -466,14 +419,7 @@ export const ChildNodeViews = memo(function ChildNodeViews({
         }
         keysSeen.set(key, keysSeen.size);
       } else {
-        key = createKey(
-          getInnerPos(),
-          offset,
-          index,
-          "widget",
-          posToKey,
-          widget,
-        );
+        key = createKey(getInnerPos(), offset, index, "widget", posToKey, widget);
         const child = {
           type: "widget",
           widget: widget as ReactWidgetDecoration,
@@ -492,10 +438,7 @@ export const ChildNodeViews = memo(function ChildNodeViews({
       }
       const child = childMap.get(key) as ChildWidget | ChildNativeWidget;
       widgetChildren.push(child);
-      adjustWidgetMarksForward(
-        lastNodeChild,
-        childMap.get(key) as ChildWidget | ChildNativeWidget,
-      );
+      adjustWidgetMarksForward(lastNodeChild, childMap.get(key) as ChildWidget | ChildNativeWidget);
     },
     (childNode, outerDeco, innerDeco, offset, index) => {
       const posToKey = reactKeysPluginKey.getState(view.state)?.posToKey;
@@ -521,7 +464,7 @@ export const ChildNodeViews = memo(function ChildNodeViews({
       keysSeen.set(key, keysSeen.size);
       adjustWidgetMarksBack(widgetChildren, lastNodeChild);
       widgetChildren = [];
-    },
+    }
   );
 
   for (const key of childMap.keys()) {
@@ -534,7 +477,7 @@ export const ChildNodeViews = memo(function ChildNodeViews({
     // We already ensured that these existed in keysSeen in the previous
     // step
 
-    (a, b) => keysSeen.get(a.key)! - keysSeen.get(b.key)!,
+    (a, b) => keysSeen.get(a.key)! - keysSeen.get(b.key)!
   );
 
   if (node.isTextblock) {
@@ -564,7 +507,7 @@ export const ChildNodeViews = memo(function ChildNodeViews({
           offset: lastChild?.offset ?? 0,
           index: (lastChild?.index ?? 0) + 2,
           key: "trailing-hack-br",
-        },
+        }
       );
     }
   }

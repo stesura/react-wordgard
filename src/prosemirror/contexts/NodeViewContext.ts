@@ -7,12 +7,9 @@ import { NodeViewComponentProps } from "../components/nodes/NodeViewComponentPro
 export type NodeViewContextValue = {
   components: Record<
     string,
-    | ComponentType<NodeViewComponentProps>
-    | ComponentType<MarkViewComponentProps>
+    ComponentType<NodeViewComponentProps> | ComponentType<MarkViewComponentProps>
   >;
   constructors: NodeViewSet;
 };
 
-export const NodeViewContext = createContext(
-  null as unknown as NodeViewContextValue,
-);
+export const NodeViewContext = createContext(null as unknown as NodeViewContextValue);

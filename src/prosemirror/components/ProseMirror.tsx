@@ -1,10 +1,4 @@
-import React, {
-  ComponentType,
-  ReactNode,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { ComponentType, ReactNode, useMemo, useRef, useState } from "react";
 
 import {
   ChildDescriptionsContext,
@@ -12,10 +6,7 @@ import {
 } from "../contexts/ChildDescriptionsContext.js";
 import { EditorContext } from "../contexts/EditorContext.js";
 import { EditorStateContext } from "../contexts/EditorStateContext.js";
-import {
-  NodeViewContext,
-  NodeViewContextValue,
-} from "../contexts/NodeViewContext.js";
+import { NodeViewContext, NodeViewContextValue } from "../contexts/NodeViewContext.js";
 import { RenderStoreContext } from "../contexts/RenderStoreContext.js";
 import { computeDocDeco } from "../decorations/computeDocDeco.js";
 import { viewDecorations } from "../decorations/viewDecorations.js";
@@ -51,12 +42,7 @@ export type Props = UseEditorOptions & {
   };
 };
 
-function ProseMirrorInner({
-  children,
-  nodeViewComponents,
-  markViewComponents,
-  ...props
-}: Props) {
+function ProseMirrorInner({ children, nodeViewComponents, markViewComponents, ...props }: Props) {
   const [mount, setMount] = useState<HTMLElement | null>(null);
 
   const { editor, state, renderStore } = useEditor(mount, props);
@@ -80,7 +66,7 @@ function ProseMirrorInner({
       decorations,
       innerDecorations,
     }),
-    [node, decorations, innerDecorations],
+    [node, decorations, innerDecorations]
   );
 
   // An announced render keeps the previous context values: the consumers
@@ -99,10 +85,7 @@ function ProseMirrorInner({
       const current = contextValuesRef.current;
       contextValuesRef.current = {
         state: rendered.state === state ? current.state : state,
-        doc:
-          rendered.doc === docNodeViewContextValue
-            ? current.doc
-            : docNodeViewContextValue,
+        doc: rendered.doc === docNodeViewContextValue ? current.doc : docNodeViewContextValue,
       };
     }
     renderStore.announced = false;
@@ -118,9 +101,7 @@ function ProseMirrorInner({
         <EditorStateContext.Provider value={contextValues.state}>
           <EditorStateSelectorsProvider>
             <NodeViewContext.Provider value={nodeViewContextValue}>
-              <ChildDescriptionsContext.Provider
-                value={rootChildDescriptionsContextValue}
-              >
+              <ChildDescriptionsContext.Provider value={rootChildDescriptionsContextValue}>
                 <DocNodeViewContext.Provider value={contextValues.doc}>
                   {children}
                 </DocNodeViewContext.Provider>

@@ -7,10 +7,7 @@ import { LayoutGroupContext } from "../contexts/LayoutGroupContext.js";
 import { useClientLayoutEffect } from "./useClientLayoutEffect.js";
 
 /** Registers a layout effect to run at the nearest `LayoutGroup` boundary. */
-export function useLayoutGroupEffect(
-  effect: EffectCallback,
-  deps?: DependencyList,
-) {
+export function useLayoutGroupEffect(effect: EffectCallback, deps?: DependencyList) {
   const register = useContext(LayoutGroupContext);
   // The rule for hooks wants to statically verify the deps,
   // but the dependencies are up to the caller, not this implementation.

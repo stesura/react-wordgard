@@ -54,7 +54,7 @@ export function LayoutGroup({ children }: LayoutGroupProps) {
         }
       };
     },
-    [createQueue, destroyQueue, ensureFlush],
+    [createQueue, destroyQueue, ensureFlush]
   );
 
   useClientLayoutEffect(() => {
@@ -74,9 +74,5 @@ export function LayoutGroup({ children }: LayoutGroupProps) {
     };
   }, []);
 
-  return (
-    <LayoutGroupContext.Provider value={register}>
-      {children}
-    </LayoutGroupContext.Provider>
-  );
+  return <LayoutGroupContext.Provider value={register}>{children}</LayoutGroupContext.Provider>;
 }

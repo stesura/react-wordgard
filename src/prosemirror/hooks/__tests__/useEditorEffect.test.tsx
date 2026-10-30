@@ -28,7 +28,7 @@ describe("useEditorEffect", () => {
     const editorState = EMPTY_STATE;
     const editorView = new ReactEditorView(
       { mount: document.createElement("div") },
-      { state: editorState },
+      { state: editorState }
     );
     const registerEventListener = () => {};
     const unregisterEventListener = () => {};
@@ -49,7 +49,7 @@ describe("useEditorEffect", () => {
             <TestComponent effect={effect} />
           </EditorStateContext.Provider>
         </EditorContext.Provider>
-      </LayoutGroup>,
+      </LayoutGroup>
     );
 
     expect(effect).toHaveBeenCalled();
@@ -61,7 +61,7 @@ describe("useEditorEffect", () => {
     const editorState = EMPTY_STATE;
     const editorView = new ReactEditorView(
       { mount: document.createElement("div") },
-      { state: editorState },
+      { state: editorState }
     );
     const registerEventListener = () => {};
     const unregisterEventListener = () => {};
@@ -82,7 +82,7 @@ describe("useEditorEffect", () => {
             <TestComponent effect={effect} dependencies={[]} />
           </EditorStateContext.Provider>{" "}
         </EditorContext.Provider>
-      </LayoutGroup>,
+      </LayoutGroup>
     );
 
     rerender(
@@ -92,7 +92,7 @@ describe("useEditorEffect", () => {
             <TestComponent effect={effect} dependencies={[]} />
           </EditorStateContext.Provider>
         </EditorContext.Provider>
-      </LayoutGroup>,
+      </LayoutGroup>
     );
 
     expect(effect).toHaveBeenCalledTimes(1);
@@ -103,7 +103,7 @@ describe("useEditorEffect", () => {
     const editorState = EMPTY_STATE;
     const editorView = new ReactEditorView(
       { mount: document.createElement("div") },
-      { state: editorState },
+      { state: editorState }
     );
     const registerEventListener = () => {};
     const unregisterEventListener = () => {};
@@ -123,7 +123,7 @@ describe("useEditorEffect", () => {
             <TestComponent effect={effect} dependencies={["one"]} />
           </EditorStateContext.Provider>
         </EditorContext.Provider>
-      </LayoutGroup>,
+      </LayoutGroup>
     );
 
     rerender(
@@ -141,7 +141,7 @@ describe("useEditorEffect", () => {
             <TestComponent effect={effect} dependencies={["two"]} />
           </EditorStateContext.Provider>
         </EditorContext.Provider>
-      </LayoutGroup>,
+      </LayoutGroup>
     );
 
     expect(effect).toHaveBeenCalledTimes(2);

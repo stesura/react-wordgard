@@ -10,11 +10,11 @@ export interface EditorContextValue {
   flushSyncRef: MutableRefObject<boolean>;
   registerEventListener<EventType extends keyof DOMEventMap>(
     eventType: EventType,
-    handler: EventHandler<EventType>,
+    handler: EventHandler<EventType>
   ): void;
   unregisterEventListener<EventType extends keyof DOMEventMap>(
     eventType: EventType,
-    handler: EventHandler<EventType>,
+    handler: EventHandler<EventType>
   ): void;
   isStatic: boolean;
 }
@@ -25,6 +25,4 @@ export interface EditorContextValue {
  * see `useEditorState`, `useEditorViewEvent`, and
  * `useEditorViewLayoutEffect`.
  */
-export const EditorContext = createContext(
-  null as unknown as EditorContextValue,
-);
+export const EditorContext = createContext(null as unknown as EditorContextValue);

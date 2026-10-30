@@ -1,9 +1,5 @@
 import { Node } from "prosemirror-model";
-import {
-  Decoration,
-  DecorationSource,
-  NodeViewConstructor,
-} from "prosemirror-view";
+import { Decoration, DecorationSource, NodeViewConstructor } from "prosemirror-view";
 import React, {
   ComponentType,
   createContext,
@@ -32,14 +28,10 @@ type Props = {
   forceRemount: () => void;
 };
 
-export const NodeView = memo(function NodeView({
-  forceRemount,
-  ...props
-}: Props) {
+export const NodeView = memo(function NodeView({ forceRemount, ...props }: Props) {
   const renderRef = useRef<JSX.Element | null>(null);
   const frozen = useEditorStateSelector(
-    (state) =>
-      reactKeysPluginKey.getState(state)?.freezeFrom === props.getPos(),
+    (state) => reactKeysPluginKey.getState(state)?.freezeFrom === props.getPos()
   );
   const { components, constructors } = useContext(NodeViewContext);
 
@@ -47,8 +39,7 @@ export const NodeView = memo(function NodeView({
 
   const component = (components[props.node.type.name] ??
     DefaultNodeView) as ComponentType<NodeViewComponentProps>;
-  const constructor = constructors[props.node.type.name] as
-    NodeViewConstructor | undefined;
+  const constructor = constructors[props.node.type.name] as NodeViewConstructor | undefined;
 
   // Construct a wrapper component so that the node view remounts when either
   // its component or constructor changes. A React node view would remount if
@@ -69,8 +60,7 @@ export const NodeView = memo(function NodeView({
   // Protect content while frozen, and also through the single render where we
   // leave the frozen state: `committedFrozenRef` still reflects the previous
   // commit, so we keep returning the exact same cached element reference.
-  const protecting =
-    (frozen || committedFrozenRef.current) && renderRef.current != null;
+  const protecting = (frozen || committedFrozenRef.current) && renderRef.current != null;
 
   if (!protecting) {
     renderRef.current = (
@@ -90,13 +80,9 @@ export const NodeView = memo(function NodeView({
   return renderRef.current;
 });
 
-export const GetPosContext = createContext<() => number>(
-  null as unknown as () => number,
-);
+export const GetPosContext = createContext<() => number>(null as unknown as () => number);
 
 export function RemountableNodeView(props: Omit<Props, "forceRemount">) {
   const [key, forceRemount] = useReducer((x) => x + 1, 0);
-  return (
-    <NodeView key={key.toString()} {...props} forceRemount={forceRemount} />
-  );
+  return <NodeView key={key.toString()} {...props} forceRemount={forceRemount} />;
 }

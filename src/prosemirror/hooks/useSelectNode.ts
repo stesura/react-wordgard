@@ -12,7 +12,7 @@ function noop() {
 
 export function useSelectNode(
   selectNode: (view: EditorView) => void,
-  deselectNode: (view: EditorView) => void = noop,
+  deselectNode: (view: EditorView) => void = noop
 ) {
   const register = useContext(SelectNodeContext);
   const selectNodeMemo = useEditorEventCallback(selectNode);

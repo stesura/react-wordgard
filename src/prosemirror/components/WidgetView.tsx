@@ -31,12 +31,7 @@ export function WidgetView({ widget, getPos }: Props) {
     if (!domRef.current) return;
 
     if (!viewDescRef.current) {
-      viewDescRef.current = new WidgetViewDesc(
-        parentRef.current,
-        getPos,
-        widget,
-        domRef.current,
-      );
+      viewDescRef.current = new WidgetViewDesc(parentRef.current, getPos, widget, domRef.current);
     } else {
       viewDescRef.current.parent = parentRef.current;
       viewDescRef.current.widget = widget;

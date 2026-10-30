@@ -31,9 +31,7 @@ export interface ReactKeysPluginState {
   freezeFrom: number | null;
 }
 
-export const reactKeysPluginKey = new PluginKey<ReactKeysPluginState>(
-  "react-wordgard/reactKeys",
-);
+export const reactKeysPluginKey = new PluginKey<ReactKeysPluginState>("react-wordgard/reactKeys");
 
 export type ReactKeysPluginMeta =
   | {
@@ -83,11 +81,9 @@ export function reactKeys() {
 
         const overrides = meta && "overrides" in meta ? meta.overrides : {};
 
-        const cursorWrapper =
-          meta && "cursorWrapper" in meta ? meta.cursorWrapper : undefined;
+        const cursorWrapper = meta && "cursorWrapper" in meta ? meta.cursorWrapper : undefined;
 
-        const freezeFrom =
-          meta && "freezeFrom" in meta ? meta.freezeFrom : undefined;
+        const freezeFrom = meta && "freezeFrom" in meta ? meta.freezeFrom : undefined;
 
         const next = {
           posToKey: new Map<number, string>(),
@@ -102,7 +98,7 @@ export function reactKeys() {
                         type: ReactWidgetType;
                       }
                     ).type.Component,
-                    value.cursorWrapper.spec,
+                    value.cursorWrapper.spec
                   )
                 : null
               : cursorWrapper,
@@ -127,10 +123,7 @@ export function reactKeys() {
           }
         }
 
-        if (
-          !tr.docChanged ||
-          (!meta?.overrides && tr.steps.every(keepsNodePositions))
-        ) {
+        if (!tr.docChanged || (!meta?.overrides && tr.steps.every(keepsNodePositions))) {
           return {
             ...value,
             cursorWrapper: next.cursorWrapper,
@@ -138,16 +131,12 @@ export function reactKeys() {
           };
         }
 
-        const posToKeyEntries = Array.from(value.posToKey.entries()).sort(
-          ([a], [b]) => a - b,
-        );
+        const posToKeyEntries = Array.from(value.posToKey.entries()).sort(([a], [b]) => a - b);
         for (const [pos, key] of posToKeyEntries) {
           const override = overrides?.[pos];
 
           const { pos: newPos, deleted } =
-            override === undefined
-              ? tr.mapping.mapResult(pos)
-              : { pos: override, deleted: false };
+            override === undefined ? tr.mapping.mapResult(pos) : { pos: override, deleted: false };
 
           if (deleted) continue;
 

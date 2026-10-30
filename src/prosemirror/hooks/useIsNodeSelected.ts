@@ -11,7 +11,7 @@ export function useIsNodeSelected() {
     },
     () => {
       setIsSelected(false);
-    },
+    }
   );
 
   return isSelected;

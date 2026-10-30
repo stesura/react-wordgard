@@ -1,9 +1,7 @@
 import { Mark } from "prosemirror-model";
 import { AllHTMLAttributes, LegacyRef, Ref } from "react";
 
-export type MarkViewComponentProps<
-  Attributes = AllHTMLAttributes<HTMLElement>,
-> = Attributes & {
+export type MarkViewComponentProps<Attributes = AllHTMLAttributes<HTMLElement>> = Attributes & {
   markProps: {
     mark: Mark;
     inline: boolean;

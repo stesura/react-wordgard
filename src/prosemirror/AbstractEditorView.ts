@@ -24,11 +24,11 @@ export interface AbstractEditorView {
   update(props: DirectEditorProps): void;
   updateState(state: EditorState): void;
   someProp<PropName extends keyof EditorProps>(
-    propName: PropName,
+    propName: PropName
   ): EditorProps[PropName] | undefined;
   someProp<PropName extends keyof EditorProps, Result>(
     propName: PropName,
-    f: (value: NonNullable<EditorProps[PropName]>) => Result,
+    f: (value: NonNullable<EditorProps[PropName]>) => Result
   ): Result | undefined;
   destroy(): void;
   domSelectionRange(): {

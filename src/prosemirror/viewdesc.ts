@@ -1,12 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { Fragment, Mark, Node, TagParseRule } from "prosemirror-model";
-import {
-  Decoration,
-  DecorationSource,
-  EditorView,
-  NodeView,
-} from "prosemirror-view";
+import { Decoration, DecorationSource, EditorView, NodeView } from "prosemirror-view";
 
 import { ReactEditorView } from "./ReactEditorView.js";
 import { browser } from "./browser.js";
@@ -24,8 +19,7 @@ declare global {
 /// or a selection change happens within the view. When the change is
 /// a selection change, the record will have a `type` property of
 /// `"selection"` (which doesn't occur for native mutation records).
-export type ViewMutationRecord =
-  MutationRecord | { type: "selection"; target: DOMNode };
+export type ViewMutationRecord = MutationRecord | { type: "selection"; target: DOMNode };
 
 // View descriptions are data structures that describe the DOM that is
 // used to represent the editor's content. They are used for:
@@ -66,10 +60,7 @@ export const placeViewDesc = (siblings: ViewDesc[], desc: ViewDesc) => {
   if (index === -1) index = siblings.push(desc) - 1;
   const prev = siblings[index - 1];
   const next = siblings[index + 1];
-  if (
-    (!prev || sortViewDescs(prev, desc) <= 0) &&
-    (!next || sortViewDescs(desc, next) <= 0)
-  ) {
+  if ((!prev || sortViewDescs(prev, desc) <= 0) && (!next || sortViewDescs(desc, next) <= 0)) {
     return;
   }
   siblings.splice(index, 1);
@@ -102,7 +93,7 @@ export class ViewDesc {
     public dom: DOMNode,
     // This is the node that holds the child views. It may be null for
     // descs that don't have children.
-    public contentDOM: HTMLElement | null,
+    public contentDOM: HTMLElement | null
   ) {
     // An expando property on the DOM node provides a link back to its
     // description.
@@ -117,11 +108,7 @@ export class ViewDesc {
   matchesMark(_mark: Mark) {
     return false;
   }
-  matchesNode(
-    _node: Node,
-    _outerDeco: readonly Decoration[],
-    _innerDeco: DecorationSource,
-  ) {
+  matchesNode(_node: Node, _outerDeco: readonly Decoration[], _innerDeco: DecorationSource) {
     return false;
   }
   // @ts-expect-error ...
@@ -192,10 +179,7 @@ export class ViewDesc {
   localPosFromDOM(dom: DOMNode, offset: number, bias: number): number {
     // If the DOM position is in the content, use the child desc after
     // it to figure out a position.
-    if (
-      this.contentDOM &&
-      this.contentDOM.contains(dom.nodeType == 1 ? dom : dom.parentNode)
-    ) {
+    if (this.contentDOM && this.contentDOM.contains(dom.nodeType == 1 ? dom : dom.parentNode)) {
       if (bias < 0) {
         let domBefore, desc: ViewDesc | undefined;
         if (dom == this.contentDOM) {
@@ -206,15 +190,10 @@ export class ViewDesc {
         }
         while (
           domBefore &&
-          !(
-            (desc = domBefore.pmViewDesc as ViewDesc | undefined) &&
-            desc.parent == this
-          )
+          !((desc = domBefore.pmViewDesc as ViewDesc | undefined) && desc.parent == this)
         )
           domBefore = domBefore.previousSibling;
-        return domBefore
-          ? this.posBeforeChild(desc!) + desc!.size
-          : this.posAtStart;
+        return domBefore ? this.posBeforeChild(desc!) + desc!.size : this.posAtStart;
       } else {
         let domAfter, desc: ViewDesc | undefined;
         if (dom == this.contentDOM) {
@@ -225,10 +204,7 @@ export class ViewDesc {
         }
         while (
           domAfter &&
-          !(
-            (desc = domAfter.pmViewDesc as ViewDesc | undefined) &&
-            desc.parent == this
-          )
+          !((desc = domAfter.pmViewDesc as ViewDesc | undefined) && desc.parent == this)
         )
           domAfter = domAfter.nextSibling;
 
@@ -272,15 +248,8 @@ export class ViewDesc {
   // this one.
   nearestDesc(dom: DOMNode): ViewDesc | undefined;
   nearestDesc(dom: DOMNode, onlyNodes: true): NodeViewDesc | undefined;
-  nearestDesc(
-    dom: DOMNode,
-    onlyNodes = false,
-  ): ViewDesc | NodeViewDesc | undefined {
-    for (
-      let first = true, cur: DOMNode | null = dom;
-      cur;
-      cur = cur.parentNode
-    ) {
+  nearestDesc(dom: DOMNode, onlyNodes = false): ViewDesc | NodeViewDesc | undefined {
+    for (let first = true, cur: DOMNode | null = dom; cur; cur = cur.parentNode) {
       const desc = this.getDesc(cur);
       let nodeDOM;
       if (desc && (!onlyNodes || desc.node)) {
@@ -301,8 +270,7 @@ export class ViewDesc {
 
   getDesc(dom: DOMNode) {
     const desc = dom.pmViewDesc as ViewDesc | undefined;
-    for (let cur: ViewDesc | undefined = desc; cur; cur = cur.parent)
-      if (cur == this) return desc;
+    for (let cur: ViewDesc | undefined = desc; cur; cur = cur.parent) if (cur == this) return desc;
     return;
   }
 
@@ -338,10 +306,7 @@ export class ViewDesc {
     return;
   }
 
-  domFromPos(
-    pos: number,
-    side: number,
-  ): { node: DOMNode; offset: number; atom?: number } {
+  domFromPos(pos: number, side: number): { node: DOMNode; offset: number; atom?: number } {
     if (!this.contentDOM) return { node: this.dom, offset: 0, atom: pos + 1 };
     // First find the position in the child array
     let i = 0,
@@ -356,18 +321,11 @@ export class ViewDesc {
       curPos = end;
     }
     // If this points into the middle of a child, call through
-    if (offset)
-      return this.children[i]!.domFromPos(
-        offset - this.children[i]!.border,
-        side,
-      );
+    if (offset) return this.children[i]!.domFromPos(offset - this.children[i]!.border, side);
     // Go back if there were any zero-length widgets with side >= 0 before this point
     for (
       let prev;
-      i &&
-      !(prev = this.children[i - 1]!).size &&
-      prev instanceof WidgetViewDesc &&
-      prev.side >= 0;
+      i && !(prev = this.children[i - 1]!).size && prev instanceof WidgetViewDesc && prev.side >= 0;
       i--
     ) {
       // ...
@@ -394,8 +352,7 @@ export class ViewDesc {
         next = i < this.children.length ? this.children[i] : null;
         if (!next || next.dom.parentNode == this.contentDOM) break;
       }
-      if (next && enter && !next.border && !next.domAtom)
-        return next.domFromPos(0, side);
+      if (next && enter && !next.border && !next.domAtom) return next.domFromPos(0, side);
       return {
         node: this.contentDOM,
         offset: next ? domIndex(next.dom) : this.contentDOM.childNodes.length,
@@ -408,7 +365,7 @@ export class ViewDesc {
   parseRange(
     from: number,
     to: number,
-    base = 0,
+    base = 0
   ): {
     node: DOMNode;
     from: number;
@@ -446,11 +403,7 @@ export class ViewDesc {
         from = offset;
         for (let j = i; j > 0; j--) {
           const prev = this.children[j - 1]!;
-          if (
-            prev.size &&
-            prev.dom.parentNode == this.contentDOM &&
-            !prev.emptyChildAt(1)
-          ) {
+          if (prev.size && prev.dom.parentNode == this.contentDOM && !prev.emptyChildAt(1)) {
             fromOffset = domIndex(prev.dom) + 1;
             break;
           }
@@ -462,11 +415,7 @@ export class ViewDesc {
         to = end;
         for (let j = i + 1; j < this.children.length; j++) {
           const next = this.children[j]!;
-          if (
-            next.size &&
-            next.dom.parentNode == this.contentDOM &&
-            !next.emptyChildAt(-1)
-          ) {
+          if (next.size && next.dom.parentNode == this.contentDOM && !next.emptyChildAt(-1)) {
             toOffset = domIndex(next.dom);
             break;
           }
@@ -502,12 +451,7 @@ export class ViewDesc {
   // custom things with the selection. Note that this falls apart when
   // a selection starts in such a node and ends in another, in which
   // case we just use whatever domFromPos produces as a best effort.
-  setSelection(
-    anchor: number,
-    head: number,
-    view: ReactEditorView,
-    force = false,
-  ): void {
+  setSelection(anchor: number, head: number, view: ReactEditorView, force = false): void {
     if (view.composing) return;
     // If the selection falls entirely in a child, give it to that child
     const from = Math.min(anchor, head),
@@ -520,14 +464,13 @@ export class ViewDesc {
           anchor - offset - child.border,
           head - offset - child.border,
           view,
-          force,
+          force
         );
       offset = end;
     }
 
     let anchorDOM = this.domFromPos(anchor, anchor ? -1 : 1);
-    let headDOM =
-      head == anchor ? anchorDOM : this.domFromPos(head, head ? -1 : 1);
+    let headDOM = head == anchor ? anchorDOM : this.domFromPos(head, head ? -1 : 1);
 
     const domSel = (view.root as Document).getSelection()!;
     const selRange = view.domSelectionRange();
@@ -544,11 +487,7 @@ export class ViewDesc {
         // Issue #1128
 
         if (brKludge && offset == node.nodeValue!.length) {
-          for (
-            let scan: DOMNode | null = node, after;
-            scan;
-            scan = scan.parentNode
-          ) {
+          for (let scan: DOMNode | null = node, after; scan; scan = scan.parentNode) {
             if ((after = scan.nextSibling)) {
               if (after.nodeName == "BR")
                 anchorDOM = headDOM = {
@@ -565,9 +504,7 @@ export class ViewDesc {
         const prev = node.childNodes[offset - 1];
         // @ts-expect-error ...
         brKludge =
-          prev &&
-          (prev.nodeName == "BR" ||
-            (prev as HTMLElement).contentEditable == "false");
+          prev && (prev.nodeName == "BR" || (prev as HTMLElement).contentEditable == "false");
       }
     }
     // Firefox can act strangely when the selection is in front of an
@@ -579,8 +516,7 @@ export class ViewDesc {
       selRange.focusNode.nodeType == 1
     ) {
       const after = selRange.focusNode.childNodes[selRange.focusOffset];
-      if (after && (after as HTMLElement).contentEditable == "false")
-        force = true;
+      if (after && (after as HTMLElement).contentEditable == "false") force = true;
     }
 
     if (
@@ -590,13 +526,13 @@ export class ViewDesc {
           anchorDOM.node,
           anchorDOM.offset,
           selRange.anchorNode!,
-          selRange.anchorOffset,
+          selRange.anchorOffset
         ) &&
         isEquivalentPosition(
           headDOM.node,
           headDOM.offset,
           selRange.focusNode!,
-          selRange.focusOffset,
+          selRange.focusOffset
         ))
     ) {
       return;
@@ -639,11 +575,7 @@ export class ViewDesc {
   }
 
   get contentLost() {
-    return (
-      this.contentDOM &&
-      this.contentDOM != this.dom &&
-      !this.dom.contains(this.contentDOM)
-    );
+    return this.contentDOM && this.contentDOM != this.dom && !this.dom.contains(this.contentDOM);
   }
 
   // Remove a subtree of the element tree that has been touched
@@ -652,14 +584,11 @@ export class ViewDesc {
     for (let offset = 0, i = 0; i < this.children.length; i++) {
       const child = this.children[i]!,
         end = offset + child.size;
-      if (
-        offset == end ? from <= end && to >= offset : from < end && to > offset
-      ) {
+      if (offset == end ? from <= end && to >= offset : from < end && to > offset) {
         const startInside = offset + child.border,
           endInside = end - child.border;
         if (from >= startInside && to <= endInside) {
-          this.dirty =
-            from == offset || to == end ? CONTENT_DIRTY : CHILD_DIRTY;
+          this.dirty = from == offset || to == end ? CONTENT_DIRTY : CHILD_DIRTY;
           if (
             from == startInside &&
             to == endInside &&
@@ -714,17 +643,14 @@ export class WidgetViewDesc extends ViewDesc {
     parent: ViewDesc | undefined,
     getPos: () => number,
     public widget: Decoration,
-    dom: DOMNode,
+    dom: DOMNode
   ) {
     super(parent, [], getPos, dom, null);
     this.widget = widget;
   }
 
   matchesWidget(widget: Decoration) {
-    return (
-      this.dirty == NOT_DIRTY &&
-      (widget as any).type.eq((this.widget as any).type)
-    );
+    return this.dirty == NOT_DIRTY && (widget as any).type.eq((this.widget as any).type);
   }
 
   parseRule() {
@@ -759,7 +685,7 @@ export class CompositionViewDesc extends ViewDesc {
     getPos: () => number,
     dom: DOMNode,
     public textDOM: Text,
-    public text: string,
+    public text: string
   ) {
     super(parent, [], getPos, dom, null);
   }
@@ -827,14 +753,13 @@ export class MarkViewDesc extends ViewDesc {
     public mark: Mark,
     dom: HTMLElement,
     contentDOM: HTMLElement,
-    public spec: MarkView,
+    public spec: MarkView
   ) {
     super(parent, children, getPos, dom, contentDOM);
   }
 
   parseRule() {
-    if (this.dirty & NODE_DIRTY || this.mark.type.spec.reparseInView)
-      return null;
+    if (this.dirty & NODE_DIRTY || this.mark.type.spec.reparseInView) return null;
     return {
       mark: this.mark.type.name,
       attrs: this.mark.attrs,
@@ -882,7 +807,7 @@ export class NodeViewDesc extends ViewDesc {
     public innerDeco: DecorationSource,
     dom: DOMNode,
     contentDOM: HTMLElement | null,
-    public nodeDOM: DOMNode,
+    public nodeDOM: DOMNode
   ) {
     super(parent, children, getPos, dom, contentDOM);
   }
@@ -920,10 +845,7 @@ export class NodeViewDesc extends ViewDesc {
         const found =
           addedNodes &&
           addedNodes.find(
-            (n) =>
-              n.nodeType == 1 &&
-              addedNodes.indexOf(n.parentNode!) < 0 &&
-              this.dom.contains(n),
+            (n) => n.nodeType == 1 && addedNodes.indexOf(n.parentNode!) < 0 && this.dom.contains(n)
           );
         if (found) rule.contentElement = found as HTMLElement;
         else rule.getContent = () => Fragment.empty;
@@ -932,11 +854,7 @@ export class NodeViewDesc extends ViewDesc {
     return rule;
   }
 
-  matchesNode(
-    node: Node,
-    outerDeco: readonly Decoration[],
-    innerDeco: DecorationSource,
-  ) {
+  matchesNode(node: Node, outerDeco: readonly Decoration[], innerDeco: DecorationSource) {
     return (
       this.dirty == NOT_DIRTY &&
       node.eq(this.node) &&
@@ -964,7 +882,7 @@ export class NodeViewDesc extends ViewDesc {
     node: Node,
     outerDeco: readonly Decoration[],
     innerDeco: DecorationSource,
-    view: EditorView,
+    view: EditorView
   ) {
     if (this.dirty == NODE_DIRTY || !node.sameMarkup(this.node)) return false;
     this.updateInner(node, outerDeco, innerDeco, view);
@@ -975,7 +893,7 @@ export class NodeViewDesc extends ViewDesc {
     node: Node,
     outerDeco: readonly Decoration[],
     innerDeco: DecorationSource,
-    view: EditorView,
+    view: EditorView
   ) {
     this.updateOuterDeco(outerDeco);
     this.node = node;
@@ -999,9 +917,7 @@ export class NodeViewDesc extends ViewDesc {
   // Remove selected node marking from this node.
   deselectNode() {
     if (this.nodeDOM.nodeType == 1) {
-      (this.nodeDOM as HTMLElement).classList.remove(
-        "ProseMirror-selectednode",
-      );
+      (this.nodeDOM as HTMLElement).classList.remove("ProseMirror-selectednode");
       if (this.contentDOM || !this.node.type.spec.draggable)
         (this.dom as HTMLElement).removeAttribute("draggable");
     }
@@ -1021,25 +937,14 @@ export class TextViewDesc extends NodeViewDesc {
     outerDeco: readonly Decoration[],
     innerDeco: DecorationSource,
     dom: DOMNode,
-    nodeDOM: DOMNode,
+    nodeDOM: DOMNode
   ) {
-    super(
-      parent,
-      children,
-      getPos,
-      node,
-      outerDeco,
-      innerDeco,
-      dom,
-      null,
-      nodeDOM,
-    );
+    super(parent, children, getPos, node, outerDeco, innerDeco, dom, null, nodeDOM);
   }
 
   parseRule() {
     let skip = this.nodeDOM.parentNode;
-    while (skip && skip != this.dom && !(skip as any).pmIsDeco)
-      skip = skip.parentNode;
+    while (skip && skip != this.dom && !(skip as any).pmIsDeco) skip = skip.parentNode;
     return { skip: (skip || true) as any };
   }
 
@@ -1047,7 +952,7 @@ export class TextViewDesc extends NodeViewDesc {
     node: Node,
     outerDeco: readonly Decoration[],
     _innerDeco: DecorationSource,
-    _view: ReactEditorView,
+    _view: ReactEditorView
   ) {
     if (
       this.dirty == NODE_DIRTY ||
@@ -1063,8 +968,7 @@ export class TextViewDesc extends NodeViewDesc {
 
   inParent() {
     const parentDOM = this.parent!.contentDOM;
-    for (let n: DOMNode | null = this.nodeDOM; n; n = n.parentNode)
-      if (n == parentDOM) return true;
+    for (let n: DOMNode | null = this.nodeDOM; n; n = n.parentNode) if (n == parentDOM) return true;
     return false;
   }
 
@@ -1073,17 +977,13 @@ export class TextViewDesc extends NodeViewDesc {
   }
 
   localPosFromDOM(dom: DOMNode, offset: number, bias: number) {
-    if (dom == this.nodeDOM)
-      return this.posAtStart + Math.min(offset, this.node.text!.length);
+    if (dom == this.nodeDOM) return this.posAtStart + Math.min(offset, this.node.text!.length);
     return super.localPosFromDOM(dom, offset, bias);
   }
 
   markDirty(from: number, to: number) {
     super.markDirty(from, to);
-    if (
-      this.dom != this.nodeDOM &&
-      (from == 0 || to == this.nodeDOM.nodeValue!.length)
-    )
+    if (this.dom != this.nodeDOM && (from == 0 || to == this.nodeDOM.nodeValue!.length))
       this.dirty = NODE_DIRTY;
   }
 
@@ -1131,19 +1031,9 @@ class CustomNodeViewDesc extends NodeViewDesc {
     dom: HTMLElement,
     contentDOM: HTMLElement | null,
     nodeDOM: HTMLElement,
-    readonly spec: NodeView,
+    readonly spec: NodeView
   ) {
-    super(
-      parent,
-      children,
-      getPos,
-      node,
-      outerDeco,
-      innerDeco,
-      dom,
-      contentDOM,
-      nodeDOM,
-    );
+    super(parent, children, getPos, node, outerDeco, innerDeco, dom, contentDOM, nodeDOM);
   }
 
   // A custom `update` method gets to decide whether the update goes
@@ -1153,13 +1043,10 @@ class CustomNodeViewDesc extends NodeViewDesc {
     node: Node,
     outerDeco: readonly Decoration[],
     innerDeco: DecorationSource,
-    view: EditorView,
+    view: EditorView
   ) {
     if (this.dirty == NODE_DIRTY) return false;
-    if (
-      this.spec.update &&
-      (this.node.type == node.type || this.spec.multiType)
-    ) {
+    if (this.spec.update && (this.node.type == node.type || this.spec.multiType)) {
       const result = this.spec.update(node, outerDeco, innerDeco);
       if (result) this.updateInner(node, outerDeco, innerDeco, view);
       return result;
@@ -1175,17 +1062,10 @@ class CustomNodeViewDesc extends NodeViewDesc {
   }
 
   deselectNode() {
-    this.spec.deselectNode
-      ? this.spec.deselectNode.call(this)
-      : super.deselectNode();
+    this.spec.deselectNode ? this.spec.deselectNode.call(this) : super.deselectNode();
   }
 
-  setSelection(
-    anchor: number,
-    head: number,
-    view: ReactEditorView,
-    force: boolean,
-  ) {
+  setSelection(anchor: number, head: number, view: ReactEditorView, force: boolean) {
     this.spec.setSelection
       ? this.spec.setSelection.call(this, anchor, head, view.root)
       : super.setSelection(anchor, head, view, force);
@@ -1232,10 +1112,7 @@ export class ReactNodeViewDesc extends CustomNodeViewDesc {
   }
 }
 
-export function sameOuterDeco(
-  a: readonly Decoration[],
-  b: readonly Decoration[],
-) {
+export function sameOuterDeco(a: readonly Decoration[], b: readonly Decoration[]) {
   if (a.length != b.length) return false;
   // @ts-expect-error ...
   for (let i = 0; i < a.length; i++) if (!a[i].type.eq(b[i].type)) return false;
@@ -1244,12 +1121,7 @@ export function sameOuterDeco(
 
 // Find a piece of text in an inline fragment, overlapping from-to.
 // Ported from prosemirror-view's findTextInFragment.
-export function findTextInFragment(
-  frag: Fragment,
-  text: string,
-  from: number,
-  to: number,
-): number {
+export function findTextInFragment(frag: Fragment, text: string, from: number, to: number): number {
   for (let i = 0, pos = 0; i < frag.childCount && pos <= to;) {
     const child = frag.child(i++);
     const childStart = pos;
@@ -1263,14 +1135,10 @@ export function findTextInFragment(
       str += next.text;
     }
     if (pos >= from) {
-      if (
-        pos >= to &&
-        str.slice(to - text.length - childStart, to - childStart) === text
-      ) {
+      if (pos >= to && str.slice(to - text.length - childStart, to - childStart) === text) {
         return to - text.length;
       }
-      const found =
-        childStart < to ? str.lastIndexOf(text, to - childStart - 1) : -1;
+      const found = childStart < to ? str.lastIndexOf(text, to - childStart - 1) : -1;
       if (found >= 0 && found + text.length + childStart >= from) {
         return childStart + found;
       }

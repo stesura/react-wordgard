@@ -11,19 +11,9 @@ import React, {
 } from "react";
 
 import { ChildDescriptionsContext } from "../../contexts/ChildDescriptionsContext.js";
-import {
-  IgnoreMutation,
-  IgnoreMutationContext,
-} from "../../contexts/IgnoreMutationContext.js";
-import {
-  DeselectNode,
-  SelectNode,
-  SelectNodeContext,
-} from "../../contexts/SelectNodeContext.js";
-import {
-  StopEvent,
-  StopEventContext,
-} from "../../contexts/StopEventContext.js";
+import { IgnoreMutation, IgnoreMutationContext } from "../../contexts/IgnoreMutationContext.js";
+import { DeselectNode, SelectNode, SelectNodeContext } from "../../contexts/SelectNodeContext.js";
+import { StopEvent, StopEventContext } from "../../contexts/StopEventContext.js";
 import { useClientLayoutEffect } from "../../hooks/useClientLayoutEffect.js";
 import { useForceUpdate } from "../../hooks/useForceUpdate.js";
 import { useNodeViewDescription } from "../../hooks/useNodeViewDescription.js";
@@ -59,19 +49,16 @@ export const ReactNodeView = memo(function ReactNodeView({
   const stopEventRef = useRef<StopEvent | null>(null);
   const ignoreMutationRef = useRef<IgnoreMutation | null>(null);
 
-  const setSelectNode = useCallback(
-    (selectHandler: SelectNode, deselectHandler: DeselectNode) => {
-      selectNodeRef.current = selectHandler;
-      deselectNodeRef.current = deselectHandler;
-      setHasCustomSelectNode(true);
-      return () => {
-        selectNodeRef.current = null;
-        deselectNodeRef.current = null;
-        setHasCustomSelectNode(false);
-      };
-    },
-    [],
-  );
+  const setSelectNode = useCallback((selectHandler: SelectNode, deselectHandler: DeselectNode) => {
+    selectNodeRef.current = selectHandler;
+    deselectNodeRef.current = deselectHandler;
+    setHasCustomSelectNode(true);
+    return () => {
+      selectNodeRef.current = null;
+      deselectNodeRef.current = null;
+      setHasCustomSelectNode(false);
+    };
+  }, []);
 
   const setStopEvent = useCallback((handler: StopEvent | null) => {
     stopEventRef.current = handler;
@@ -97,7 +84,7 @@ export const ReactNodeView = memo(function ReactNodeView({
       decorations: outerDeco,
       innerDecorations: innerDeco,
     }),
-    [getPos, innerDeco, node, outerDeco],
+    [getPos, innerDeco, node, outerDeco]
   );
 
   const { childContextValue, refUpdated, isMounted } = useNodeViewDescription(
@@ -147,33 +134,26 @@ export const ReactNodeView = memo(function ReactNodeView({
         },
       };
     },
-    nodeViewDescProps,
+    nodeViewDescProps
   );
 
   const setDOM = useSetDom(domRef, refUpdated, isMounted, forceUpdate);
 
   const setNodeDOM = useSetDom(nodeDOMRef, refUpdated, isMounted, forceUpdate);
 
-  const setContentDOM = useSetDom(
-    contentDOMRef,
-    refUpdated,
-    isMounted,
-    forceUpdate,
-  );
+  const setContentDOM = useSetDom(contentDOMRef, refUpdated, isMounted, forceUpdate);
 
   const nodeProps = useMemo(
     () => ({
       ...nodeViewDescProps,
       contentDOMRef: setContentDOM,
     }),
-    [nodeViewDescProps, setContentDOM],
+    [nodeViewDescProps, setContentDOM]
   );
 
   // Before mount the content ref is still null; guess from the schema so
   // the first render doesn't set contentEditable=false only to remove it.
-  const hasContentDOM = isMounted()
-    ? contentDOMRef.current !== null
-    : !node.isLeaf;
+  const hasContentDOM = isMounted() ? contentDOMRef.current !== null : !node.isLeaf;
 
   // A node with content whose component renders none (an atom with text
   // content) guessed wrong; one re-render corrects it.
@@ -183,17 +163,13 @@ export const ReactNodeView = memo(function ReactNodeView({
 
   const props = {
     nodeProps,
-    ...(!hasContentDOM &&
-    !nodeProps.node.isText &&
-    nodeDOMRef.current?.nodeName !== "BR"
+    ...(!hasContentDOM && !nodeProps.node.isText && nodeDOMRef.current?.nodeName !== "BR"
       ? {
           contentEditable: false,
           suppressContentEditableWarning: true,
         }
       : null),
-    ...(!hasCustomSelectNode && selected
-      ? { className: "ProseMirror-selectednode" }
-      : null),
+    ...(!hasCustomSelectNode && selected ? { className: "ProseMirror-selectednode" } : null),
     ...((!hasCustomSelectNode && selected) ||
     (!hasContentDOM &&
       !nodeProps.node.isText &&
@@ -210,7 +186,7 @@ export const ReactNodeView = memo(function ReactNodeView({
 
   const element = cloneElement(
     outerDeco.reduce(wrapInDeco, <Component {...props}>{children}</Component>),
-    { ref: setDOM },
+    { ref: setDOM }
   );
 
   return (

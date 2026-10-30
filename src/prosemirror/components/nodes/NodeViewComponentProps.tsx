@@ -2,9 +2,7 @@ import { Node } from "prosemirror-model";
 import { Decoration, DecorationSource } from "prosemirror-view";
 import { AllHTMLAttributes, LegacyRef, Ref } from "react";
 
-export type NodeViewComponentProps<
-  Attributes = AllHTMLAttributes<HTMLElement>,
-> = Attributes & {
+export type NodeViewComponentProps<Attributes = AllHTMLAttributes<HTMLElement>> = Attributes & {
   nodeProps: {
     decorations: readonly Decoration[];
     innerDecorations: DecorationSource;

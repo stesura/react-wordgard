@@ -2,7 +2,23 @@
 
 import react from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
+import type { BrowserConfigOptions } from "vitest/node";
+
+const browser = (): BrowserConfigOptions => ({
+  enabled: true,
+  provider: playwright(),
+  headless: true,
+  instances: [{ browser: "chromium" }],
+});
+
+// Wordgard's own browser tests, copied unchanged from its repo.
+const wordgardTests = "test/wordgard/webtest-*.ts";
+
+const reactWordgardEditor = fileURLToPath(
+  new URL("src/testing/wordgardEditor.ts", import.meta.url)
+);
 
 // Serves the demo (`npm run demo`) and configures the tests (`npm test`).
 export default defineConfig({
@@ -26,18 +42,30 @@ export default defineConfig({
         extends: true,
         test: {
           name: "browser",
-          include: [
-            "src/**/*.browser.test.{ts,tsx}",
-            // Wordgard's own browser tests, copied unchanged from its repo.
-            "test/wordgard/webtest-*.ts",
-          ],
+          include: ["src/**/*.browser.test.{ts,tsx}", wordgardTests],
           setupFiles: ["test/wordgard-workspace.ts"],
-          browser: {
-            enabled: true,
-            provider: playwright(),
-            headless: true,
-            instances: [{ browser: "chromium" }],
+          browser: browser(),
+        },
+      },
+      {
+        // Wordgard's tests again, with their editors created as ReactWordgard.
+        extends: true,
+        plugins: [
+          {
+            name: "wordgard-tests-on-react-wordgard",
+            enforce: "pre",
+            resolveId: (source, importer) =>
+              source === "wordgard/editor" &&
+              importer?.replaceAll("\\", "/").includes("/test/wordgard/")
+                ? reactWordgardEditor
+                : null,
           },
+        ],
+        test: {
+          name: "view",
+          include: [wordgardTests, "test/view/*.test.ts"],
+          setupFiles: ["test/wordgard-workspace.ts"],
+          browser: browser(),
         },
       },
     ],

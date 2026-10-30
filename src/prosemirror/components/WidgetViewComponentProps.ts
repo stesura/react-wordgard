@@ -2,9 +2,7 @@ import { AllHTMLAttributes, LegacyRef } from "react";
 
 import { ReactWidgetDecoration } from "../decorations/ReactWidgetType.js";
 
-export type WidgetViewComponentProps<
-  Attributes = AllHTMLAttributes<HTMLElement>,
-> = Attributes & {
+export type WidgetViewComponentProps<Attributes = AllHTMLAttributes<HTMLElement>> = Attributes & {
   widget: ReactWidgetDecoration;
   getPos: () => number;
 

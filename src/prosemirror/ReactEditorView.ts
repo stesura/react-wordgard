@@ -1,10 +1,5 @@
 import { EditorState } from "prosemirror-state";
-import {
-  Decoration,
-  DirectEditorProps,
-  EditorProps,
-  EditorView,
-} from "prosemirror-view";
+import { Decoration, DirectEditorProps, EditorProps, EditorView } from "prosemirror-view";
 
 import { AbstractEditorView, NodeViewSet } from "./AbstractEditorView.js";
 import { EMPTY_STATE } from "./constants.js";
@@ -15,8 +10,7 @@ function buildNodeViews(view: ReactEditorView) {
   const result: NodeViewSet = Object.create(null);
   function add(obj: NodeViewSet) {
     for (const prop in obj)
-      if (!Object.prototype.hasOwnProperty.call(result, prop))
-        result[prop] = obj[prop]!;
+      if (!Object.prototype.hasOwnProperty.call(result, prop)) result[prop] = obj[prop]!;
   }
   view.someProp("nodeViews", add);
   view.someProp("markViews", add);
@@ -206,10 +200,7 @@ export class ReactEditorView extends EditorView implements AbstractEditorView {
       }
     }
 
-    this.editable = !this.someProp(
-      "editable",
-      (value) => value(this.state) === false,
-    );
+    this.editable = !this.someProp("editable", (value) => value(this.state) === false);
   }
 
   updateState(state: EditorState) {
@@ -218,14 +209,14 @@ export class ReactEditorView extends EditorView implements AbstractEditorView {
 
   someProp<PropName extends keyof EditorProps, Result>(
     propName: PropName,
-    f: (value: NonNullable<EditorProps[PropName]>) => Result,
+    f: (value: NonNullable<EditorProps[PropName]>) => Result
   ): Result | undefined;
   someProp<PropName extends keyof EditorProps>(
-    propName: PropName,
+    propName: PropName
   ): NonNullable<EditorProps[PropName]> | undefined;
   someProp<PropName extends keyof EditorProps, Result>(
     propName: PropName,
-    f?: (value: NonNullable<EditorProps[PropName]>) => Result,
+    f?: (value: NonNullable<EditorProps[PropName]>) => Result
   ) {
     if (!this.props) {
       // The base class constructor calls this method before props are set.

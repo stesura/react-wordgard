@@ -1,10 +1,7 @@
 import { Command, EditorState, Transaction } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 
-import {
-  ReactKeysPluginMeta,
-  reactKeysPluginKey,
-} from "../plugins/reactKeys.js";
+import { ReactKeysPluginMeta, reactKeysPluginKey } from "../plugins/reactKeys.js";
 
 /**
  * Create a command function that reorders the adjacent nodes starting
@@ -28,7 +25,7 @@ export function reorderSiblingsOnTransaction(
   order: number[],
   tr: Transaction,
   state: EditorState,
-  dispatch?: EditorView["dispatch"],
+  dispatch?: EditorView["dispatch"]
 ) {
   const orderLookup = order.reduce((acc, oldIndex, newIndex) => {
     acc[oldIndex] = newIndex;

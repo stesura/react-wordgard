@@ -6,45 +6,41 @@ import { useEditorEffect } from "../hooks/useEditorEffect.js";
 
 import { WidgetViewComponentProps } from "./WidgetViewComponentProps.js";
 
-export const CursorWrapper = forwardRef<
-  HTMLImageElement,
-  WidgetViewComponentProps
->(function CursorWrapper({ widget, getPos, ...props }, ref) {
-  const innerRef = useRef<HTMLImageElement | null>(null);
+export const CursorWrapper = forwardRef<HTMLImageElement, WidgetViewComponentProps>(
+  function CursorWrapper({ widget, getPos, ...props }, ref) {
+    const innerRef = useRef<HTMLImageElement | null>(null);
 
-  useImperativeHandle<
-    HTMLImageElement | null,
-    HTMLImageElement | null
-  >(ref, () => {
-    return innerRef.current;
-  }, []);
+    useImperativeHandle<HTMLImageElement | null, HTMLImageElement | null>(ref, () => {
+      return innerRef.current;
+    }, []);
 
-  useEditorEffect((view) => {
-    if (!(view instanceof ReactEditorView) || !innerRef.current) return;
+    useEditorEffect((view) => {
+      if (!(view instanceof ReactEditorView) || !innerRef.current) return;
 
-    view.domObserver.disconnectSelection();
-    const domSel = view.domSelection() as Selection;
-    if (!domSel.isCollapsed) return;
-    const node = innerRef.current;
+      view.domObserver.disconnectSelection();
+      const domSel = view.domSelection() as Selection;
+      if (!domSel.isCollapsed) return;
+      const node = innerRef.current;
 
-    domSel.collapse(node.parentNode!, domIndex(node) + 1);
+      domSel.collapse(node.parentNode!, domIndex(node) + 1);
 
-    view.cursorWrapped = true;
+      view.cursorWrapped = true;
 
-    view.domObserver.connectSelection();
+      view.domObserver.connectSelection();
 
-    return () => {
-      view.cursorWrapped = false;
-    };
-  }, []);
+      return () => {
+        view.cursorWrapped = false;
+      };
+    }, []);
 
-  return (
-    <img
-      ref={innerRef}
-      className="ProseMirror-separator"
-      mark-placeholder="true"
-      alt=""
-      {...props}
-    />
-  );
-});
+    return (
+      <img
+        ref={innerRef}
+        className="ProseMirror-separator"
+        mark-placeholder="true"
+        alt=""
+        {...props}
+      />
+    );
+  }
+);

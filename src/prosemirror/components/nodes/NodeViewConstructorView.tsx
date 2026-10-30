@@ -1,9 +1,5 @@
 import { DOMSerializer, Node } from "prosemirror-model";
-import {
-  Decoration,
-  DecorationSource,
-  NodeViewConstructor,
-} from "prosemirror-view";
+import { Decoration, DecorationSource, NodeViewConstructor } from "prosemirror-view";
 import React, { cloneElement, memo, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 
@@ -40,7 +36,7 @@ export const NodeViewConstructorView = memo(function NodeViewConstructorView({
       innerDecorations: innerDeco,
       contentDOMRef: { current: null },
     }),
-    [node, getPos, outerDeco, innerDeco],
+    [node, getPos, outerDeco, innerDeco]
   );
 
   const createNodeView: NodeViewConstructor = (...args) => {
@@ -68,11 +64,7 @@ export const NodeViewConstructorView = memo(function NodeViewConstructorView({
       const wrapperDOM = (innerRef.current ?? ref.current) as DOMNode;
       wrapperDOM.appendChild(nodeDOM);
 
-      if (
-        !contentDOM &&
-        nodeDOM instanceof HTMLElement &&
-        nodeDOM.tagName !== "BR"
-      ) {
+      if (!contentDOM && nodeDOM instanceof HTMLElement && nodeDOM.tagName !== "BR") {
         if (!nodeDOM.hasAttribute("contenteditable")) {
           nodeDOM.contentEditable = "false";
         }
@@ -105,7 +97,7 @@ export const NodeViewConstructorView = memo(function NodeViewConstructorView({
         ignoreMutation: nodeView.ignoreMutation?.bind(nodeView),
       };
     },
-    nodeProps,
+    nodeProps
   );
 
   const Component = node.isInline ? "span" : "div";
@@ -116,18 +108,13 @@ export const NodeViewConstructorView = memo(function NodeViewConstructorView({
     !node.isLeaf && contentDOM
       ? createPortal(
           <ChildDescriptionsContext.Provider value={childContextValue}>
-            <ChildNodeViews
-              getPos={getPos}
-              node={node}
-              innerDecorations={innerDeco}
-            />
+            <ChildNodeViews getPos={getPos} node={node} innerDecorations={innerDeco} />
           </ChildDescriptionsContext.Provider>,
-          contentDOM,
+          contentDOM
         )
       : null;
 
-  return cloneElement(
-    outerDeco.reduce(wrapInDeco, <Component {...props}>{children}</Component>),
-    { ref },
-  );
+  return cloneElement(outerDeco.reduce(wrapInDeco, <Component {...props}>{children}</Component>), {
+    ref,
+  });
 });

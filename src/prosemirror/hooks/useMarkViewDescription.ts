@@ -5,12 +5,7 @@ import { ReactEditorView } from "../ReactEditorView.js";
 import { MarkViewComponentProps } from "../components/marks/MarkViewComponentProps.js";
 import { ChildDescriptionsContext } from "../contexts/ChildDescriptionsContext.js";
 import { EditorContext } from "../contexts/EditorContext.js";
-import {
-  MarkViewDesc,
-  ReactMarkViewDesc,
-  ViewDesc,
-  placeViewDesc,
-} from "../viewdesc.js";
+import { MarkViewDesc, ReactMarkViewDesc, ViewDesc, placeViewDesc } from "../viewdesc.js";
 
 import { useClientLayoutEffect } from "./useClientLayoutEffect.js";
 import { useEffectEvent } from "./useEffectEvent.js";
@@ -19,11 +14,9 @@ type Props = Omit<MarkViewComponentProps["markProps"], "contentDOMRef">;
 
 export function useMarkViewDescription(
   getDOM: () => HTMLElement | null,
-  getContentDOM: (
-    markView: { contentDOM?: HTMLElement | null } | null,
-  ) => HTMLElement | null,
+  getContentDOM: (markView: { contentDOM?: HTMLElement | null } | null) => HTMLElement | null,
   constructor: MarkViewConstructor,
-  props: Props,
+  props: Props
 ) {
   const mountedRef = useRef(false);
   const { view } = useContext(EditorContext);
@@ -63,7 +56,7 @@ export function useMarkViewDescription(
       mark,
       dom,
       contentDOM ?? (markView.dom as HTMLElement),
-      markView,
+      markView
     );
 
     // When create() runs after a destroy() (either here in a layout
@@ -168,14 +161,12 @@ export function useMarkViewDescription(
       parentRef: viewDescRef,
       siblingsRef: childrenRef,
     }),
-    [],
+    []
   );
 
   return {
     childContextValue,
-    contentDOM:
-      contentDOMRef.current ??
-      (viewDescRef.current?.dom as HTMLElement | undefined),
+    contentDOM: contentDOMRef.current ?? (viewDescRef.current?.dom as HTMLElement | undefined),
     refUpdated,
   };
 }

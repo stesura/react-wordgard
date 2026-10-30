@@ -12,9 +12,15 @@ derived from react-prosemirror. The plan is `docs/react-wordgard-plan.md`.
 - Build: `npm run build` (tsc, ESM only, to `dist/`).
 - Checks: `npm run check` (tsc, ESLint, Prettier); `npm run fix` fixes what it
   can.
-- Tests: `npm test` (Vitest). Two projects in `vite.config.ts`: `unit` (jsdom,
-  `*.test.ts(x)`) and `browser` (Chromium through Playwright,
-  `*.browser.test.ts(x)`; run `npx playwright install chromium` once).
+- Tests: `npm test` (Vitest). Three projects in `vite.config.ts`: `unit`
+  (jsdom, `*.test.ts(x)`), `browser` (Chromium through Playwright,
+  `*.browser.test.ts(x)` and Wordgard's tests; run
+  `npx playwright install chromium` once) and `view` (Wordgard's tests with
+  their editors created as `ReactWordgard`).
+- Wordgard internals: only `src/wordgardInternals.ts` reaches them (types and
+  the `DocTile` handle), plus `src/ReactWordgard.ts` (`declare docTile` and two
+  `@ts-expect-error` for Wordgard's private constructor). `test/view/` checks
+  that the `view` project really runs on ReactWordgard.
 - `test/wordgard/`: Wordgard's browser tests (`webtest-*.ts`) and helpers,
   copied unchanged from the tag matching the installed `wordgard` (`0.6.2`), and
   run by the `browser` project. Don't edit them. `npm run update-wordgard` pins
@@ -52,6 +58,15 @@ code already says.
 
 If you find yourself writing a lot of comments, step back: it usually means the
 design is off and there's a simpler approach.
+
+## Credits
+
+For each file, if they're an exact copy of react-prosemirror, add "taken verbatim from react-prosemirror". If they're an adaptation of react-prosemirror mention it. If the change was only made to fit wordgard, mention it. if it's worth sayigng why, say so. If the modification comes from one of the modifications we made to the react-prosemirror branch used by stesura to improve performance, also mention it.
+
+## Taxonomy
+
+We'll try to get as close as possible to the original react-prosemirror repo taxonomy.
+So when you suggest a structure, a folder or file name, try to reuse the same names as react-prosemirror's (only if it makes sense given the names of certain concepts are different in wordgard)
 
 ## Finishing work
 

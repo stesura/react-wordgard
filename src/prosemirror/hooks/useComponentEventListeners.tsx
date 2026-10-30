@@ -3,14 +3,12 @@ import type { DOMEventMap, EditorView } from "prosemirror-view";
 import { useCallback, useLayoutEffect, useMemo, useState } from "react";
 import { unstable_batchedUpdates as batch } from "react-dom";
 
-export type EventHandler<
-  EventType extends keyof DOMEventMap = keyof DOMEventMap,
-> = (view: EditorView, event: DOMEventMap[EventType]) => boolean | void;
+export type EventHandler<EventType extends keyof DOMEventMap = keyof DOMEventMap> = (
+  view: EditorView,
+  event: DOMEventMap[EventType]
+) => boolean | void;
 
-export type HandleDOMEvents = Record<
-  keyof DOMEventMap,
-  EventHandler | undefined
->;
+export type HandleDOMEvents = Record<keyof DOMEventMap, EventHandler | undefined>;
 
 /**
  * Produces a plugin that can be used with ProseMirror to handle DOM
@@ -38,12 +36,8 @@ export type HandleDOMEvents = Record<
  * To accomplish this, we shallowly clone the registry whenever a new event
  * type is registered.
  */
-export function useComponentEventListeners(
-  handleDOMEventsProp: HandleDOMEvents | undefined,
-) {
-  const [registry, setRegistry] = useState(
-    new Map<keyof DOMEventMap, Array<EventHandler>>(),
-  );
+export function useComponentEventListeners(handleDOMEventsProp: HandleDOMEvents | undefined) {
+  const [registry, setRegistry] = useState(new Map<keyof DOMEventMap, Array<EventHandler>>());
 
   const registerEventListener = useCallback(
     (eventType: keyof DOMEventMap, handler: EventHandler) => {
@@ -54,7 +48,7 @@ export function useComponentEventListeners(
         setRegistry(new Map(registry));
       }
     },
-    [registry],
+    [registry]
   );
 
   const unregisterEventListener = useCallback(
@@ -62,7 +56,7 @@ export function useComponentEventListeners(
       const handlers = registry.get(eventType);
       handlers?.splice(handlers.indexOf(handler), 1);
     },
-    [registry],
+    [registry]
   );
 
   useLayoutEffect(() => {

@@ -26,16 +26,8 @@ export interface DocNodeViewProps extends Omit<HTMLProps<HTMLElement>, "as"> {
 
 export const DocNodeView = memo(
   forwardRef<HTMLElement, DocNodeViewProps>(function DocNodeView(
-    {
-      as,
-      node,
-      getPos,
-      decorations,
-      innerDecorations,
-      setMount,
-      ...elementProps
-    },
-    ref,
+    { as, node, getPos, decorations, innerDecorations, setMount, ...elementProps },
+    ref
   ) {
     const innerRef = useRef<HTMLElement>(null);
     useImperativeHandle(ref, () => innerRef.current as HTMLElement);
@@ -49,7 +41,7 @@ export const DocNodeView = memo(
         innerDecorations,
         contentDOMRef: innerRef,
       }),
-      [node, getPos, decorations, innerDecorations],
+      [node, getPos, decorations, innerDecorations]
     );
 
     const { childContextValue } = useNodeViewDescription(
@@ -65,16 +57,12 @@ export const DocNodeView = memo(
           },
         };
       },
-      nodeProps,
+      nodeProps
     );
 
     const children = (
       <ChildDescriptionsContext.Provider value={childContextValue}>
-        <ChildNodeViews
-          getPos={getPos}
-          node={node}
-          innerDecorations={innerDecorations}
-        />
+        <ChildNodeViews getPos={getPos} node={node} innerDecorations={innerDecorations} />
       </ChildDescriptionsContext.Provider>
     );
 
@@ -84,10 +72,8 @@ export const DocNodeView = memo(
       ref: innerRef,
     } satisfies HTMLProps<HTMLElement>;
 
-    const element = as
-      ? createElement(as, props, children)
-      : createElement("div", props, children);
+    const element = as ? createElement(as, props, children) : createElement("div", props, children);
 
     return nodeProps.decorations.reduce(wrapInDeco, element);
-  }),
+  })
 );

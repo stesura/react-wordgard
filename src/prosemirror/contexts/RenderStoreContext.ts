@@ -55,10 +55,6 @@ const inertStore = createRenderStore();
 export const useRenderStore = () => {
   const store = useContext(RenderStoreContext);
   const subscribed = store ?? inertStore;
-  useSyncExternalStore(
-    subscribed.subscribe,
-    subscribed.getVersion,
-    subscribed.getVersion,
-  );
+  useSyncExternalStore(subscribed.subscribe, subscribed.getVersion, subscribed.getVersion);
   return store;
 };

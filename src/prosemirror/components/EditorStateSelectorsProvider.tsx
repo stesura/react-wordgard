@@ -15,9 +15,7 @@ export function EditorStateSelectorsRegistrar({ children }: RegistrarProps) {
   const store = useMemo<EditorStateStore>(() => createEditorStateStore(), []);
 
   return (
-    <EditorStateStoreContext.Provider value={store}>
-      {children}
-    </EditorStateStoreContext.Provider>
+    <EditorStateStoreContext.Provider value={store}>{children}</EditorStateStoreContext.Provider>
   );
 }
 

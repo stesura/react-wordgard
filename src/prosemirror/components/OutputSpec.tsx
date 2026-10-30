@@ -1,12 +1,5 @@
 import { DOMOutputSpec } from "prosemirror-model";
-import React, {
-  HTMLProps,
-  ReactNode,
-  Ref,
-  createElement,
-  forwardRef,
-  memo,
-} from "react";
+import React, { HTMLProps, ReactNode, Ref, createElement, forwardRef, memo } from "react";
 
 import { htmlAttrsToReactProps, mergeReactProps } from "../props.js";
 import { useMergedDOMRefs } from "../refs.js";
@@ -22,12 +15,7 @@ function hasHole(outputSpec: DOMOutputSpec) {
   const attrs = outputSpec[1];
 
   let start = 1;
-  if (
-    attrs &&
-    typeof attrs === "object" &&
-    attrs.nodeType == null &&
-    !Array.isArray(attrs)
-  ) {
+  if (attrs && typeof attrs === "object" && attrs.nodeType == null && !Array.isArray(attrs)) {
     start = 2;
   }
 
@@ -51,7 +39,7 @@ type Props = HTMLProps<HTMLElement> & {
 const ForwardedOutputSpec = memo(
   forwardRef<HTMLElement, Props>(function OutputSpec(
     { outputSpec, isMark, contentDOMRef, children, ...propOverrides }: Props,
-    ref,
+    ref
   ) {
     const mergedRef = useMergedDOMRefs(ref, contentDOMRef);
 
@@ -60,9 +48,7 @@ const ForwardedOutputSpec = memo(
     }
 
     if (!Array.isArray(outputSpec)) {
-      throw new Error(
-        "react-wordgard only supports strings and arrays in toDOM",
-      );
+      throw new Error("react-wordgard only supports strings and arrays in toDOM");
     }
 
     const tagSpec = outputSpec[0] as string;
@@ -74,12 +60,7 @@ const ForwardedOutputSpec = memo(
       ...propOverrides,
     };
     let start = 1;
-    if (
-      attrs &&
-      typeof attrs === "object" &&
-      attrs.nodeType == null &&
-      !Array.isArray(attrs)
-    ) {
+    if (attrs && typeof attrs === "object" && attrs.nodeType == null && !Array.isArray(attrs)) {
       start = 2;
       props = mergeReactProps(htmlAttrsToReactProps(attrs), props);
     }
@@ -89,9 +70,7 @@ const ForwardedOutputSpec = memo(
       const child = outputSpec[i] as DOMOutputSpec | 0;
       if (child === 0) {
         if (i < outputSpec.length - 1 || i > start) {
-          throw new RangeError(
-            "Content hole must be the only child of its parent node",
-          );
+          throw new RangeError("Content hole must be the only child of its parent node");
         }
         return createElement(
           tagName,
@@ -99,13 +78,13 @@ const ForwardedOutputSpec = memo(
             ...props,
             ref: ref ? mergedRef : contentDOMRef,
           },
-          children,
+          children
         );
       }
       content.push(
         <ForwardedOutputSpec outputSpec={child} contentDOMRef={contentDOMRef}>
           {children}
-        </ForwardedOutputSpec>,
+        </ForwardedOutputSpec>
       );
     }
 
@@ -117,7 +96,7 @@ const ForwardedOutputSpec = memo(
       props.ref = mergedRef;
     }
     return createElement(tagName, props, ...content);
-  }),
+  })
 );
 
 export { ForwardedOutputSpec as OutputSpec };

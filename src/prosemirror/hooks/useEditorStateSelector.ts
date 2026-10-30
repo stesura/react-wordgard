@@ -11,9 +11,7 @@ import { EditorStateStoreContext } from "../contexts/EditorStateStoreContext.js"
  * consuming component if the return value of the selector
  * changes.
  */
-export function useEditorStateSelector<Result>(
-  selector: (state: EditorState) => Result,
-): Result {
+export function useEditorStateSelector<Result>(selector: (state: EditorState) => Result): Result {
   const store = useContext(EditorStateStoreContext);
 
   const getSnapshot = () => selector(store.getState());

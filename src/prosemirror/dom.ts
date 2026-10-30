@@ -40,24 +40,17 @@ export const isEquivalentPosition = function (
   node: Node,
   off: number,
   targetNode: Node,
-  targetOff: number,
+  targetOff: number
 ) {
   return (
     targetNode &&
-    (scanFor(node, off, targetNode, targetOff, -1) ||
-      scanFor(node, off, targetNode, targetOff, 1))
+    (scanFor(node, off, targetNode, targetOff, -1) || scanFor(node, off, targetNode, targetOff, 1))
   );
 };
 
 const atomElements = /^(img|br|input|textarea|hr)$/i;
 
-function scanFor(
-  node: Node,
-  off: number,
-  targetNode: Node,
-  targetOff: number,
-  dir: number,
-) {
+function scanFor(node: Node, off: number, targetNode: Node, targetOff: number, dir: number) {
   for (;;) {
     if (node == targetNode && off == targetOff) return true;
     if (off == (dir < 0 ? 0 : nodeSize(node))) {
@@ -74,10 +67,7 @@ function scanFor(
       node = parent;
     } else if (node.nodeType == 1) {
       const child = node.childNodes[off + (dir < 0 ? -1 : 0)]!;
-      if (
-        child.nodeType == 1 &&
-        (child as HTMLElement).contentEditable == "false"
-      ) {
+      if (child.nodeType == 1 && (child as HTMLElement).contentEditable == "false") {
         if (child.pmViewDesc?.ignoreForSelection) off += dir;
         else return false;
       } else {
@@ -95,10 +85,7 @@ export function nodeSize(node: Node) {
 }
 
 export function isOnEdge(node: Node, offset: number, parent: Node) {
-  for (
-    let atStart = offset == 0, atEnd = offset == nodeSize(node);
-    atStart || atEnd;
-  ) {
+  for (let atStart = offset == 0, atEnd = offset == nodeSize(node); atStart || atEnd;) {
     if (node == parent) return true;
     const index = domIndex(node);
     node = node.parentNode!;
@@ -111,14 +98,8 @@ export function isOnEdge(node: Node, offset: number, parent: Node) {
 
 export function hasBlockDesc(dom: Node) {
   let desc;
-  for (let cur: Node | null = dom; cur; cur = cur.parentNode)
-    if ((desc = cur.pmViewDesc)) break;
-  return (
-    desc &&
-    desc.node &&
-    desc.node.isBlock &&
-    (desc.dom == dom || desc.contentDOM == dom)
-  );
+  for (let cur: Node | null = dom; cur; cur = cur.parentNode) if ((desc = cur.pmViewDesc)) break;
+  return desc && desc.node && desc.node.isBlock && (desc.dom == dom || desc.contentDOM == dom);
 }
 
 // Work around Chrome issue https://bugs.chromium.org/p/chromium/issues/detail?id=447523
@@ -130,7 +111,7 @@ export const selectionCollapsed = function (domSel: DOMSelectionRange) {
       domSel.focusNode,
       domSel.focusOffset,
       domSel.anchorNode!,
-      domSel.anchorOffset,
+      domSel.anchorOffset
     )
   );
 };
@@ -152,7 +133,7 @@ export function deepActiveElement(doc: Document) {
 export function caretFromPoint(
   doc: Document,
   x: number,
-  y: number,
+  y: number
 ): { node: Node; offset: number } | undefined {
   if ((doc as any).caretPositionFromPoint) {
     try {

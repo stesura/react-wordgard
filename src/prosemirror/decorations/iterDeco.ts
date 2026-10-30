@@ -2,10 +2,7 @@ import { Node } from "prosemirror-model";
 import { Decoration, DecorationSource } from "prosemirror-view";
 
 import { ReactWidgetType } from "./ReactWidgetType.js";
-import {
-  InternalDecoration,
-  InternalDecorationSource,
-} from "./internalTypes.js";
+import { InternalDecoration, InternalDecorationSource } from "./internalTypes.js";
 
 function compareSide(a: Decoration, b: Decoration) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -27,15 +24,15 @@ export function iterDeco(
     isNative: boolean,
     offset: number,
     index: number,
-    insideNode: boolean,
+    insideNode: boolean
   ) => void,
   onNode: (
     node: Node,
     outerDeco: readonly Decoration[],
     innerDeco: DecorationSource,
     offset: number,
-    index: number,
-  ) => void,
+    index: number
+  ) => void
 ) {
   const locals = (deco as InternalDecorationSource).locals(parent);
   let offset = 0;
@@ -43,13 +40,7 @@ export function iterDeco(
   if (locals.length == 0) {
     for (let i = 0; i < parent.childCount; i++) {
       const child = parent.child(i);
-      onNode(
-        child,
-        locals,
-        (deco as InternalDecorationSource).forChild(offset, child),
-        offset,
-        i,
-      );
+      onNode(child, locals, (deco as InternalDecorationSource).forChild(offset, child), offset, i);
       offset += child.nodeSize;
     }
     return;
@@ -84,7 +75,7 @@ export function iterDeco(
               !((widgets[i]! as any).type instanceof ReactWidgetType),
               offset,
               parentIndex + i,
-              !!restNode,
+              !!restNode
             );
         } else {
           onWidget(
@@ -93,7 +84,7 @@ export function iterDeco(
             !((widget as any).type instanceof ReactWidgetType),
             offset,
             parentIndex,
-            !!restNode,
+            !!restNode
           );
         }
       }
@@ -111,8 +102,7 @@ export function iterDeco(
       break;
     }
 
-    for (let i = 0; i < active.length; i++)
-      if (active[i]!.to <= offset) active.splice(i--, 1);
+    for (let i = 0; i < active.length; i++) if (active[i]!.to <= offset) active.splice(i--, 1);
     while (
       decoIndex < locals.length &&
       locals[decoIndex]!.from <= offset &&
@@ -125,8 +115,7 @@ export function iterDeco(
       let cutAt = end;
       if (decoIndex < locals.length && locals[decoIndex]!.from < cutAt)
         cutAt = locals[decoIndex]!.from;
-      for (let i = 0; i < active.length; i++)
-        if (active[i]!.to < cutAt) cutAt = active[i]!.to;
+      for (let i = 0; i < active.length; i++) if (active[i]!.to < cutAt) cutAt = active[i]!.to;
       if (cutAt < end) {
         restNode = child.cut(cutAt - offset);
         child = child.cut(0, cutAt - offset);
@@ -134,8 +123,7 @@ export function iterDeco(
         index = -1;
       }
     } else {
-      while (decoIndex < locals.length && locals[decoIndex]!.to < end)
-        decoIndex++;
+      while (decoIndex < locals.length && locals[decoIndex]!.to < end) decoIndex++;
     }
 
     const outerDeco =
@@ -148,7 +136,7 @@ export function iterDeco(
       outerDeco,
       (deco as InternalDecorationSource).forChild(offset, child),
       offset,
-      index,
+      index
     );
     offset = end;
   }

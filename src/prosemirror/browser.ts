@@ -24,8 +24,7 @@ const chrome = !!_chrome;
 const chrome_version = _chrome ? +_chrome[1]! : 0;
 const safari = !ie && !!nav && /Apple Computer/.test(nav.vendor);
 // Is true for both iOS and iPadOS for convenience
-const ios =
-  safari && (/Mobile\/\w+/.test(agent) || (!!nav && nav.maxTouchPoints > 2));
+const ios = safari && (/Mobile\/\w+/.test(agent) || (!!nav && nav.maxTouchPoints > 2));
 const mac = ios || (nav ? /Mac/.test(nav.platform) : false);
 const windows = nav ? /Win/.test(nav.platform) : false;
 const android = /Android \d/.test(agent);

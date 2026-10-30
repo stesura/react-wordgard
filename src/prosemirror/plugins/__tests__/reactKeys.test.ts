@@ -52,12 +52,12 @@ describe("reactNodeViewPlugin", () => {
     const initialPluginState = reactKeysPluginKey.getState(initialEditorState)!;
 
     const nextEditorState = initialEditorState.apply(
-      initialEditorState.tr.insertText(", world!", 6),
+      initialEditorState.tr.insertText(", world!", 6)
     );
     const nextPluginState = reactKeysPluginKey.getState(nextEditorState)!;
 
     expect(Array.from(initialPluginState.keyToPos.keys())).toEqual(
-      Array.from(nextPluginState.keyToPos.keys()),
+      Array.from(nextPluginState.keyToPos.keys())
     );
   });
 
@@ -74,7 +74,7 @@ describe("reactNodeViewPlugin", () => {
     const initialPluginState = reactKeysPluginKey.getState(initialEditorState)!;
 
     const nextEditorState = initialEditorState.apply(
-      initialEditorState.tr.insert(0, schema.nodes.list.createAndFill()!),
+      initialEditorState.tr.insert(0, schema.nodes.list.createAndFill()!)
     );
     const nextPluginState = reactKeysPluginKey.getState(nextEditorState)!;
 
@@ -100,7 +100,7 @@ describe("reactNodeViewPlugin", () => {
       state.tr
         .setNodeAttribute(0, "id", "a")
         .setNodeAttribute(7, "id", "b")
-        .setDocAttribute("version", 1),
+        .setDocAttribute("version", 1)
     );
 
     expect(next.doc.firstChild?.attrs["id"]).toBe("a");
@@ -118,9 +118,7 @@ describe("reactNodeViewPlugin", () => {
     const before = keysOf(state);
 
     const next = state.apply(
-      state.tr
-        .setNodeAttribute(0, "id", "a")
-        .addMark(2, 4, schema.marks.strong.create()),
+      state.tr.setNodeAttribute(0, "id", "a").addMark(2, 4, schema.marks.strong.create())
     );
 
     expect(keysOf(next).posToKey).not.toBe(before.posToKey);

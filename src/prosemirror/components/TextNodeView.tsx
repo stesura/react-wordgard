@@ -9,10 +9,7 @@ import { TextViewDesc, ViewDesc, placeViewDesc } from "../viewdesc.js";
 
 import { wrapInDeco } from "./ChildNodeViews.js";
 
-function shallowEqual(
-  objA: Record<string, unknown>,
-  objB: Record<string, unknown>,
-): boolean {
+function shallowEqual(objA: Record<string, unknown>, objB: Record<string, unknown>): boolean {
   if (objA === objB) {
     return true;
   }
@@ -32,10 +29,7 @@ function shallowEqual(
   for (let i = 0; i < len; i++) {
     const key = aKeys[i]!;
 
-    if (
-      objA[key] !== objB[key] ||
-      !Object.prototype.hasOwnProperty.call(objB, key)
-    ) {
+    if (objA[key] !== objB[key] || !Object.prototype.hasOwnProperty.call(objB, key)) {
       return false;
     }
   }
@@ -56,8 +50,7 @@ export class TextNodeView extends Component<Props> {
   viewDescRef = createMutRef<TextViewDesc>();
 
   create() {
-    const { view, decorations, siblingsRef, parentRef, getPos, node } =
-      this.props;
+    const { view, decorations, siblingsRef, parentRef, getPos, node } = this.props;
     const dom = findDOMNode(this);
 
     if (!dom && !view.composing) return null;
@@ -81,7 +74,7 @@ export class TextNodeView extends Component<Props> {
       decorations,
       DecorationSet.empty,
       dom,
-      textNode,
+      textNode
     );
 
     placeViewDesc(siblingsRef.current, viewDesc);

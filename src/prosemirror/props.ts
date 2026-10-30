@@ -40,10 +40,7 @@ function mergeStyleProps(a: HTMLProps<HTMLElement>, b: HTMLProps<HTMLElement>) {
  * will be concatenated and style objects
  * will be merged.
  */
-export function mergeReactProps(
-  a: HTMLProps<HTMLElement>,
-  b: HTMLProps<HTMLElement>,
-) {
+export function mergeReactProps(a: HTMLProps<HTMLElement>, b: HTMLProps<HTMLElement>) {
   return {
     ...a,
     ...b,
@@ -60,9 +57,7 @@ export function mergeReactProps(
  * Given a record of HTML attributes, returns tho
  * equivalent React props.
  */
-export function htmlAttrsToReactProps(
-  attrs: Record<string, string>,
-): HTMLProps<HTMLElement> {
+export function htmlAttrsToReactProps(attrs: Record<string, string>): HTMLProps<HTMLElement> {
   patchConsoleError();
   const props: Record<string, unknown> = {};
   for (const [attrName, attrValue] of Object.entries(attrs)) {

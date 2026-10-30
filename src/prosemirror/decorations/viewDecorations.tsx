@@ -23,9 +23,7 @@ class DecorationGroup implements DecorationSource {
   constructor(readonly members: readonly DecorationSet[]) {}
 
   map(mapping: Mapping, doc: Node) {
-    const mappedDecos = this.members.map((member) =>
-      member.map(mapping, doc, noSpec),
-    );
+    const mappedDecos = this.members.map((member) => member.map(mapping, doc, noSpec));
     return DecorationGroup.from(mappedDecos);
   }
 
@@ -33,27 +31,24 @@ class DecorationGroup implements DecorationSource {
     if (child.isLeaf) return DecorationSet.empty;
     let found: DecorationSet[] = [];
     for (let i = 0; i < this.members.length; i++) {
-      const result = (
-        this.members[i] as unknown as InternalDecorationSource
-      ).forChild(offset, child);
+      const result = (this.members[i] as unknown as InternalDecorationSource).forChild(
+        offset,
+        child
+      );
       if (result == empty) continue;
-      if (result instanceof DecorationGroup)
-        found = found.concat(result.members);
+      if (result instanceof DecorationGroup) found = found.concat(result.members);
       else found.push(result as unknown as DecorationSet);
     }
     return DecorationGroup.from(found);
   }
 
   eq(other: DecorationGroup) {
-    if (
-      !(other instanceof DecorationGroup) ||
-      other.members.length != this.members.length
-    )
+    if (!(other instanceof DecorationGroup) || other.members.length != this.members.length)
       return false;
     for (let i = 0; i < this.members.length; i++)
       if (
         !(this.members[i] as unknown as InternalDecorationSource).eq(
-          other.members[i] as DecorationSource,
+          other.members[i] as DecorationSource
         )
       )
         return false;
@@ -64,9 +59,7 @@ class DecorationGroup implements DecorationSource {
     let result: Decoration[] | undefined,
       sorted = true;
     for (let i = 0; i < this.members.length; i++) {
-      const locals = (
-        this.members[i] as unknown as InternalDecorationSet
-      ).localsInner(node);
+      const locals = (this.members[i] as unknown as InternalDecorationSet).localsInner(node);
       if (!locals.length) continue;
       if (!result) {
         result = locals as Decoration[];
@@ -95,21 +88,15 @@ class DecorationGroup implements DecorationSource {
           members.every((m) => m instanceof DecorationSet)
             ? (members as DecorationSet[])
             : members.reduce(
-                (r, m) =>
-                  r.concat(
-                    m instanceof DecorationSet
-                      ? m
-                      : (m as DecorationGroup).members,
-                  ),
-                [] as DecorationSet[],
-              ),
+                (r, m) => r.concat(m instanceof DecorationSet ? m : (m as DecorationGroup).members),
+                [] as DecorationSet[]
+              )
         );
     }
   }
 
   forEachSet(f: (set: DecorationSet) => void) {
-    for (let i = 0; i < this.members.length; i++)
-      this.members[i]!.forEachSet(f);
+    for (let i = 0; i < this.members.length; i++) this.members[i]!.forEachSet(f);
   }
 }
 
@@ -137,11 +124,7 @@ function removeOverlap(spans: readonly Decoration[]): Decoration[] {
             // Followed by a partially overlapping larger span. Split that
             // span.
             working[j] = (next as InternalDecoration).copy(next.from, span.to);
-            insertAhead(
-              working,
-              j + 1,
-              (next as InternalDecoration).copy(span.to, next.to),
-            );
+            insertAhead(working, j + 1, (next as InternalDecoration).copy(span.to, next.to));
           }
           continue;
         } else {
@@ -149,15 +132,8 @@ function removeOverlap(spans: readonly Decoration[]): Decoration[] {
             if (working == spans) working = spans.slice();
             // The end of this one overlaps with a subsequent span. Split
             // this one.
-            working[i] = (span as InternalDecoration).copy(
-              span.from,
-              next.from,
-            );
-            insertAhead(
-              working,
-              j,
-              (span as InternalDecoration).copy(next.from, span.to),
-            );
+            working[i] = (span as InternalDecoration).copy(span.from, next.from);
+            insertAhead(working, j, (span as InternalDecoration).copy(next.from, span.to));
           }
           break;
         }
@@ -171,10 +147,7 @@ function insertAhead(array: Decoration[], i: number, deco: Decoration) {
   array.splice(i, 0, deco);
 }
 
-const ViewDecorationsCache = new WeakMap<
-  AbstractEditorView,
-  DecorationSource
->();
+const ViewDecorationsCache = new WeakMap<AbstractEditorView, DecorationSource>();
 
 /**
  * Produces the DecorationSource for the current state, based

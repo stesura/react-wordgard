@@ -11,11 +11,7 @@ import "prosemirror-view/style/prosemirror.css";
 import React, { StrictMode, useCallback, useState } from "react";
 import { createRoot } from "react-dom/client";
 
-import {
-  ProseMirror,
-  ProseMirrorDoc,
-  reactKeys,
-} from "../src/prosemirror/index.js";
+import { ProseMirror, ProseMirrorDoc, reactKeys } from "../src/prosemirror/index.js";
 
 import { LinkTooltip } from "./LinkTooltip.js";
 import Menu from "./Menu.js";
@@ -61,11 +57,7 @@ function DemoEditor() {
 
   return (
     <main>
-      <ProseMirror
-        state={state}
-        dispatchTransaction={dispatchTransaction}
-        plugins={plugins}
-      >
+      <ProseMirror state={state} dispatchTransaction={dispatchTransaction} plugins={plugins}>
         <Menu />
         <ProseMirrorDoc spellCheck={false} />
         <LinkTooltip />
@@ -79,5 +71,5 @@ const root = createRoot(document.getElementById("root")!);
 root.render(
   <StrictMode>
     <DemoEditor />
-  </StrictMode>,
+  </StrictMode>
 );

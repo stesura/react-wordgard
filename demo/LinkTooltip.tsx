@@ -19,7 +19,7 @@ export function LinkTooltip() {
       setLeft(coords.left);
       setTop(coords.top);
     },
-    [linkMark, state.selection.anchor],
+    [linkMark, state.selection.anchor]
   );
 
   if (!state.selection.empty) return null;

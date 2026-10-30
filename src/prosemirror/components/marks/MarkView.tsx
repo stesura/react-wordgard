@@ -1,12 +1,6 @@
 import { Mark } from "prosemirror-model";
 import { MarkViewConstructor } from "prosemirror-view";
-import React, {
-  ComponentType,
-  ReactNode,
-  memo,
-  useContext,
-  useMemo,
-} from "react";
+import React, { ComponentType, ReactNode, memo, useContext, useMemo } from "react";
 
 import { NodeViewContext } from "../../contexts/NodeViewContext.js";
 
@@ -27,8 +21,7 @@ export const MarkView = memo(function MarkView(props: Props) {
 
   const component = (components[props.mark.type.name] ??
     DefaultMarkView) as ComponentType<MarkViewComponentProps>;
-  const constructor = constructors[props.mark.type.name] as
-    MarkViewConstructor | undefined;
+  const constructor = constructors[props.mark.type.name] as MarkViewConstructor | undefined;
 
   // Construct a wrapper component so that the mark view remounts when either
   // its component or constructor changes. A React mark view would remount

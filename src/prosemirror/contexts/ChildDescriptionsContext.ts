@@ -7,10 +7,9 @@ export type ChildDescriptionsContextValue = {
   siblingsRef: MutableRefObject<ViewDesc[]>;
 };
 
-export const ChildDescriptionsContext =
-  createContext<ChildDescriptionsContextValue>({
-    parentRef: { current: undefined },
-    siblingsRef: {
-      current: [],
-    },
-  });
+export const ChildDescriptionsContext = createContext<ChildDescriptionsContextValue>({
+  parentRef: { current: undefined },
+  siblingsRef: {
+    current: [],
+  },
+});

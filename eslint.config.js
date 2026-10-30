@@ -27,21 +27,14 @@ export default tseslint.config(
       "react-hooks/exhaustive-deps": [
         "warn",
         {
-          additionalHooks:
-            "(useEditorEffect|useLayoutGroupEffect|useClientLayoutEffect$)",
+          additionalHooks: "(useEditorEffect|useLayoutGroupEffect|useClientLayoutEffect$)",
         },
       ],
-      "sort-imports": [
-        "error",
-        { allowSeparatedGroups: true, ignoreDeclarationSort: true },
-      ],
+      "sort-imports": ["error", { allowSeparatedGroups: true, ignoreDeclarationSort: true }],
       // The TypeScript compiler checks this.
       "@typescript-eslint/no-unused-vars": "off",
       // viewdesc.ts, copied from ProseMirror, uses ternaries as statements.
-      "@typescript-eslint/no-unused-expressions": [
-        "error",
-        { allowTernary: true },
-      ],
+      "@typescript-eslint/no-unused-expressions": ["error", { allowTernary: true }],
     },
   },
   {
@@ -69,5 +62,5 @@ export default tseslint.config(
     files: ["scripts/**/*.js"],
     rules: { "no-console": "off" },
   },
-  prettier,
+  prettier
 );

@@ -27,19 +27,13 @@ export function computeDocDeco(view: AbstractEditorView) {
         if (attr == "class") attrs.class += " " + value[attr];
         else if (attr == "style")
           attrs.style = (attrs.style ? attrs.style + ";" : "") + value[attr];
-        else if (
-          !attrs[attr] &&
-          attr != "contenteditable" &&
-          attr != "nodeName"
-        )
+        else if (!attrs[attr] && attr != "contenteditable" && attr != "nodeName")
           attrs[attr] = String(value[attr]);
       }
   });
   if (!attrs.translate) attrs.translate = "no";
 
-  const next: [Decoration] = [
-    Decoration.node(0, view.state.doc.content.size, attrs),
-  ];
+  const next: [Decoration] = [Decoration.node(0, view.state.doc.content.size, attrs)];
 
   const previous = DocDecorationsCache.get(view);
   if (!previous) {

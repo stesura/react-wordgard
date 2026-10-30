@@ -31,9 +31,7 @@ if (!/^\d+\.\d+\.\d+$/.test(latest)) {
 console.log(`Pinning wordgard ${latest}.`);
 npm("install", "--save-exact", `wordgard@${latest}`);
 
-execFileSync(
-  process.execPath,
-  [join(root, "scripts", "sync-wordgard-tests.js")],
-  { stdio: "inherit" },
-);
+execFileSync(process.execPath, [join(root, "scripts", "sync-wordgard-tests.js")], {
+  stdio: "inherit",
+});
 console.log("Now run npm test.");

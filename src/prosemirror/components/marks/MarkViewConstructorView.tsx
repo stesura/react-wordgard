@@ -34,7 +34,7 @@ export const MarkViewConstructorView = memo(function MarkViewConstructorView({
       getPos,
       contentDOMRef: { current: null },
     }),
-    [mark, inline, getPos],
+    [mark, inline, getPos]
   );
 
   const createMarkView: MarkViewConstructor = (...args) => {
@@ -74,7 +74,7 @@ export const MarkViewConstructorView = memo(function MarkViewConstructorView({
         ignoreMutation: markView.ignoreMutation,
       };
     },
-    markProps,
+    markProps
   );
 
   const Component = inline ? "span" : "div";
@@ -88,7 +88,7 @@ export const MarkViewConstructorView = memo(function MarkViewConstructorView({
             <ChildDescriptionsContext.Provider value={childContextValue}>
               {children}
             </ChildDescriptionsContext.Provider>,
-            contentDOM,
+            contentDOM
           )
         : null}
     </Component>

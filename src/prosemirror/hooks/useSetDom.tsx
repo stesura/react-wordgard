@@ -4,7 +4,7 @@ export function useSetDom(
   domRef: MutableRefObject<HTMLElement | null>,
   refUpdated: () => void,
   isMounted?: () => boolean,
-  forceUpdate?: () => void,
+  forceUpdate?: () => void
 ) {
   const pendingRef = useRef(false);
 
@@ -50,6 +50,6 @@ export function useSetDom(
         refUpdated();
       });
     },
-    [domRef, forceUpdate, isMounted, refUpdated],
+    [domRef, forceUpdate, isMounted, refUpdated]
   );
 }

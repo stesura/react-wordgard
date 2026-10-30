@@ -1,9 +1,4 @@
-import {
-  TrailingHackViewDesc,
-  ViewDesc,
-  placeViewDesc,
-  sortViewDescs,
-} from "../viewdesc.js";
+import { TrailingHackViewDesc, ViewDesc, placeViewDesc, sortViewDescs } from "../viewdesc.js";
 
 // Seeded so that a failing sequence can be replayed.
 const mulberry32 = (seed: number) => () => {
@@ -39,25 +34,20 @@ describe("placeViewDesc", () => {
       }
 
       for (let step = 0; step < 200; step++) {
-        const movable = siblings.filter(
-          (desc) => !(desc instanceof TrailingHackViewDesc),
-        );
+        const movable = siblings.filter((desc) => !(desc instanceof TrailingHackViewDesc));
         const target = movable[below(movable.length)];
         const action = random();
 
         if (!target || action < 0.4) {
           // Shared positions are frequent, so DOM order breaks many ties.
           const dom = document.createElement("span");
-          parent.insertBefore(
-            dom,
-            parent.childNodes[below(parent.childNodes.length + 1)] ?? null,
-          );
+          parent.insertBefore(dom, parent.childNodes[below(parent.childNodes.length + 1)] ?? null);
           const desc: ViewDesc = new ViewDesc(
             undefined,
             [],
             () => positions.get(desc) ?? 0,
             dom,
-            null,
+            null
           );
           mount(desc, below(20));
         } else if (action < 0.7) {
@@ -70,9 +60,7 @@ describe("placeViewDesc", () => {
           placeViewDesc(siblings, target);
         }
 
-        expect(siblings.map(label)).toEqual(
-          [...siblings].sort(sortViewDescs).map(label),
-        );
+        expect(siblings.map(label)).toEqual([...siblings].sort(sortViewDescs).map(label));
       }
     }
   });
@@ -107,9 +95,11 @@ describe("placeViewDesc", () => {
       placeViewDesc(siblings, descs.img);
 
       expect(siblings.map(label)).toEqual(["text", "img", "br"]);
-      expect(
-        [descs.text, descs.br, descs.img].sort(sortViewDescs).map(label),
-      ).toEqual(["text", "br", "img"]);
+      expect([descs.text, descs.br, descs.img].sort(sortViewDescs).map(label)).toEqual([
+        "text",
+        "br",
+        "img",
+      ]);
     });
 
     it("match the full sort once both re-render", () => {
@@ -120,11 +110,7 @@ describe("placeViewDesc", () => {
       placeViewDesc(siblings, descs.br);
 
       expect(siblings.map(label)).toEqual(["text", "br", "img"]);
-      expect([...siblings].sort(sortViewDescs).map(label)).toEqual([
-        "text",
-        "br",
-        "img",
-      ]);
+      expect([...siblings].sort(sortViewDescs).map(label)).toEqual(["text", "br", "img"]);
     });
   });
 });

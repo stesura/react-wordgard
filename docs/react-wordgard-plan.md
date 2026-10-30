@@ -238,3 +238,22 @@ Stable inline partitions for Wordgard's mark shapes, memoised children from chan
   `test/wordgard-workspace.ts` adds the `#workspace` element and focuses the window; an audit
   confirmed the composition tests then run with real focus. Next: a `tempEditor` that mounts the
   React view, so the same files test it.
+- **2026-10-30, takeover point (before R1), done:** `ReactWordgard extends Wordgard`
+  (`src/ReactWordgard.ts`) swaps the tile tree Wordgard's constructor builds for a `ReactDocTile`
+  (`src/tile.ts`), and every update returns one, so our code owns the root and sits in every
+  flush. Wordgard still builds the tiles (`ReactDocTile.adopt` takes over its result); R1 replaces
+  that with React. The `view` test project runs the same 184 copied tests with their editors and
+  `Wordgard.DocTile` redirected to ours; sabotage checks showed 88 of them go through
+  `ReactDocTile.create` and 26 through `update`, and `test/view/redirect.test.ts` fails if the
+  redirect stops working. `runUpdate` needed no override, as hoped. How it differs from the plan's
+  wording ("the bridge subclasses Wordgard's editor and uses its internals"): internals are typed in
+  one file (`src/wordgardInternals.ts`, from the typings' own `Node.wgTile`, no casts); the
+  private constructor needs two `@ts-expect-error` (on the `extends` line and `super`).
+- **Open from the takeover:**
+  - `src/wordgardInternals.ts` augments `wordgard/editor` with `Wordgard.DocTile`; once our
+    public types reference it, consumers see that internal static too. Latent while
+    `src/index.ts` exports nothing.
+  - Our emitted `ReactWordgard.d.ts` extends a class with a private constructor, so consumers need
+    `skipLibCheck`; Wordgard's own typings already require it.
+  - Only `tempEditor`-based tests exercise the editor; mounting with `parent` (connect during
+    `super()`) is covered by our smoke test only.

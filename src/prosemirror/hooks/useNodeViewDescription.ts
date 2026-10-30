@@ -20,11 +20,9 @@ type Props = Omit<NodeViewComponentProps["nodeProps"], "contentDOMRef">;
 
 export function useNodeViewDescription(
   getDOM: () => HTMLElement | null,
-  getContentDOM: (
-    nodeView: { contentDOM?: HTMLElement | null } | null,
-  ) => HTMLElement | null,
+  getContentDOM: (nodeView: { contentDOM?: HTMLElement | null } | null) => HTMLElement | null,
   constructor: NodeViewConstructor,
-  props: Props,
+  props: Props
 ) {
   const mountedRef = useRef(false);
   const { view } = useContext(EditorContext);
@@ -45,13 +43,7 @@ export function useNodeViewDescription(
     }
 
     const { node, getPos, decorations, innerDecorations } = props;
-    const nodeView = constructor(
-      node,
-      view,
-      getPos,
-      decorations,
-      innerDecorations,
-    );
+    const nodeView = constructor(node, view, getPos, decorations, innerDecorations);
     if (!nodeView) {
       return;
     }
@@ -72,7 +64,7 @@ export function useNodeViewDescription(
       dom,
       contentDOM,
       nodeDOM,
-      nodeView,
+      nodeView
     );
 
     for (const child of children) {
@@ -201,7 +193,7 @@ export function useNodeViewDescription(
       parentRef: viewDescRef,
       siblingsRef: childrenRef,
     }),
-    [],
+    []
   );
 
   const isMounted = useCallback(() => mountedRef.current, []);
