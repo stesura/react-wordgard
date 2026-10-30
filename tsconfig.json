@@ -1,0 +1,38 @@
+/* Copyright (c) The New York Times Company */
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "include": ["src/**/*", "src/**/*.json"],
+  "compilerOptions": {
+    "lib": ["DOM", "ES2023", "DOM.Iterable"],
+    "target": "ES2015",
+    /* Input/output paths */
+    "outDir": "dist/types",
+    "rootDir": "src",
+    /* Output Options */
+    "declaration": true,
+    "noEmit": true,
+    /* Module Resolution Options */
+    "moduleResolution": "nodenext",
+    "module": "nodenext",
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "preserveSymlinks": true,
+    /* Advanced Options */
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    /* Strict Type-Checking Options */
+    "strict": true,
+    "isolatedModules": true,
+    /* Additional Checks */
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    /* Incremental Build Options */
+    "incremental": true,
+    /* "Classic" React JSX pragma */
+    "jsx": "react",
+    "types": ["node", "@wdio/globals/types", "@wdio/mocha-framework", "jest"]
+  }
+}

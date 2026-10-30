@@ -1,0 +1,7 @@
+# Copyright (c) The New York Times Company
+/dist/
+
+/docs/
+.direnv
+.devenv
+package-lock.json

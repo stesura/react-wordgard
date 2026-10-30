@@ -1,0 +1,4 @@
+// Copyright (c) The New York Times Company
+{
+  "recommendations": ["esbenp.prettier-vscode", "dbaeumer.vscode-eslint"]
+}

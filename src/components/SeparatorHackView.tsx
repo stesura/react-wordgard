@@ -1,0 +1,66 @@
+import React, { useContext, useRef, useState } from "react";
+
+import { browser } from "../browser.js";
+import { ChildDescriptionsContext } from "../contexts/ChildDescriptionsContext.js";
+import { useClientLayoutEffect } from "../hooks/useClientLayoutEffect.js";
+import { TrailingHackViewDesc, placeViewDesc } from "../viewdesc.js";
+
+type Props = {
+  getPos: () => number;
+};
+
+export function SeparatorHackView({ getPos }: Props) {
+  const { siblingsRef, parentRef } = useContext(ChildDescriptionsContext);
+  const viewDescRef = useRef<TrailingHackViewDesc | null>(null);
+  const ref = useRef<HTMLImageElement | null>(null);
+  const [shouldRender, setShouldRender] = useState(false);
+
+  useClientLayoutEffect(() => {
+    const siblings = siblingsRef.current;
+    return () => {
+      if (!viewDescRef.current) return;
+      if (siblings.includes(viewDescRef.current)) {
+        const index = siblings.indexOf(viewDescRef.current);
+        siblings.splice(index, 1);
+      }
+    };
+  }, [siblingsRef]);
+
+  // There's no risk of an infinite loop here, because
+  // we call setShouldRender conditionally
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useClientLayoutEffect(() => {
+    const nonHackSiblings = siblingsRef.current.filter(
+      (viewdesc) => !(viewdesc instanceof TrailingHackViewDesc)
+    );
+    const lastSibling = nonHackSiblings[nonHackSiblings.length - 1];
+    if (
+      !shouldRender &&
+      (browser.safari || browser.chrome) &&
+      (lastSibling?.dom as HTMLElement)?.contentEditable == "false"
+    ) {
+      setShouldRender(true);
+      return;
+    }
+
+    if (!ref.current) return;
+
+    if (!viewDescRef.current) {
+      viewDescRef.current = new TrailingHackViewDesc(
+        parentRef.current,
+        [],
+        getPos,
+        ref.current,
+        null
+      );
+    } else {
+      viewDescRef.current.parent = parentRef.current;
+      viewDescRef.current.dom = ref.current;
+    }
+    placeViewDesc(siblingsRef.current, viewDescRef.current);
+  });
+
+  return shouldRender ? (
+    <img ref={ref} className="ProseMirror-separator" alt="" />
+  ) : null;
+}

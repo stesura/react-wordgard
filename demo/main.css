@@ -1,0 +1,87 @@
+/* Copyright (c) The New York Times Company */
+.ProseMirror {
+  border: thin solid black;
+  border-radius: 0.25rem;
+  padding: 1rem;
+  outline: none;
+  min-height: 200px;
+}
+
+main {
+  margin: auto;
+  width: 80%;
+  max-width: 700px;
+}
+
+.cm-editor {
+  border-radius: 0.25rem;
+  padding: 1rem;
+}
+
+.link-tooltip {
+  position: absolute;
+  background-color: white;
+  transform: translate(-50%, -100%);
+  max-width: 20rem;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  font-size: 0.8rem;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+td,
+th {
+  padding: 0.5rem;
+  border: 1px solid black;
+}
+
+.menu {
+  position: sticky;
+  top: 5px;
+  display: flex;
+  flex-direction: row-reverse;
+  margin-bottom: 5px;
+  z-index: 1;
+}
+
+.button {
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
+  margin-right: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: none;
+  border: thin solid #ccc;
+  border-radius: 0.25rem;
+  color: black;
+  background-color: white;
+
+  &[aria-pressed="true"] {
+    background-color: #ddd;
+    color: blue;
+  }
+}
+
+.button.bold {
+  font-weight: 700;
+}
+
+.button.italic {
+  font-style: italic;
+}
+
+.visually-hidden {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
