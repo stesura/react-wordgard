@@ -6,10 +6,11 @@ A starting point for a React view over
 [Wordgard](https://www.npmjs.com/package/wordgard).
 
 This repository is derived from
-[react-prosemirror](https://github.com/handlewithcarecollective/react-prosemirror)
-(© The New York Times Company and Handle with Care Collective, MIT). The view
-code is still upstream's ProseMirror view, plus these changes for large
-documents:
+[react-prosemirror](https://github.com/handlewithcarecollective/react-prosemirror),
+by [Handle with Care Collective](https://github.com/handlewithcarecollective)
+and originally The New York Times Company. Thanks to them for the design this
+builds on. The view code is still upstream's ProseMirror view, plus these
+changes for large documents:
 
 - Node, mark, text and widget views place their view description among their
   siblings with a binary search instead of re-sorting the sibling list.
@@ -25,9 +26,21 @@ README.
 
 ## Development
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). In short: `npm install`,
-`npm run build`, `npm run check:types`, `npm test`.
+Needs Node 22.12 or later.
+
+```sh
+npm install
+npx playwright install chromium  # once, for the browser tests
+npm run build
+npm run check                    # types, lint, format
+npm test                         # unit (jsdom) and browser (Chromium) tests
+npm run demo                     # the demo, on Vite's dev server
+```
 
 ## Licence
 
-MIT, see [LICENSE.txt](LICENSE.txt).
+MIT, © 2026 Edoardo Caratti, see [LICENSE.txt](LICENSE.txt).
+
+Includes code from react-prosemirror (© Handle with Care Collective and The New
+York Times Company) and ProseMirror (© Marijn Haverbeke and others); their
+notices are in [THIRD_PARTY_LICENSES.txt](THIRD_PARTY_LICENSES.txt).

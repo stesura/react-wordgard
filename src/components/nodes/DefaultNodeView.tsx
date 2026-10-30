@@ -6,7 +6,7 @@ import { NodeViewComponentProps } from "../nodes/NodeViewComponentProps.js";
 export const DefaultNodeView = forwardRef<HTMLElement, NodeViewComponentProps>(
   function DefaultNodeView(
     { nodeProps: { node, contentDOMRef }, children, ...props },
-    ref
+    ref,
   ) {
     const spec = useMemo(() => node.type.spec.toDOM?.(node), [node]);
     if (!spec) {
@@ -23,5 +23,5 @@ export const DefaultNodeView = forwardRef<HTMLElement, NodeViewComponentProps>(
         {children}
       </OutputSpec>
     );
-  }
+  },
 );

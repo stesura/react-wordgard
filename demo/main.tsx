@@ -17,7 +17,6 @@ import { LinkTooltip } from "./LinkTooltip.js";
 import Menu from "./Menu.js";
 import { doc } from "./doc.js";
 import "./main.css";
-import { CodeBlock } from "./nodeViews/CodeBlock.js";
 import { schema } from "./schema.js";
 
 const editorState = EditorState.create({
@@ -47,10 +46,6 @@ const plugins = [
   gapCursor(),
 ];
 
-const nodeViews = {
-  code_block: CodeBlock,
-};
-
 function DemoEditor() {
   const [state, setState] = useState(editorState);
 
@@ -62,11 +57,9 @@ function DemoEditor() {
 
   return (
     <main>
-      <h1>React ProseMirror Demo</h1>
       <ProseMirror
         state={state}
         dispatchTransaction={dispatchTransaction}
-        nodeViewComponents={nodeViews}
         plugins={plugins}
       >
         <Menu />
@@ -77,21 +70,10 @@ function DemoEditor() {
   );
 }
 
-// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 const root = createRoot(document.getElementById("root")!);
 
 root.render(
   <StrictMode>
     <DemoEditor />
-  </StrictMode>
+  </StrictMode>,
 );
-
-// const root = document.getElementById("root")!;
-
-// const view = new EditorView(root, { state: editorState, plugins });
-// root.addEventListener("beforeinput", (e) => {
-//   console.log("beforeinput", view.dom.innerHTML);
-// });
-// root.addEventListener("beforeinput", (e) => {
-//   console.log("input", view.dom.innerHTML);
-// });

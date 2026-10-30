@@ -7,11 +7,11 @@ import { MarkViewComponentProps } from "./MarkViewComponentProps.js";
 export const DefaultMarkView = forwardRef<HTMLElement, MarkViewComponentProps>(
   function DefaultMarkView(
     { markProps: { mark, inline, contentDOMRef }, children, ...props },
-    ref
+    ref,
   ) {
     const spec = useMemo(
       () => mark.type.spec.toDOM?.(mark, inline),
-      [mark, inline]
+      [mark, inline],
     );
     if (!spec) {
       throw new Error(`Mark spec for ${mark.type.name} is missing toDOM`);
@@ -28,5 +28,5 @@ export const DefaultMarkView = forwardRef<HTMLElement, MarkViewComponentProps>(
         {children}
       </OutputSpec>
     );
-  }
+  },
 );

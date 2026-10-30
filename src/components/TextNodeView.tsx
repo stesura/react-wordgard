@@ -11,7 +11,7 @@ import { wrapInDeco } from "./ChildNodeViews.js";
 
 function shallowEqual(
   objA: Record<string, unknown>,
-  objB: Record<string, unknown>
+  objB: Record<string, unknown>,
 ): boolean {
   if (objA === objB) {
     return true;
@@ -30,7 +30,6 @@ function shallowEqual(
   }
 
   for (let i = 0; i < len; i++) {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const key = aKeys[i]!;
 
     if (
@@ -82,7 +81,7 @@ export class TextNodeView extends Component<Props> {
       decorations,
       DecorationSet.empty,
       dom,
-      textNode
+      textNode,
     );
 
     placeViewDesc(siblingsRef.current, viewDesc);

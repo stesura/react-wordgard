@@ -35,7 +35,7 @@ export function WidgetView({ widget, getPos }: Props) {
         parentRef.current,
         getPos,
         widget,
-        domRef.current
+        domRef.current,
       );
     } else {
       viewDescRef.current.parent = parentRef.current;

@@ -35,7 +35,7 @@ export const DocNodeView = memo(
       setMount,
       ...elementProps
     },
-    ref
+    ref,
   ) {
     const innerRef = useRef<HTMLElement>(null);
     useImperativeHandle(ref, () => innerRef.current as HTMLElement);
@@ -49,7 +49,7 @@ export const DocNodeView = memo(
         innerDecorations,
         contentDOMRef: innerRef,
       }),
-      [node, getPos, decorations, innerDecorations]
+      [node, getPos, decorations, innerDecorations],
     );
 
     const { childContextValue } = useNodeViewDescription(
@@ -65,7 +65,7 @@ export const DocNodeView = memo(
           },
         };
       },
-      nodeProps
+      nodeProps,
     );
 
     const children = (
@@ -89,5 +89,5 @@ export const DocNodeView = memo(
       : createElement("div", props, children);
 
     return nodeProps.decorations.reduce(wrapInDeco, element);
-  })
+  }),
 );

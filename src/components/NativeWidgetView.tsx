@@ -33,8 +33,7 @@ export function NativeWidgetView({ widget, getPos }: Props) {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const toDOM = (widget as any).type.toDOM as
-      | HTMLElement
-      | ((view: EditorView, getPos: () => number) => HTMLElement);
+      HTMLElement | ((view: EditorView, getPos: () => number) => HTMLElement);
     let dom = typeof toDOM === "function" ? toDOM(view, getPos) : toDOM;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (!(widget as any).type.spec.raw) {
@@ -61,7 +60,7 @@ export function NativeWidgetView({ widget, getPos }: Props) {
         parentRef.current,
         getPos,
         widget,
-        rootDomRef.current
+        rootDomRef.current,
       );
     } else {
       viewDescRef.current.parent = parentRef.current;

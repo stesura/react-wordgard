@@ -210,3 +210,8 @@ Stable inline partitions for Wordgard's mark shapes, memoised children from chan
 - **Accessibility of Wordgard's drawn cursor and selection** (`src/editor/drawcursor.ts`): untested.
 - **Server-side rendering:** whether to keep a static view (react-prosemirror's `StaticEditorView`)
   or render from Wordgard's HTML serializer.
+- **Rules of React lint (deferred, 2026-10-30):** ESLint runs only `rules-of-hooks` and
+  `exhaustive-deps`. The react-hooks plugin's full `recommended` preset (the React Compiler's
+  checks) gave 35 findings, all in the ProseMirror view code, mostly refs written during render.
+  Turn it on when the Wordgard code starts (R1), excepting the old files until they're replaced.
+  Details in `eslint.config.js`.

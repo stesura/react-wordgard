@@ -5,9 +5,9 @@ export type DeselectNode = () => void;
 
 type SelectNodeContextValue = (
   selectNode: SelectNode,
-  deselectNode: DeselectNode
+  deselectNode: DeselectNode,
 ) => void;
 
 export const SelectNodeContext = createContext<SelectNodeContextValue>(
-  null as unknown as SelectNodeContextValue
+  null as unknown as SelectNodeContextValue,
 );

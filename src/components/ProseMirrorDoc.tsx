@@ -21,7 +21,7 @@ export interface DocNodeViewContextValue {
 }
 
 export const DocNodeViewContext = createContext<DocNodeViewContextValue>(
-  null as unknown as DocNodeViewContextValue
+  null as unknown as DocNodeViewContextValue,
 );
 
 interface Props extends Omit<HTMLProps<HTMLElement>, "as"> {
@@ -35,5 +35,5 @@ export const ProseMirrorDoc = forwardRef<HTMLElement, Props>(
     return (
       <DocNodeView ref={ref} {...props} {...(store?.doc ?? docProps)} as={as} />
     );
-  }
+  },
 );

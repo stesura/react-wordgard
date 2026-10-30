@@ -16,7 +16,6 @@ function buildNodeViews(view: ReactEditorView) {
   function add(obj: NodeViewSet) {
     for (const prop in obj)
       if (!Object.prototype.hasOwnProperty.call(result, prop))
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         result[prop] = obj[prop]!;
   }
   view.someProp("nodeViews", add);
@@ -209,7 +208,7 @@ export class ReactEditorView extends EditorView implements AbstractEditorView {
 
     this.editable = !this.someProp(
       "editable",
-      (value) => value(this.state) === false
+      (value) => value(this.state) === false,
     );
   }
 
@@ -219,14 +218,14 @@ export class ReactEditorView extends EditorView implements AbstractEditorView {
 
   someProp<PropName extends keyof EditorProps, Result>(
     propName: PropName,
-    f: (value: NonNullable<EditorProps[PropName]>) => Result
+    f: (value: NonNullable<EditorProps[PropName]>) => Result,
   ): Result | undefined;
   someProp<PropName extends keyof EditorProps>(
-    propName: PropName
+    propName: PropName,
   ): NonNullable<EditorProps[PropName]> | undefined;
   someProp<PropName extends keyof EditorProps, Result>(
     propName: PropName,
-    f?: (value: NonNullable<EditorProps[PropName]>) => Result
+    f?: (value: NonNullable<EditorProps[PropName]>) => Result,
   ) {
     if (!this.props) {
       // The base class constructor calls this method before props are set.

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { Node } from "prosemirror-model";
 import { Decoration, DecorationSource } from "prosemirror-view";
 
@@ -28,15 +27,15 @@ export function iterDeco(
     isNative: boolean,
     offset: number,
     index: number,
-    insideNode: boolean
+    insideNode: boolean,
   ) => void,
   onNode: (
     node: Node,
     outerDeco: readonly Decoration[],
     innerDeco: DecorationSource,
     offset: number,
-    index: number
-  ) => void
+    index: number,
+  ) => void,
 ) {
   const locals = (deco as InternalDecorationSource).locals(parent);
   let offset = 0;
@@ -49,7 +48,7 @@ export function iterDeco(
         locals,
         (deco as InternalDecorationSource).forChild(offset, child),
         offset,
-        i
+        i,
       );
       offset += child.nodeSize;
     }
@@ -59,7 +58,7 @@ export function iterDeco(
   let decoIndex = 0;
   const active = [];
   let restNode = null;
-  for (let parentIndex = 0; ; ) {
+  for (let parentIndex = 0; ;) {
     if (decoIndex < locals.length && locals[decoIndex]!.to == offset) {
       let widget;
       let widgets;
@@ -85,7 +84,7 @@ export function iterDeco(
               !((widgets[i]! as any).type instanceof ReactWidgetType),
               offset,
               parentIndex + i,
-              !!restNode
+              !!restNode,
             );
         } else {
           onWidget(
@@ -94,7 +93,7 @@ export function iterDeco(
             !((widget as any).type instanceof ReactWidgetType),
             offset,
             parentIndex,
-            !!restNode
+            !!restNode,
           );
         }
       }
@@ -149,7 +148,7 @@ export function iterDeco(
       outerDeco,
       (deco as InternalDecorationSource).forChild(offset, child),
       offset,
-      index
+      index,
     );
     offset = end;
   }

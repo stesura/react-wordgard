@@ -12,7 +12,7 @@ import { EditorStateStoreContext } from "../contexts/EditorStateStoreContext.js"
  * changes.
  */
 export function useEditorStateSelector<Result>(
-  selector: (state: EditorState) => Result
+  selector: (state: EditorState) => Result,
 ): Result {
   const store = useContext(EditorStateStoreContext);
 

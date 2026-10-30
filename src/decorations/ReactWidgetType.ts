@@ -8,7 +8,7 @@ import { DOMNode } from "../dom.js";
 
 function compareObjs(
   a: { [prop: string]: unknown },
-  b: { [prop: string]: unknown }
+  b: { [prop: string]: unknown },
 ) {
   if (a == b) return true;
   for (const p in a) if (a[p] !== b[p]) return false;
@@ -22,7 +22,7 @@ export interface DecorationType {
     mapping: Mappable,
     span: Decoration,
     offset: number,
-    oldOffset: number
+    oldOffset: number,
   ): Decoration | null;
   valid(node: Node, span: Decoration): boolean;
   eq(other: DecorationType): boolean;
@@ -52,7 +52,7 @@ export class ReactWidgetType implements DecorationType {
     public Component: ForwardRefExoticComponent<
       RefAttributes<HTMLElement> & WidgetViewComponentProps
     >,
-    spec?: ReactWidgetSpec
+    spec?: ReactWidgetSpec,
   ) {
     this.spec = spec ?? noSpec;
     this.side = this.spec.side ?? 0;
@@ -62,11 +62,11 @@ export class ReactWidgetType implements DecorationType {
     mapping: Mappable,
     span: Decoration,
     offset: number,
-    oldOffset: number
+    oldOffset: number,
   ): Decoration | null {
     const { pos, deleted } = mapping.mapResult(
       span.from + oldOffset,
-      this.side < 0 ? -1 : 1
+      this.side < 0 ? -1 : 1,
     );
     // @ts-expect-error The Decoration constructor is private/internal, but
     // we need to use it for our custom widget implementation here.
@@ -96,7 +96,7 @@ export function widget<E extends HTMLElement>(
   component: ForwardRefExoticComponent<
     RefAttributes<E> & WidgetViewComponentProps
   >,
-  spec?: ReactWidgetSpec
+  spec?: ReactWidgetSpec,
 ) {
   // @ts-expect-error The Decoration constructor is private/internal, but
   // we need to use it for our custom widget implementation here.

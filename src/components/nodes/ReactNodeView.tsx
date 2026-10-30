@@ -70,7 +70,7 @@ export const ReactNodeView = memo(function ReactNodeView({
         setHasCustomSelectNode(false);
       };
     },
-    []
+    [],
   );
 
   const setStopEvent = useCallback((handler: StopEvent | null) => {
@@ -97,7 +97,7 @@ export const ReactNodeView = memo(function ReactNodeView({
       decorations: outerDeco,
       innerDecorations: innerDeco,
     }),
-    [getPos, innerDeco, node, outerDeco]
+    [getPos, innerDeco, node, outerDeco],
   );
 
   const { childContextValue, refUpdated, isMounted } = useNodeViewDescription(
@@ -147,7 +147,7 @@ export const ReactNodeView = memo(function ReactNodeView({
         },
       };
     },
-    nodeViewDescProps
+    nodeViewDescProps,
   );
 
   const setDOM = useSetDom(domRef, refUpdated, isMounted, forceUpdate);
@@ -158,7 +158,7 @@ export const ReactNodeView = memo(function ReactNodeView({
     contentDOMRef,
     refUpdated,
     isMounted,
-    forceUpdate
+    forceUpdate,
   );
 
   const nodeProps = useMemo(
@@ -166,7 +166,7 @@ export const ReactNodeView = memo(function ReactNodeView({
       ...nodeViewDescProps,
       contentDOMRef: setContentDOM,
     }),
-    [nodeViewDescProps, setContentDOM]
+    [nodeViewDescProps, setContentDOM],
   );
 
   // Before mount the content ref is still null; guess from the schema so
@@ -210,7 +210,7 @@ export const ReactNodeView = memo(function ReactNodeView({
 
   const element = cloneElement(
     outerDeco.reduce(wrapInDeco, <Component {...props}>{children}</Component>),
-    { ref: setDOM }
+    { ref: setDOM },
   );
 
   return (

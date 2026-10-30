@@ -32,7 +32,7 @@ export interface ReactKeysPluginState {
 }
 
 export const reactKeysPluginKey = new PluginKey<ReactKeysPluginState>(
-  "react-wordgard/reactKeys"
+  "react-wordgard/reactKeys",
 );
 
 export type ReactKeysPluginMeta =
@@ -102,7 +102,7 @@ export function reactKeys() {
                         type: ReactWidgetType;
                       }
                     ).type.Component,
-                    value.cursorWrapper.spec
+                    value.cursorWrapper.spec,
                   )
                 : null
               : cursorWrapper,
@@ -139,7 +139,7 @@ export function reactKeys() {
         }
 
         const posToKeyEntries = Array.from(value.posToKey.entries()).sort(
-          ([a], [b]) => a - b
+          ([a], [b]) => a - b,
         );
         for (const [pos, key] of posToKeyEntries) {
           const override = overrides?.[pos];

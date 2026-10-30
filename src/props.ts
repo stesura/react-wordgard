@@ -5,7 +5,7 @@ let patched = false;
 
 function patchConsoleError() {
   if (patched) return;
-  /* eslint-disable no-console */
+
   const consoleError = console.error;
   console.error = function (...data: unknown[]) {
     const [message, prop, correction] = data;
@@ -20,7 +20,6 @@ function patchConsoleError() {
     consoleError(...data);
   };
   patched = true;
-  /* eslint-enable no-console */
 }
 
 function mergeStyleProps(a: HTMLProps<HTMLElement>, b: HTMLProps<HTMLElement>) {
@@ -43,7 +42,7 @@ function mergeStyleProps(a: HTMLProps<HTMLElement>, b: HTMLProps<HTMLElement>) {
  */
 export function mergeReactProps(
   a: HTMLProps<HTMLElement>,
-  b: HTMLProps<HTMLElement>
+  b: HTMLProps<HTMLElement>,
 ) {
   return {
     ...a,
@@ -62,7 +61,7 @@ export function mergeReactProps(
  * equivalent React props.
  */
 export function htmlAttrsToReactProps(
-  attrs: Record<string, string>
+  attrs: Record<string, string>,
 ): HTMLProps<HTMLElement> {
   patchConsoleError();
   const props: Record<string, unknown> = {};

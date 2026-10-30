@@ -34,7 +34,9 @@ All paths below are relative to `../wordgard/src/` unless stated.
 - Tests: `test/test-*.ts` run in node (mocha); `test/webtest-*.ts` run in a browser via
   `npm run testserver` or `npm run test-headless` (needs Chrome). Editor helper:
   `test/tempview.ts` (`tempEditor`); builders in `test/schema.ts`. Deps aren't installed in
-  `../wordgard` or here; run `npm install` first.
+  `../wordgard`; run `npm install` there first. They fire their own `beforeinput`, `input`
+  and composition events, so they run as they are in Vitest's browser mode (this repo's
+  `browser` test project).
 
 ## Document model (differs from ProseMirror)
 

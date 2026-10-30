@@ -28,8 +28,7 @@ export const MarkView = memo(function MarkView(props: Props) {
   const component = (components[props.mark.type.name] ??
     DefaultMarkView) as ComponentType<MarkViewComponentProps>;
   const constructor = constructors[props.mark.type.name] as
-    | MarkViewConstructor
-    | undefined;
+    MarkViewConstructor | undefined;
 
   // Construct a wrapper component so that the mark view remounts when either
   // its component or constructor changes. A React mark view would remount

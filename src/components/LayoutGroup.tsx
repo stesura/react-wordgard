@@ -54,7 +54,7 @@ export function LayoutGroup({ children }: LayoutGroupProps) {
         }
       };
     },
-    [createQueue, destroyQueue, ensureFlush]
+    [createQueue, destroyQueue, ensureFlush],
   );
 
   useClientLayoutEffect(() => {

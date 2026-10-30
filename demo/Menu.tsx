@@ -6,6 +6,8 @@ import type { ReactNode } from "react";
 
 import { useEditorEventCallback, useEditorState } from "../src/index.js";
 
+import { schema } from "./schema.js";
+
 // lifted from:
 // https://github.com/ProseMirror/prosemirror-example-setup/blob/master/src/menu.ts#L58
 function isMarkActive(mark: MarkType, state: EditorState): boolean {
@@ -42,13 +44,13 @@ export default function Menu() {
   const state = useEditorState();
 
   const toggleBold = useEditorEventCallback((view) => {
-    const toggleBoldMark = toggleMark(view.state.schema.marks["strong"]);
+    const toggleBoldMark = toggleMark(schema.marks.strong);
     toggleBoldMark(view.state, view.dispatch, view);
     view.focus();
   });
 
   const toggleItalic = useEditorEventCallback((view) => {
-    const toggleItalicMark = toggleMark(view.state.schema.marks["em"]);
+    const toggleItalicMark = toggleMark(schema.marks.em);
     toggleItalicMark(view.state, view.dispatch, view);
     view.focus();
   });
@@ -58,7 +60,7 @@ export default function Menu() {
       <Button
         className="bold"
         title="Bold (⌘b)"
-        isActive={isMarkActive(state.schema.marks["strong"], state)}
+        isActive={isMarkActive(schema.marks.strong, state)}
         onClick={toggleBold}
       >
         B
@@ -66,7 +68,7 @@ export default function Menu() {
       <Button
         className="italic"
         title="Italic (⌘i)"
-        isActive={isMarkActive(state.schema.marks["em"], state)}
+        isActive={isMarkActive(schema.marks.em, state)}
         onClick={toggleItalic}
       >
         I

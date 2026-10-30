@@ -34,7 +34,7 @@ export function TrailingHackView({ getPos }: Props) {
         [],
         getPos,
         ref.current,
-        null
+        null,
       );
     } else {
       viewDescRef.current.parent = parentRef.current;

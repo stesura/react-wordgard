@@ -1,7 +1,7 @@
 import { useCallback, useLayoutEffect, useRef } from "react";
 
 export function useEffectEvent<P extends unknown[], R>(
-  fn: (...args: P) => R
+  fn: (...args: P) => R,
 ): (...funcArgs: P) => R {
   const ref = useRef(fn);
 

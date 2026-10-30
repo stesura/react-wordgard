@@ -222,7 +222,6 @@ const InlineView = memo(function InlineView({
       (!child.marks.length && !lastChild.marks.length) ||
       (child.marks.length &&
         lastChild.marks.length &&
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         child.marks[0]?.eq(lastChild.marks[0]!))
     ) {
       return [
@@ -257,7 +256,7 @@ function createKey(
   index: number,
   type: Child["type"],
   posToKey: Map<number, string> | undefined,
-  widget?: ReactWidgetDecoration | Decoration
+  widget?: ReactWidgetDecoration | Decoration,
 ) {
   const pos = innerPos + offset;
   const key = posToKey?.get(pos);
@@ -271,7 +270,7 @@ function createKey(
     if (type === "widget") {
       // eslint-disable-next-line no-console
       console.warn(
-        `Widget at position ${pos} doesn't have a key specified. React ProseMirror will generate a key partially based on this widget’s index into its parent’s children. This can cause issues if there are multiple adjacent widgets.`
+        `Widget at position ${pos} doesn't have a key specified. React ProseMirror will generate a key partially based on this widget’s index into its parent’s children. This can cause issues if there are multiple adjacent widgets.`,
       );
     }
     return `${key}-${index}`;
@@ -292,7 +291,7 @@ function createKey(
 
 function adjustWidgetMarksForward(
   lastNodeChild: ChildNode | null,
-  widgetChild: ChildWidget | ChildNativeWidget | null
+  widgetChild: ChildWidget | ChildNativeWidget | null,
 ) {
   if (
     !widgetChild ||
@@ -308,19 +307,18 @@ function adjustWidgetMarksForward(
 
   widgetChild.marks = widgetChild.marks.reduce(
     (acc, mark) => mark.addToSet(acc),
-    marksToSpread
+    marksToSpread,
   );
 }
 
 function adjustWidgetMarksBack(
   widgetChildren: Array<ChildNativeWidget | ChildWidget>,
-  nodeChild: ChildNode
+  nodeChild: ChildNode,
 ) {
   if (!nodeChild.node.isInline) return;
 
   const marksToSpread = nodeChild.marks;
   for (let i = widgetChildren.length - 1; i >= 0; i--) {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const child = widgetChildren[i]!;
 
     if (
@@ -336,7 +334,7 @@ function adjustWidgetMarksBack(
 
     child.marks = child.marks.reduce(
       (acc, mark) => mark.addToSet(acc),
-      marksToSpread
+      marksToSpread,
     );
   }
 }
@@ -369,7 +367,7 @@ const ChildElement = memo(
           node={child.node}
           innerDeco={child.innerDeco}
           getPos={getPos}
-        />
+        />,
       );
     } else {
       return (
@@ -380,7 +378,7 @@ const ChildElement = memo(
         />
       );
     }
-  }
+  },
   /**
    * It's safe to skip re-rendering a ChildElement component as long
    * as its child prop is shallowly equivalent to the previous render.
@@ -392,14 +390,13 @@ const ChildElement = memo(
 
 function createChildElements(
   children: Child[],
-  getInnerPos: () => number
+  getInnerPos: () => number,
 ): ReactNode[] {
   if (!children.length) return [];
 
   if (children.every((child) => child.type !== "node" || child.node.isInline)) {
     return [
       <InlineView
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         key={children[0]!.key}
         childViews={children}
         getInnerPos={getInnerPos}
@@ -451,7 +448,7 @@ export const ChildNodeViews = memo(function ChildNodeViews({
           index,
           "native-widget",
           posToKey,
-          widget
+          widget,
         );
         const child = {
           type: "native-widget",
@@ -475,7 +472,7 @@ export const ChildNodeViews = memo(function ChildNodeViews({
           index,
           "widget",
           posToKey,
-          widget
+          widget,
         );
         const child = {
           type: "widget",
@@ -497,7 +494,7 @@ export const ChildNodeViews = memo(function ChildNodeViews({
       widgetChildren.push(child);
       adjustWidgetMarksForward(
         lastNodeChild,
-        childMap.get(key) as ChildWidget | ChildNativeWidget
+        childMap.get(key) as ChildWidget | ChildNativeWidget,
       );
     },
     (childNode, outerDeco, innerDeco, offset, index) => {
@@ -524,7 +521,7 @@ export const ChildNodeViews = memo(function ChildNodeViews({
       keysSeen.set(key, keysSeen.size);
       adjustWidgetMarksBack(widgetChildren, lastNodeChild);
       widgetChildren = [];
-    }
+    },
   );
 
   for (const key of childMap.keys()) {
@@ -536,8 +533,8 @@ export const ChildNodeViews = memo(function ChildNodeViews({
   const children = Array.from(childMap.values()).sort(
     // We already ensured that these existed in keysSeen in the previous
     // step
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    (a, b) => keysSeen.get(a.key)! - keysSeen.get(b.key)!
+
+    (a, b) => keysSeen.get(a.key)! - keysSeen.get(b.key)!,
   );
 
   if (node.isTextblock) {
@@ -548,7 +545,7 @@ export const ChildNodeViews = memo(function ChildNodeViews({
       lastChild.type !== "node" ||
       (lastChild.node.isInline && !lastChild.node.isText) ||
       // RegExp.test actually handles undefined just fine
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+
       /\n$/.test(lastChild.node.text!)
     ) {
       children.push(
@@ -567,7 +564,7 @@ export const ChildNodeViews = memo(function ChildNodeViews({
           offset: lastChild?.offset ?? 0,
           index: (lastChild?.index ?? 0) + 2,
           key: "trailing-hack-br",
-        }
+        },
       );
     }
   }

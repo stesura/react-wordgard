@@ -15,7 +15,7 @@ import { useEditorEffect } from "./useEditorEffect.js";
  */
 export function useEditorEventListener<EventType extends keyof DOMEventMap>(
   eventType: EventType,
-  handler: EventHandler<EventType>
+  handler: EventHandler<EventType>,
 ) {
   const { registerEventListener, unregisterEventListener } =
     useContext(EditorContext);
@@ -29,11 +29,10 @@ export function useEditorEventListener<EventType extends keyof DOMEventMap>(
   const eventHandler = useCallback(function (
     this: Plugin,
     view: EditorView,
-    event: DOMEventMap[EventType]
+    event: DOMEventMap[EventType],
   ) {
     return ref.current.call(this, view, event);
-  },
-  []);
+  }, []);
 
   useEditorEffect(() => {
     registerEventListener(eventType, eventHandler);

@@ -1,5 +1,5 @@
 /* Copyright (c) The New York Times Company */
-/* eslint-disable @typescript-eslint/no-empty-function */
+
 import { render } from "@testing-library/react";
 import React from "react";
 
@@ -24,11 +24,11 @@ function TestComponent({
 
 describe("useEditorEffect", () => {
   it("should run the effect", () => {
-    const effect = jest.fn();
+    const effect = vi.fn();
     const editorState = EMPTY_STATE;
     const editorView = new ReactEditorView(
       { mount: document.createElement("div") },
-      { state: editorState }
+      { state: editorState },
     );
     const registerEventListener = () => {};
     const unregisterEventListener = () => {};
@@ -49,7 +49,7 @@ describe("useEditorEffect", () => {
             <TestComponent effect={effect} />
           </EditorStateContext.Provider>
         </EditorContext.Provider>
-      </LayoutGroup>
+      </LayoutGroup>,
     );
 
     expect(effect).toHaveBeenCalled();
@@ -57,11 +57,11 @@ describe("useEditorEffect", () => {
   });
 
   it("should not re-run the effect if no dependencies change", () => {
-    const effect = jest.fn();
+    const effect = vi.fn();
     const editorState = EMPTY_STATE;
     const editorView = new ReactEditorView(
       { mount: document.createElement("div") },
-      { state: editorState }
+      { state: editorState },
     );
     const registerEventListener = () => {};
     const unregisterEventListener = () => {};
@@ -82,7 +82,7 @@ describe("useEditorEffect", () => {
             <TestComponent effect={effect} dependencies={[]} />
           </EditorStateContext.Provider>{" "}
         </EditorContext.Provider>
-      </LayoutGroup>
+      </LayoutGroup>,
     );
 
     rerender(
@@ -92,18 +92,18 @@ describe("useEditorEffect", () => {
             <TestComponent effect={effect} dependencies={[]} />
           </EditorStateContext.Provider>
         </EditorContext.Provider>
-      </LayoutGroup>
+      </LayoutGroup>,
     );
 
     expect(effect).toHaveBeenCalledTimes(1);
   });
 
   it("should re-run the effect if dependencies change", () => {
-    const effect = jest.fn();
+    const effect = vi.fn();
     const editorState = EMPTY_STATE;
     const editorView = new ReactEditorView(
       { mount: document.createElement("div") },
-      { state: editorState }
+      { state: editorState },
     );
     const registerEventListener = () => {};
     const unregisterEventListener = () => {};
@@ -123,7 +123,7 @@ describe("useEditorEffect", () => {
             <TestComponent effect={effect} dependencies={["one"]} />
           </EditorStateContext.Provider>
         </EditorContext.Provider>
-      </LayoutGroup>
+      </LayoutGroup>,
     );
 
     rerender(
@@ -141,7 +141,7 @@ describe("useEditorEffect", () => {
             <TestComponent effect={effect} dependencies={["two"]} />
           </EditorStateContext.Provider>
         </EditorContext.Provider>
-      </LayoutGroup>
+      </LayoutGroup>,
     );
 
     expect(effect).toHaveBeenCalledTimes(2);

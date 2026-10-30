@@ -3,7 +3,7 @@ import { Decoration, DecorationSource } from "prosemirror-view";
 import { AllHTMLAttributes, LegacyRef, Ref } from "react";
 
 export type NodeViewComponentProps<
-  Attributes = AllHTMLAttributes<HTMLElement>
+  Attributes = AllHTMLAttributes<HTMLElement>,
 > = Attributes & {
   nodeProps: {
     decorations: readonly Decoration[];

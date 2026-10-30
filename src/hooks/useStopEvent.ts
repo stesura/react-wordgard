@@ -7,7 +7,7 @@ import { useEditorEffect } from "./useEditorEffect.js";
 import { useEditorEventCallback } from "./useEditorEventCallback.js";
 
 export function useStopEvent(
-  stopEvent: (this: NodeView, view: EditorView, event: Event) => boolean
+  stopEvent: (this: NodeView, view: EditorView, event: Event) => boolean,
 ) {
   const register = useContext(StopEventContext);
   const stopEventMemo = useEditorEventCallback(stopEvent);

@@ -30,7 +30,6 @@ import { DocNodeViewContext, ProseMirrorDoc } from "../ProseMirrorDoc.js";
  */
 
 declare global {
-  // eslint-disable-next-line no-var
   var IS_REACT_ACT_ENVIRONMENT: boolean | undefined;
 }
 
@@ -93,7 +92,7 @@ const mountHarness = (notifyIn: "dispatch" | "render" | "layoutEffect") => {
     // Stands in for commitPendingEffects: reads the doc DOM in the commit.
     useLayoutEffect(() => {
       log.commits.push(
-        `${value}:${document.querySelector("[data-testid=doc]")?.textContent}`
+        `${value}:${document.querySelector("[data-testid=doc]")?.textContent}`,
       );
     });
     return <Doc store={store} />;
@@ -144,7 +143,7 @@ describe("useSyncExternalStore consumer vs the parent's commit", () => {
   // Lands in the same commit, but it is a render-phase update of another
   // component: React warns and does not promise the behaviour.
   it("set and notified during the parent's render: same commit, with React's render-phase warning", () => {
-    const error = jest
+    const error = vi
       .spyOn(console, "error")
       .mockImplementation(() => undefined);
     const { dispatch, log } = mountHarness("render");
@@ -153,7 +152,7 @@ describe("useSyncExternalStore consumer vs the parent's commit", () => {
 
     expect(log.commits).toEqual(["1:1"]);
     expect(String(error.mock.calls[0]?.[0])).toContain(
-      "Cannot update a component"
+      "Cannot update a component",
     );
     error.mockRestore();
   });
@@ -215,7 +214,7 @@ for (const stableContexts of [false, true]) {
           EditorState.create({
             doc: doc(p("hello world")),
             plugins: [reactKeys(), ...plugins],
-          })
+          }),
         );
         const [, setTick] = useState(0);
         captured.setState = setState;
@@ -253,8 +252,8 @@ for (const stableContexts of [false, true]) {
       for (const offset of [3, 7, 1, 11]) {
         view.dispatch(
           view.state.tr.setSelection(
-            TextSelection.create(view.state.doc, start + offset)
-          )
+            TextSelection.create(view.state.doc, start + offset),
+          ),
         );
         expect(domSelectionPos(view)).toBe(start + offset);
       }
@@ -270,7 +269,7 @@ for (const stableContexts of [false, true]) {
       view.dispatch(view.state.tr.insertText("X", start));
 
       expect(container.querySelector("output")?.textContent).toBe(
-        "Xhello world"
+        "Xhello world",
       );
     });
 
@@ -297,7 +296,7 @@ for (const stableContexts of [false, true]) {
 
       expect(contextRenders.length - before).toBe(stableContexts ? 0 : 1);
       expect(container.querySelector("output")?.textContent).toBe(
-        "Xhello world"
+        "Xhello world",
       );
     });
 
@@ -310,7 +309,7 @@ for (const stableContexts of [false, true]) {
 
       expect(view.dom.textContent).toBe("Yhello world");
       expect(container.querySelector("output")?.textContent).toBe(
-        "Yhello world"
+        "Yhello world",
       );
     });
 
@@ -323,7 +322,7 @@ for (const stableContexts of [false, true]) {
             const text = view.state.doc.textContent;
             if (text.startsWith("Z") && !text.endsWith("?")) {
               view.dispatch(
-                view.state.tr.insertText("?", view.state.doc.content.size - 1)
+                view.state.tr.insertText("?", view.state.doc.content.size - 1),
               );
             }
           },
@@ -337,7 +336,7 @@ for (const stableContexts of [false, true]) {
       expect(view.state.doc.textContent).toBe("Zhello world?");
       expect(view.dom.textContent).toBe("Zhello world?");
       expect(container.querySelector("output")?.textContent).toBe(
-        "Zhello world?"
+        "Zhello world?",
       );
     });
   });

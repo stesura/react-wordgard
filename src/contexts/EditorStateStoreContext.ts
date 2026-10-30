@@ -36,5 +36,5 @@ export function createEditorStateStore(): EditorStateStore {
 }
 
 export const EditorStateStoreContext = createContext<EditorStateStore>(
-  null as unknown as EditorStateStore
+  null as unknown as EditorStateStore,
 );

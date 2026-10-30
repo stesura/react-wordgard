@@ -43,7 +43,7 @@ let didWarnValueDefaultValue = false;
  */
 export function useEditor<T extends HTMLElement = HTMLElement>(
   mount: T | null,
-  options: UseEditorOptions
+  options: UseEditorOptions,
 ) {
   if (process.env.NODE_ENV !== "production") {
     if (
@@ -57,7 +57,7 @@ export function useEditor<T extends HTMLElement = HTMLElement>(
           "(specify either the state prop, or the defaultState prop, but not both). " +
           "Decide between using a controlled or uncontrolled ProseMirror editor " +
           "and remove one of these props. More info: " +
-          "https://reactjs.org/link/controlled-components"
+          "https://reactjs.org/link/controlled-components",
       );
       didWarnValueDefaultValue = true;
     }
@@ -75,7 +75,7 @@ export function useEditor<T extends HTMLElement = HTMLElement>(
 
   const plugins = useMemo(
     () => [...(options.plugins ?? []), beforeInputPlugin()],
-    [options.plugins]
+    [options.plugins],
   );
 
   const dispatchTransaction = useCallback(
@@ -111,7 +111,7 @@ export function useEditor<T extends HTMLElement = HTMLElement>(
       options.state,
       options.stableContexts,
       renderStore,
-    ]
+    ],
   );
 
   const directEditorProps = {
@@ -170,7 +170,7 @@ export function useEditor<T extends HTMLElement = HTMLElement>(
       unregisterEventListener,
       isStatic: options.static ?? false,
     }),
-    [options.static, registerEventListener, unregisterEventListener, view]
+    [options.static, registerEventListener, unregisterEventListener, view],
   );
 
   return {

@@ -28,7 +28,7 @@ import { useLayoutGroupEffect } from "./useLayoutGroupEffect.js";
  */
 export function useEditorEffect(
   effect: (editorView: EditorView) => void | (() => void),
-  dependencies?: DependencyList
+  dependencies?: DependencyList,
 ) {
   const { view, flushSyncRef } = useContext(EditorContext);
 
@@ -52,6 +52,6 @@ export function useEditorEffect(
     // verify the dependencies for the effect, but this will
     // have already happened at the call-site.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    dependencies && [view, ...dependencies]
+    dependencies && [view, ...dependencies],
   );
 }

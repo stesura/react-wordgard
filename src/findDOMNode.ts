@@ -24,7 +24,7 @@ function findHostInstance(component: Component): PublicInstance | null {
     } else {
       const keys = Object.keys(component).join(",");
       throw new Error(
-        `Argument appears to not be a ReactComponent. Keys: ${keys}`
+        `Argument appears to not be a ReactComponent. Keys: ${keys}`,
       );
     }
   }
@@ -37,7 +37,7 @@ function findHostInstance(component: Component): PublicInstance | null {
 
 // https://github.com/facebook/react/blob/main/packages/react-dom/src/client/ReactDOMClient.js#L43
 export function findDOMNode(
-  componentOrElement: Component<unknown, unknown>
+  componentOrElement: Component<unknown, unknown>,
 ): null | Element | Text {
   return findHostInstance(componentOrElement);
 }

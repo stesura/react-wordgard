@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { Command, EditorState, Transaction } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 
@@ -29,7 +28,7 @@ export function reorderSiblingsOnTransaction(
   order: number[],
   tr: Transaction,
   state: EditorState,
-  dispatch?: EditorView["dispatch"]
+  dispatch?: EditorView["dispatch"],
 ) {
   const orderLookup = order.reduce((acc, oldIndex, newIndex) => {
     acc[oldIndex] = newIndex;

@@ -20,10 +20,10 @@ type Props = Omit<MarkViewComponentProps["markProps"], "contentDOMRef">;
 export function useMarkViewDescription(
   getDOM: () => HTMLElement | null,
   getContentDOM: (
-    markView: { contentDOM?: HTMLElement | null } | null
+    markView: { contentDOM?: HTMLElement | null } | null,
   ) => HTMLElement | null,
   constructor: MarkViewConstructor,
-  props: Props
+  props: Props,
 ) {
   const mountedRef = useRef(false);
   const { view } = useContext(EditorContext);
@@ -63,7 +63,7 @@ export function useMarkViewDescription(
       mark,
       dom,
       contentDOM ?? (markView.dom as HTMLElement),
-      markView
+      markView,
     );
 
     // When create() runs after a destroy() (either here in a layout
@@ -168,7 +168,7 @@ export function useMarkViewDescription(
       parentRef: viewDescRef,
       siblingsRef: childrenRef,
     }),
-    []
+    [],
   );
 
   return {

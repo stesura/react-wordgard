@@ -40,7 +40,7 @@ export const NodeViewConstructorView = memo(function NodeViewConstructorView({
       innerDecorations: innerDeco,
       contentDOMRef: { current: null },
     }),
-    [node, getPos, outerDeco, innerDeco]
+    [node, getPos, outerDeco, innerDeco],
   );
 
   const createNodeView: NodeViewConstructor = (...args) => {
@@ -105,7 +105,7 @@ export const NodeViewConstructorView = memo(function NodeViewConstructorView({
         ignoreMutation: nodeView.ignoreMutation?.bind(nodeView),
       };
     },
-    nodeProps
+    nodeProps,
   );
 
   const Component = node.isInline ? "span" : "div";
@@ -122,12 +122,12 @@ export const NodeViewConstructorView = memo(function NodeViewConstructorView({
               innerDecorations={innerDeco}
             />
           </ChildDescriptionsContext.Provider>,
-          contentDOM
+          contentDOM,
         )
       : null;
 
   return cloneElement(
     outerDeco.reduce(wrapInDeco, <Component {...props}>{children}</Component>),
-    { ref }
+    { ref },
   );
 });

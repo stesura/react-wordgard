@@ -12,13 +12,12 @@ export const CursorWrapper = forwardRef<
 >(function CursorWrapper({ widget, getPos, ...props }, ref) {
   const innerRef = useRef<HTMLImageElement | null>(null);
 
-  useImperativeHandle<HTMLImageElement | null, HTMLImageElement | null>(
-    ref,
-    () => {
-      return innerRef.current;
-    },
-    []
-  );
+  useImperativeHandle<
+    HTMLImageElement | null,
+    HTMLImageElement | null
+  >(ref, () => {
+    return innerRef.current;
+  }, []);
 
   useEditorEffect((view) => {
     if (!(view instanceof ReactEditorView) || !innerRef.current) return;
@@ -28,7 +27,6 @@ export const CursorWrapper = forwardRef<
     if (!domSel.isCollapsed) return;
     const node = innerRef.current;
 
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     domSel.collapse(node.parentNode!, domIndex(node) + 1);
 
     view.cursorWrapped = true;
@@ -44,7 +42,6 @@ export const CursorWrapper = forwardRef<
     <img
       ref={innerRef}
       className="ProseMirror-separator"
-      // eslint-disable-next-line react/no-unknown-property
       mark-placeholder="true"
       alt=""
       {...props}

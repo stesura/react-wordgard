@@ -7,5 +7,5 @@ export interface LayoutGroupContextValue {
 }
 
 export const LayoutGroupContext = createContext(
-  null as unknown as LayoutGroupContextValue
+  null as unknown as LayoutGroupContextValue,
 );

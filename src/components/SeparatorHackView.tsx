@@ -31,7 +31,7 @@ export function SeparatorHackView({ getPos }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useClientLayoutEffect(() => {
     const nonHackSiblings = siblingsRef.current.filter(
-      (viewdesc) => !(viewdesc instanceof TrailingHackViewDesc)
+      (viewdesc) => !(viewdesc instanceof TrailingHackViewDesc),
     );
     const lastSibling = nonHackSiblings[nonHackSiblings.length - 1];
     if (
@@ -51,7 +51,7 @@ export function SeparatorHackView({ getPos }: Props) {
         [],
         getPos,
         ref.current,
-        null
+        null,
       );
     } else {
       viewDescRef.current.parent = parentRef.current;

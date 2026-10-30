@@ -24,7 +24,7 @@ class DecorationGroup implements DecorationSource {
 
   map(mapping: Mapping, doc: Node) {
     const mappedDecos = this.members.map((member) =>
-      member.map(mapping, doc, noSpec)
+      member.map(mapping, doc, noSpec),
     );
     return DecorationGroup.from(mappedDecos);
   }
@@ -53,7 +53,7 @@ class DecorationGroup implements DecorationSource {
     for (let i = 0; i < this.members.length; i++)
       if (
         !(this.members[i] as unknown as InternalDecorationSource).eq(
-          other.members[i] as DecorationSource
+          other.members[i] as DecorationSource,
         )
       )
         return false;
@@ -75,7 +75,7 @@ class DecorationGroup implements DecorationSource {
           result = result.slice();
           sorted = false;
         }
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+
         for (let j = 0; j < locals.length; j++) result.push(locals[j]!);
       }
     }
@@ -89,7 +89,6 @@ class DecorationGroup implements DecorationSource {
       case 0:
         return empty;
       case 1:
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         return members[0]!;
       default:
         return new DecorationGroup(
@@ -100,17 +99,16 @@ class DecorationGroup implements DecorationSource {
                   r.concat(
                     m instanceof DecorationSet
                       ? m
-                      : (m as DecorationGroup).members
+                      : (m as DecorationGroup).members,
                   ),
-                [] as DecorationSet[]
-              )
+                [] as DecorationSet[],
+              ),
         );
     }
   }
 
   forEachSet(f: (set: DecorationSet) => void) {
     for (let i = 0; i < this.members.length; i++)
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       this.members[i]!.forEachSet(f);
   }
 }
@@ -129,11 +127,9 @@ function byPos(a: Decoration, b: Decoration) {
 function removeOverlap(spans: readonly Decoration[]): Decoration[] {
   let working: Decoration[] = spans as Decoration[];
   for (let i = 0; i < working.length - 1; i++) {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const span = working[i]!;
     if (span.from != span.to)
       for (let j = i + 1; j < working.length; j++) {
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const next = working[j]!;
         if (next.from == span.from) {
           if (next.to != span.to) {
@@ -144,7 +140,7 @@ function removeOverlap(spans: readonly Decoration[]): Decoration[] {
             insertAhead(
               working,
               j + 1,
-              (next as InternalDecoration).copy(span.to, next.to)
+              (next as InternalDecoration).copy(span.to, next.to),
             );
           }
           continue;
@@ -155,12 +151,12 @@ function removeOverlap(spans: readonly Decoration[]): Decoration[] {
             // this one.
             working[i] = (span as InternalDecoration).copy(
               span.from,
-              next.from
+              next.from,
             );
             insertAhead(
               working,
               j,
-              (span as InternalDecoration).copy(next.from, span.to)
+              (span as InternalDecoration).copy(next.from, span.to),
             );
           }
           break;
@@ -171,7 +167,6 @@ function removeOverlap(spans: readonly Decoration[]): Decoration[] {
 }
 
 function insertAhead(array: Decoration[], i: number, deco: Decoration) {
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   while (i < array.length && byPos(deco, array[i]!) > 0) i++;
   array.splice(i, 0, deco);
 }

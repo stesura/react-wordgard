@@ -4,7 +4,7 @@ import { useCallback, useLayoutEffect, useMemo, useState } from "react";
 import { unstable_batchedUpdates as batch } from "react-dom";
 
 export type EventHandler<
-  EventType extends keyof DOMEventMap = keyof DOMEventMap
+  EventType extends keyof DOMEventMap = keyof DOMEventMap,
 > = (view: EditorView, event: DOMEventMap[EventType]) => boolean | void;
 
 export type HandleDOMEvents = Record<
@@ -39,10 +39,10 @@ export type HandleDOMEvents = Record<
  * type is registered.
  */
 export function useComponentEventListeners(
-  handleDOMEventsProp: HandleDOMEvents | undefined
+  handleDOMEventsProp: HandleDOMEvents | undefined,
 ) {
   const [registry, setRegistry] = useState(
-    new Map<keyof DOMEventMap, Array<EventHandler>>()
+    new Map<keyof DOMEventMap, Array<EventHandler>>(),
   );
 
   const registerEventListener = useCallback(
@@ -54,7 +54,7 @@ export function useComponentEventListeners(
         setRegistry(new Map(registry));
       }
     },
-    [registry]
+    [registry],
   );
 
   const unregisterEventListener = useCallback(
@@ -62,7 +62,7 @@ export function useComponentEventListeners(
       const handlers = registry.get(eventType);
       handlers?.splice(handlers.indexOf(handler), 1);
     },
-    [registry]
+    [registry],
   );
 
   useLayoutEffect(() => {

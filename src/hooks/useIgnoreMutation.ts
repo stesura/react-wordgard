@@ -15,8 +15,8 @@ export function useIgnoreMutation(
   ignoreMutation: (
     this: NodeView | MarkView,
     view: EditorView,
-    mutation: ViewMutationRecord
-  ) => boolean
+    mutation: ViewMutationRecord,
+  ) => boolean,
 ) {
   const register = useContext(IgnoreMutationContext);
   const ignoreMutationMemo = useEditorEventCallback(ignoreMutation);

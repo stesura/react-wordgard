@@ -11,18 +11,16 @@ const ie_version = ie_upto10
   ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (document as any).documentMode
   : ie_11up
-  ? // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    +ie_11up[1]!
-  : ie_edge
-  ? // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    +ie_edge[1]!
-  : 0;
+    ? +ie_11up[1]!
+    : ie_edge
+      ? +ie_edge[1]!
+      : 0;
 const gecko = !ie && /gecko\/(\d+)/i.test(agent);
 const gecko_version = gecko && +(/Firefox\/(\d+)/.exec(agent) || [0, 0])[1];
 
 const _chrome = !ie && /Chrome\/(\d+)/.exec(agent);
 const chrome = !!_chrome;
-// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+
 const chrome_version = _chrome ? +_chrome[1]! : 0;
 const safari = !ie && !!nav && /Apple Computer/.test(nav.vendor);
 // Is true for both iOS and iPadOS for convenience

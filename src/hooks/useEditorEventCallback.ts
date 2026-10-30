@@ -9,7 +9,7 @@ import { EditorContext } from "../contexts/EditorContext.js";
 import { useEditorEffect } from "./useEditorEffect.js";
 
 function assertIsReactEditorView(
-  view: AbstractEditorView
+  view: AbstractEditorView,
 ): asserts view is ReactEditorView {
   if (view instanceof ReactEditorView) {
     return;
@@ -17,7 +17,7 @@ function assertIsReactEditorView(
 
   throw new DOMException(
     "ProseMirror document is not mounted",
-    "InvalidStateError"
+    "InvalidStateError",
   );
 }
 
@@ -33,7 +33,7 @@ function assertIsReactEditorView(
  * React node view components.
  */
 export function useEditorEventCallback<This, T extends unknown[], R>(
-  callback: (this: This, view: EditorView, ...args: T) => R
+  callback: (this: This, view: EditorView, ...args: T) => R,
 ) {
   const ref = useRef(callback);
   const { view } = useContext(EditorContext);
@@ -47,6 +47,6 @@ export function useEditorEventCallback<This, T extends unknown[], R>(
       assertIsReactEditorView(view);
       return ref.current.call(this, view, ...args);
     },
-    [view]
+    [view],
   );
 }

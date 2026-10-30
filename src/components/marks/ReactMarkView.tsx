@@ -54,7 +54,7 @@ export const ReactMarkView = memo(function ReactMarkView({
       getPos,
       inline,
     }),
-    [getPos, inline, mark]
+    [getPos, inline, mark],
   );
 
   const { childContextValue, refUpdated } = useMarkViewDescription(
@@ -72,7 +72,7 @@ export const ReactMarkView = memo(function ReactMarkView({
         return false;
       },
     }),
-    markViewDescProps
+    markViewDescProps,
   );
 
   const setDOM = useSetDom(ref, refUpdated);
@@ -84,7 +84,7 @@ export const ReactMarkView = memo(function ReactMarkView({
       ...markViewDescProps,
       contentDOMRef: setContentDOM,
     }),
-    [markViewDescProps, setContentDOM]
+    [markViewDescProps, setContentDOM],
   );
 
   const props = {

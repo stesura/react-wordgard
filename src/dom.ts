@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
+
 export type DOMNode = InstanceType<typeof window.Node>;
 export type DOMSelection = InstanceType<typeof window.Selection>;
 export type DOMSelectionRange = {
@@ -40,7 +40,7 @@ export const isEquivalentPosition = function (
   node: Node,
   off: number,
   targetNode: Node,
-  targetOff: number
+  targetOff: number,
 ) {
   return (
     targetNode &&
@@ -56,7 +56,7 @@ function scanFor(
   off: number,
   targetNode: Node,
   targetOff: number,
-  dir: number
+  dir: number,
 ) {
   for (;;) {
     if (node == targetNode && off == targetOff) return true;
@@ -98,7 +98,6 @@ export function isOnEdge(node: Node, offset: number, parent: Node) {
   for (
     let atStart = offset == 0, atEnd = offset == nodeSize(node);
     atStart || atEnd;
-
   ) {
     if (node == parent) return true;
     const index = domIndex(node);
@@ -131,7 +130,7 @@ export const selectionCollapsed = function (domSel: DOMSelectionRange) {
       domSel.focusNode,
       domSel.focusOffset,
       domSel.anchorNode!,
-      domSel.anchorOffset
+      domSel.anchorOffset,
     )
   );
 };
@@ -153,7 +152,7 @@ export function deepActiveElement(doc: Document) {
 export function caretFromPoint(
   doc: Document,
   x: number,
-  y: number
+  y: number,
 ): { node: Node; offset: number } | undefined {
   if ((doc as any).caretPositionFromPoint) {
     try {

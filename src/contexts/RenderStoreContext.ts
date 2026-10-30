@@ -58,7 +58,7 @@ export const useRenderStore = () => {
   useSyncExternalStore(
     subscribed.subscribe,
     subscribed.getVersion,
-    subscribed.getVersion
+    subscribed.getVersion,
   );
   return store;
 };

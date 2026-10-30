@@ -40,7 +40,7 @@ describe("placeViewDesc", () => {
 
       for (let step = 0; step < 200; step++) {
         const movable = siblings.filter(
-          (desc) => !(desc instanceof TrailingHackViewDesc)
+          (desc) => !(desc instanceof TrailingHackViewDesc),
         );
         const target = movable[below(movable.length)];
         const action = random();
@@ -50,14 +50,14 @@ describe("placeViewDesc", () => {
           const dom = document.createElement("span");
           parent.insertBefore(
             dom,
-            parent.childNodes[below(parent.childNodes.length + 1)] ?? null
+            parent.childNodes[below(parent.childNodes.length + 1)] ?? null,
           );
           const desc: ViewDesc = new ViewDesc(
             undefined,
             [],
             () => positions.get(desc) ?? 0,
             dom,
-            null
+            null,
           );
           mount(desc, below(20));
         } else if (action < 0.7) {
@@ -71,7 +71,7 @@ describe("placeViewDesc", () => {
         }
 
         expect(siblings.map(label)).toEqual(
-          [...siblings].sort(sortViewDescs).map(label)
+          [...siblings].sort(sortViewDescs).map(label),
         );
       }
     }
@@ -108,7 +108,7 @@ describe("placeViewDesc", () => {
 
       expect(siblings.map(label)).toEqual(["text", "img", "br"]);
       expect(
-        [descs.text, descs.br, descs.img].sort(sortViewDescs).map(label)
+        [descs.text, descs.br, descs.img].sort(sortViewDescs).map(label),
       ).toEqual(["text", "br", "img"]);
     });
 

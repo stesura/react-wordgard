@@ -6,7 +6,7 @@ import { LayoutGroup } from "../../components/LayoutGroup.js";
 import { useLayoutGroupEffect } from "../../hooks/useLayoutGroupEffect.js";
 
 describe("DeferredLayoutEffects", () => {
-  jest.useFakeTimers("modern");
+  vi.useFakeTimers();
 
   it("registers multiple effects and runs them", () => {
     function Parent() {
@@ -64,7 +64,7 @@ describe("DeferredLayoutEffects", () => {
     // ... the immediate effect should set a timeout
     // ... the deferred effect should set a timeout
     act(() => {
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
     });
 
     expect(screen.getByTestId("double").innerHTML).toBe("2");
@@ -78,7 +78,7 @@ describe("DeferredLayoutEffects", () => {
     // ... the old deferred effect should cancel its timeout
     // ... the new deferred effect should set a new timeout
     act(() => {
-      jest.advanceTimersByTime(500);
+      vi.advanceTimersByTime(500);
     });
 
     expect(screen.getByTestId("double").innerHTML).toBe("5");
@@ -87,7 +87,7 @@ describe("DeferredLayoutEffects", () => {
     // ... the canceled timeout should not run
     // ... the rescheduled timoeut should not yet run
     act(() => {
-      jest.advanceTimersByTime(500);
+      vi.advanceTimersByTime(500);
     });
 
     expect(screen.getByTestId("double").innerHTML).toBe("5");
@@ -97,7 +97,7 @@ describe("DeferredLayoutEffects", () => {
     // ... the timeout should double the value to 10
     // ... the deferred effect should set a new timeout
     act(() => {
-      jest.advanceTimersByTime(500);
+      vi.advanceTimersByTime(500);
     });
 
     expect(screen.getByTestId("double").innerHTML).toBe("10");
@@ -113,13 +113,13 @@ describe("DeferredLayoutEffects", () => {
     // ... the deferred effect from the second render should run
     // ... the deferred effect that does run should set a new timeout
     act(() => {
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
     });
 
     // For this assertion, we need to clear a timer from the React scheduler.
-    jest.advanceTimersByTime(1);
+    vi.advanceTimersByTime(1);
 
     expect(screen.getByTestId("double").innerHTML).toBe("50");
-    expect(jest.getTimerCount()).toBe(1);
+    expect(vi.getTimerCount()).toBe(1);
   });
 });

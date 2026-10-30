@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
+
 import { Fragment, Mark, Node, TagParseRule } from "prosemirror-model";
 import {
   Decoration,
@@ -25,8 +25,7 @@ declare global {
 /// a selection change, the record will have a `type` property of
 /// `"selection"` (which doesn't occur for native mutation records).
 export type ViewMutationRecord =
-  | MutationRecord
-  | { type: "selection"; target: DOMNode };
+  MutationRecord | { type: "selection"; target: DOMNode };
 
 // View descriptions are data structures that describe the DOM that is
 // used to represent the editor's content. They are used for:
@@ -103,7 +102,7 @@ export class ViewDesc {
     public dom: DOMNode,
     // This is the node that holds the child views. It may be null for
     // descs that don't have children.
-    public contentDOM: HTMLElement | null
+    public contentDOM: HTMLElement | null,
   ) {
     // An expando property on the DOM node provides a link back to its
     // description.
@@ -121,7 +120,7 @@ export class ViewDesc {
   matchesNode(
     _node: Node,
     _outerDeco: readonly Decoration[],
-    _innerDeco: DecorationSource
+    _innerDeco: DecorationSource,
   ) {
     return false;
   }
@@ -275,7 +274,7 @@ export class ViewDesc {
   nearestDesc(dom: DOMNode, onlyNodes: true): NodeViewDesc | undefined;
   nearestDesc(
     dom: DOMNode,
-    onlyNodes = false
+    onlyNodes = false,
   ): ViewDesc | NodeViewDesc | undefined {
     for (
       let first = true, cur: DOMNode | null = dom;
@@ -341,7 +340,7 @@ export class ViewDesc {
 
   domFromPos(
     pos: number,
-    side: number
+    side: number,
   ): { node: DOMNode; offset: number; atom?: number } {
     if (!this.contentDOM) return { node: this.dom, offset: 0, atom: pos + 1 };
     // First find the position in the child array
@@ -360,7 +359,7 @@ export class ViewDesc {
     if (offset)
       return this.children[i]!.domFromPos(
         offset - this.children[i]!.border,
-        side
+        side,
       );
     // Go back if there were any zero-length widgets with side >= 0 before this point
     for (
@@ -409,7 +408,7 @@ export class ViewDesc {
   parseRange(
     from: number,
     to: number,
-    base = 0
+    base = 0,
   ): {
     node: DOMNode;
     from: number;
@@ -507,7 +506,7 @@ export class ViewDesc {
     anchor: number,
     head: number,
     view: ReactEditorView,
-    force = false
+    force = false,
   ): void {
     if (view.composing) return;
     // If the selection falls entirely in a child, give it to that child
@@ -521,7 +520,7 @@ export class ViewDesc {
           anchor - offset - child.border,
           head - offset - child.border,
           view,
-          force
+          force,
         );
       offset = end;
     }
@@ -591,13 +590,13 @@ export class ViewDesc {
           anchorDOM.node,
           anchorDOM.offset,
           selRange.anchorNode!,
-          selRange.anchorOffset
+          selRange.anchorOffset,
         ) &&
         isEquivalentPosition(
           headDOM.node,
           headDOM.offset,
           selRange.focusNode!,
-          selRange.focusOffset
+          selRange.focusOffset,
         ))
     ) {
       return;
@@ -715,7 +714,7 @@ export class WidgetViewDesc extends ViewDesc {
     parent: ViewDesc | undefined,
     getPos: () => number,
     public widget: Decoration,
-    dom: DOMNode
+    dom: DOMNode,
   ) {
     super(parent, [], getPos, dom, null);
     this.widget = widget;
@@ -760,7 +759,7 @@ export class CompositionViewDesc extends ViewDesc {
     getPos: () => number,
     dom: DOMNode,
     public textDOM: Text,
-    public text: string
+    public text: string,
   ) {
     super(parent, [], getPos, dom, null);
   }
@@ -828,7 +827,7 @@ export class MarkViewDesc extends ViewDesc {
     public mark: Mark,
     dom: HTMLElement,
     contentDOM: HTMLElement,
-    public spec: MarkView
+    public spec: MarkView,
   ) {
     super(parent, children, getPos, dom, contentDOM);
   }
@@ -883,7 +882,7 @@ export class NodeViewDesc extends ViewDesc {
     public innerDeco: DecorationSource,
     dom: DOMNode,
     contentDOM: HTMLElement | null,
-    public nodeDOM: DOMNode
+    public nodeDOM: DOMNode,
   ) {
     super(parent, children, getPos, dom, contentDOM);
   }
@@ -924,7 +923,7 @@ export class NodeViewDesc extends ViewDesc {
             (n) =>
               n.nodeType == 1 &&
               addedNodes.indexOf(n.parentNode!) < 0 &&
-              this.dom.contains(n)
+              this.dom.contains(n),
           );
         if (found) rule.contentElement = found as HTMLElement;
         else rule.getContent = () => Fragment.empty;
@@ -936,7 +935,7 @@ export class NodeViewDesc extends ViewDesc {
   matchesNode(
     node: Node,
     outerDeco: readonly Decoration[],
-    innerDeco: DecorationSource
+    innerDeco: DecorationSource,
   ) {
     return (
       this.dirty == NOT_DIRTY &&
@@ -965,7 +964,7 @@ export class NodeViewDesc extends ViewDesc {
     node: Node,
     outerDeco: readonly Decoration[],
     innerDeco: DecorationSource,
-    view: EditorView
+    view: EditorView,
   ) {
     if (this.dirty == NODE_DIRTY || !node.sameMarkup(this.node)) return false;
     this.updateInner(node, outerDeco, innerDeco, view);
@@ -976,7 +975,7 @@ export class NodeViewDesc extends ViewDesc {
     node: Node,
     outerDeco: readonly Decoration[],
     innerDeco: DecorationSource,
-    view: EditorView
+    view: EditorView,
   ) {
     this.updateOuterDeco(outerDeco);
     this.node = node;
@@ -1001,7 +1000,7 @@ export class NodeViewDesc extends ViewDesc {
   deselectNode() {
     if (this.nodeDOM.nodeType == 1) {
       (this.nodeDOM as HTMLElement).classList.remove(
-        "ProseMirror-selectednode"
+        "ProseMirror-selectednode",
       );
       if (this.contentDOM || !this.node.type.spec.draggable)
         (this.dom as HTMLElement).removeAttribute("draggable");
@@ -1022,7 +1021,7 @@ export class TextViewDesc extends NodeViewDesc {
     outerDeco: readonly Decoration[],
     innerDeco: DecorationSource,
     dom: DOMNode,
-    nodeDOM: DOMNode
+    nodeDOM: DOMNode,
   ) {
     super(
       parent,
@@ -1033,7 +1032,7 @@ export class TextViewDesc extends NodeViewDesc {
       innerDeco,
       dom,
       null,
-      nodeDOM
+      nodeDOM,
     );
   }
 
@@ -1048,7 +1047,7 @@ export class TextViewDesc extends NodeViewDesc {
     node: Node,
     outerDeco: readonly Decoration[],
     _innerDeco: DecorationSource,
-    _view: ReactEditorView
+    _view: ReactEditorView,
   ) {
     if (
       this.dirty == NODE_DIRTY ||
@@ -1132,7 +1131,7 @@ class CustomNodeViewDesc extends NodeViewDesc {
     dom: HTMLElement,
     contentDOM: HTMLElement | null,
     nodeDOM: HTMLElement,
-    readonly spec: NodeView
+    readonly spec: NodeView,
   ) {
     super(
       parent,
@@ -1143,7 +1142,7 @@ class CustomNodeViewDesc extends NodeViewDesc {
       innerDeco,
       dom,
       contentDOM,
-      nodeDOM
+      nodeDOM,
     );
   }
 
@@ -1154,7 +1153,7 @@ class CustomNodeViewDesc extends NodeViewDesc {
     node: Node,
     outerDeco: readonly Decoration[],
     innerDeco: DecorationSource,
-    view: EditorView
+    view: EditorView,
   ) {
     if (this.dirty == NODE_DIRTY) return false;
     if (
@@ -1185,7 +1184,7 @@ class CustomNodeViewDesc extends NodeViewDesc {
     anchor: number,
     head: number,
     view: ReactEditorView,
-    force: boolean
+    force: boolean,
   ) {
     this.spec.setSelection
       ? this.spec.setSelection.call(this, anchor, head, view.root)
@@ -1235,7 +1234,7 @@ export class ReactNodeViewDesc extends CustomNodeViewDesc {
 
 export function sameOuterDeco(
   a: readonly Decoration[],
-  b: readonly Decoration[]
+  b: readonly Decoration[],
 ) {
   if (a.length != b.length) return false;
   // @ts-expect-error ...
@@ -1249,9 +1248,9 @@ export function findTextInFragment(
   frag: Fragment,
   text: string,
   from: number,
-  to: number
+  to: number,
 ): number {
-  for (let i = 0, pos = 0; i < frag.childCount && pos <= to; ) {
+  for (let i = 0, pos = 0; i < frag.childCount && pos <= to;) {
     const child = frag.child(i++);
     const childStart = pos;
     pos += child.nodeSize;

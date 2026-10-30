@@ -14,5 +14,5 @@ export type NodeViewContextValue = {
 };
 
 export const NodeViewContext = createContext(
-  null as unknown as NodeViewContextValue
+  null as unknown as NodeViewContextValue,
 );

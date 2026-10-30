@@ -51,7 +51,7 @@ type Props = HTMLProps<HTMLElement> & {
 const ForwardedOutputSpec = memo(
   forwardRef<HTMLElement, Props>(function OutputSpec(
     { outputSpec, isMark, contentDOMRef, children, ...propOverrides }: Props,
-    ref
+    ref,
   ) {
     const mergedRef = useMergedDOMRefs(ref, contentDOMRef);
 
@@ -61,7 +61,7 @@ const ForwardedOutputSpec = memo(
 
     if (!Array.isArray(outputSpec)) {
       throw new Error(
-        "react-wordgard only supports strings and arrays in toDOM"
+        "react-wordgard only supports strings and arrays in toDOM",
       );
     }
 
@@ -90,7 +90,7 @@ const ForwardedOutputSpec = memo(
       if (child === 0) {
         if (i < outputSpec.length - 1 || i > start) {
           throw new RangeError(
-            "Content hole must be the only child of its parent node"
+            "Content hole must be the only child of its parent node",
           );
         }
         return createElement(
@@ -99,13 +99,13 @@ const ForwardedOutputSpec = memo(
             ...props,
             ref: ref ? mergedRef : contentDOMRef,
           },
-          children
+          children,
         );
       }
       content.push(
         <ForwardedOutputSpec outputSpec={child} contentDOMRef={contentDOMRef}>
           {children}
-        </ForwardedOutputSpec>
+        </ForwardedOutputSpec>,
       );
     }
 
@@ -117,7 +117,7 @@ const ForwardedOutputSpec = memo(
       props.ref = mergedRef;
     }
     return createElement(tagName, props, ...content);
-  })
+  }),
 );
 
 export { ForwardedOutputSpec as OutputSpec };

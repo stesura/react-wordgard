@@ -23,7 +23,7 @@ function insertText(
     to?: number;
     bust?: boolean;
     marks?: readonly Mark[] | null;
-  } = {}
+  } = {},
 ) {
   if (eventData === null) return false;
 
@@ -33,8 +33,8 @@ function insertText(
   if (
     view.someProp("handleTextInput", (f) =>
       f(view, from, to, eventData, () =>
-        view.state.tr.insertText(eventData, from, to)
-      )
+        view.state.tr.insertText(eventData, from, to),
+      ),
     )
   ) {
     return true;
@@ -67,21 +67,18 @@ function handleGapCursorComposition(view: EditorView) {
   const insert = $from.parent
     .contentMatchAt($from.index())
     // All schemas _must_ have a text node type
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+
     .findWrapping(view.state.schema.nodes.text!);
   if (!insert) return;
 
   let fragment = Fragment.empty;
   for (let i = insert.length - 1; i >= 0; i--) {
-    fragment = Fragment.from(
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      insert[i]!.createAndFill(null, fragment)
-    );
+    fragment = Fragment.from(insert[i]!.createAndFill(null, fragment));
   }
   const tr = view.state.tr.replace(
     $from.pos,
     $from.pos,
-    new Slice(fragment, 0, 0)
+    new Slice(fragment, 0, 0),
   );
   tr.setSelection(TextSelection.near(tr.doc.resolve($from.pos + 1)));
   view.dispatch(tr);
@@ -128,8 +125,8 @@ export function beforeInputPlugin() {
             view.state.tr.replaceWith(
               freezeFrom + 1,
               freezeFrom + 1 + frozenNode.content.size,
-              preCompositionSnapshot
-            )
+              preCompositionSnapshot,
+            ),
           );
         }
       }
@@ -149,7 +146,7 @@ export function beforeInputPlugin() {
       view.state.tr.setMeta(reactKeysPluginKey, {
         cursorWrapper: null,
         freezeFrom: null,
-      })
+      }),
     );
   }
 
@@ -174,15 +171,15 @@ export function beforeInputPlugin() {
 
           const storedMarks = view.state.selection.empty
             ? view.state.storedMarks
-            : view.state.storedMarks ??
+            : (view.state.storedMarks ??
               (view.state.selection instanceof TextSelection
                 ? view.state.selection.$from.marksAcross(
-                    view.state.selection.$to
+                    view.state.selection.$to,
                   )
-                : null);
+                : null));
 
           view.dispatch(
-            view.state.tr.deleteSelection().setStoredMarks(storedMarks)
+            view.state.tr.deleteSelection().setStoredMarks(storedMarks),
           );
 
           handleGapCursorComposition(view);
@@ -204,9 +201,9 @@ export function beforeInputPlugin() {
                     ...(storedMarks !== null && { marks: storedMarks }),
                     side: 0,
                     raw: true,
-                  }
+                  },
                 ),
-              })
+              }),
             );
             // Pin the DOM cursor to PM's canonical position before the IME
             // captures wherever the browser happened to leave it. Without this,
@@ -220,7 +217,7 @@ export function beforeInputPlugin() {
                 view.state.selection.anchor,
                 view.state.selection.head,
                 view,
-                true // force — skip the isEquivalentPosition early-return
+                true, // force — skip the isEquivalentPosition early-return
               );
             } finally {
               view.domObserver.setCurSelection();
@@ -233,7 +230,7 @@ export function beforeInputPlugin() {
           view.dispatch(
             view.state.tr.setMeta(reactKeysPluginKey, {
               freezeFrom,
-            })
+            }),
           );
 
           const frozenDom = view.nodeDOM(freezeFrom);
@@ -242,7 +239,7 @@ export function beforeInputPlugin() {
               view.state.tr.setMeta(reactKeysPluginKey, {
                 cursorWrapper: null,
                 freezeFrom: null,
-              })
+              }),
             );
             return false;
           }
@@ -335,12 +332,12 @@ export function beforeInputPlugin() {
                   const from = view.posAtDOM(
                     range.startContainer,
                     range.startOffset,
-                    1
+                    1,
                   );
                   const to = view.posAtDOM(
                     range.endContainer,
                     range.endOffset,
-                    1
+                    1,
                   );
                   insertText(view, data, { from, to });
                 }
@@ -359,12 +356,12 @@ export function beforeInputPlugin() {
                   const from = view.posAtDOM(
                     range.startContainer,
                     range.startOffset,
-                    1
+                    1,
                   );
                   const to = view.posAtDOM(
                     range.endContainer,
                     range.endOffset,
-                    1
+                    1,
                   );
                   insertText(view, event.data, { from, to });
                 }
@@ -385,7 +382,7 @@ export function beforeInputPlugin() {
               for (const range of targetRanges) {
                 const start = view.posAtDOM(
                   range.startContainer,
-                  range.startOffset
+                  range.startOffset,
                 );
                 const end = view.posAtDOM(range.endContainer, range.endOffset);
                 const { doc } = view.state;
@@ -436,7 +433,7 @@ function syncCompositionViewDescs(view: ReactEditorView) {
     ) {
       desc.node = view.state.schema.text(
         compositionNode.nodeValue,
-        desc.node.marks
+        desc.node.marks,
       );
       desc.nodeDOM = compositionNode;
       compositionNode.pmViewDesc = desc;
@@ -482,7 +479,7 @@ function syncCompositionViewDescs(view: ReactEditorView) {
     compositionBlock.content,
     compositionNode.nodeValue ?? "",
     from - contentStart,
-    to - contentStart
+    to - contentStart,
   );
   if (textPos < 0) return;
   const startPos = contentStart + textPos;
@@ -502,7 +499,7 @@ function syncCompositionViewDescs(view: ReactEditorView) {
       () => startPos,
       topDOM,
       compositionNode,
-      compositionNode.nodeValue ?? ""
-    )
+      compositionNode.nodeValue ?? "",
+    ),
   );
 }

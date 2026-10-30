@@ -80,7 +80,7 @@ function ProseMirrorInner({
       decorations,
       innerDecorations,
     }),
-    [node, decorations, innerDecorations]
+    [node, decorations, innerDecorations],
   );
 
   // An announced render keeps the previous context values: the consumers

@@ -38,7 +38,8 @@ export const NodeView = memo(function NodeView({
 }: Props) {
   const renderRef = useRef<JSX.Element | null>(null);
   const frozen = useEditorStateSelector(
-    (state) => reactKeysPluginKey.getState(state)?.freezeFrom === props.getPos()
+    (state) =>
+      reactKeysPluginKey.getState(state)?.freezeFrom === props.getPos(),
   );
   const { components, constructors } = useContext(NodeViewContext);
 
@@ -47,8 +48,7 @@ export const NodeView = memo(function NodeView({
   const component = (components[props.node.type.name] ??
     DefaultNodeView) as ComponentType<NodeViewComponentProps>;
   const constructor = constructors[props.node.type.name] as
-    | NodeViewConstructor
-    | undefined;
+    NodeViewConstructor | undefined;
 
   // Construct a wrapper component so that the node view remounts when either
   // its component or constructor changes. A React node view would remount if
@@ -91,7 +91,7 @@ export const NodeView = memo(function NodeView({
 });
 
 export const GetPosContext = createContext<() => number>(
-  null as unknown as () => number
+  null as unknown as () => number,
 );
 
 export function RemountableNodeView(props: Omit<Props, "forceRemount">) {
