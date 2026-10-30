@@ -4,7 +4,10 @@ import type { EditorState } from "prosemirror-state";
 import React from "react";
 import type { ReactNode } from "react";
 
-import { useEditorEventCallback, useEditorState } from "../src/index.js";
+import {
+  useEditorEventCallback,
+  useEditorState,
+} from "../src/prosemirror/index.js";
 
 import { schema } from "./schema.js";
 

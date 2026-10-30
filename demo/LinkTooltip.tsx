@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 
-import { useEditorEffect, useEditorState } from "../src/index.js";
+import { useEditorEffect, useEditorState } from "../src/prosemirror/index.js";
 
 import { schema } from "./schema.js";
 

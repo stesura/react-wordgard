@@ -57,13 +57,14 @@ specific language governing permissions and limitations under the License.
 
 
 ================================================================================
-ProseMirror (prosemirror-view, prosemirror-example-setup)
+ProseMirror (prosemirror-view, prosemirror-gapcursor, prosemirror-example-setup)
 https://prosemirror.net
 ================================================================================
 
-src/viewdesc.ts, src/dom.ts and src/browser.ts are adapted from prosemirror-view
-(through react-prosemirror). demo/Menu.tsx adapts code from
-prosemirror-example-setup.
+src/prosemirror/viewdesc.ts, dom.ts and browser.ts are adapted from
+prosemirror-view, and src/prosemirror/plugins/beforeInputPlugin.ts takes code
+from prosemirror-gapcursor (both through react-prosemirror). demo/Menu.tsx
+adapts code from prosemirror-example-setup.
 
 Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
 

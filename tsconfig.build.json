@@ -1,7 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "include": ["src"],
-  "exclude": ["src/**/__tests__", "src/testing"],
+  "exclude": ["src/**/__tests__", "src/prosemirror"],
   "compilerOptions": {
     "noEmit": false,
     "declaration": true,

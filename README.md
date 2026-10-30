@@ -9,8 +9,8 @@ This repository is derived from
 [react-prosemirror](https://github.com/handlewithcarecollective/react-prosemirror),
 by [Handle with Care Collective](https://github.com/handlewithcarecollective)
 and originally The New York Times Company. Thanks to them for the design this
-builds on. The view code is still upstream's ProseMirror view, plus these
-changes for large documents:
+builds on. The view code, in `src/prosemirror/`, is still upstream's ProseMirror
+view, plus these changes for large documents:
 
 - Node, mark, text and widget views place their view description among their
   siblings with a binary search instead of re-sorting the sibling list.

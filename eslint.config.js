@@ -44,15 +44,16 @@ export default tseslint.config(
     },
   },
   {
-    // src/hooks/useEffectEvent.ts stands in for React's useEffectEvent (it
-    // predates it and supports React 17), but these hooks list its functions
-    // in dependency arrays and call them from a ref callback, which React's
-    // version forbids. react-hooks applies those rules to anything named
-    // useEffectEvent. The files get rewritten for Wordgard.
+    // src/prosemirror/hooks/useEffectEvent.ts stands in for React's
+    // useEffectEvent (it predates it and supports React 17), but these hooks
+    // list its functions in dependency arrays and call them from a ref
+    // callback, which React's version forbids. react-hooks applies those
+    // rules to anything named useEffectEvent. The files get rewritten for
+    // Wordgard.
     files: [
-      "src/hooks/useEditor.ts",
-      "src/hooks/useMarkViewDescription.ts",
-      "src/hooks/useNodeViewDescription.ts",
+      "src/prosemirror/hooks/useEditor.ts",
+      "src/prosemirror/hooks/useMarkViewDescription.ts",
+      "src/prosemirror/hooks/useNodeViewDescription.ts",
     ],
     rules: {
       "react-hooks/rules-of-hooks": "off",

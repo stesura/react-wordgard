@@ -11,7 +11,11 @@ import "prosemirror-view/style/prosemirror.css";
 import React, { StrictMode, useCallback, useState } from "react";
 import { createRoot } from "react-dom/client";
 
-import { ProseMirror, ProseMirrorDoc, reactKeys } from "../src/index.js";
+import {
+  ProseMirror,
+  ProseMirrorDoc,
+  reactKeys,
+} from "../src/prosemirror/index.js";
 
 import { LinkTooltip } from "./LinkTooltip.js";
 import Menu from "./Menu.js";
