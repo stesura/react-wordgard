@@ -5,7 +5,8 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist/"] },
+  // test/wordgard/ holds unchanged copies of Wordgard's tests.
+  { ignores: ["dist/", "test/wordgard/"] },
   js.configs.recommended,
   tseslint.configs.recommended,
   {
@@ -61,8 +62,12 @@ export default tseslint.config(
     },
   },
   {
-    files: ["*.{js,ts}"],
+    files: ["*.{js,ts}", "scripts/**/*.js"],
     languageOptions: { globals: globals.node },
+  },
+  {
+    files: ["scripts/**/*.js"],
+    rules: { "no-console": "off" },
   },
   prettier,
 );

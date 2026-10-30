@@ -15,6 +15,12 @@ derived from react-prosemirror. The plan is `docs/react-wordgard-plan.md`.
 - Tests: `npm test` (Vitest). Two projects in `vite.config.ts`: `unit` (jsdom,
   `*.test.ts(x)`) and `browser` (Chromium through Playwright,
   `*.browser.test.ts(x)`; run `npx playwright install chromium` once).
+- `test/wordgard/`: Wordgard's browser tests (`webtest-*.ts`) and helpers,
+  copied unchanged from the tag matching the installed `wordgard` (`0.6.2`), and
+  run by the `browser` project. Don't edit them. `npm run update-wordgard` pins
+  the latest `wordgard` and re-copies them; `npm run sync-wordgard-tests`
+  re-copies for the installed version (needs `../wordgard`, or `WORDGARD_REPO`).
+  Our setup is `test/wordgard-workspace.ts`.
 - Demo: `npm run demo` (Vite dev server, still the ProseMirror view).
 - Licensing: LICENSE.txt is MIT, © Edoardo Caratti. Keep the "Copyright (c) The
   New York Times Company" headers on files from react-prosemirror. Code copied

@@ -6,4 +6,4 @@
 node_modules
 
 # Screenshots Vitest's browser mode takes of failing tests
-__screenshots__/
+.vitest/

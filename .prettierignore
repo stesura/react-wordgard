@@ -4,3 +4,4 @@
 /docs/
 package-lock.json
 /.claude/
+/test/wordgard/

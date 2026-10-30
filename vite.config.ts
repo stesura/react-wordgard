@@ -26,7 +26,12 @@ export default defineConfig({
         extends: true,
         test: {
           name: "browser",
-          include: ["src/**/*.browser.test.{ts,tsx}"],
+          include: [
+            "src/**/*.browser.test.{ts,tsx}",
+            // Wordgard's own browser tests, copied unchanged from its repo.
+            "test/wordgard/webtest-*.ts",
+          ],
+          setupFiles: ["test/wordgard-workspace.ts"],
           browser: {
             enabled: true,
             provider: playwright(),

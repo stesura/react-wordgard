@@ -215,3 +215,26 @@ Stable inline partitions for Wordgard's mark shapes, memoised children from chan
   checks) gave 35 findings, all in the ProseMirror view code, mostly refs written during render.
   Turn it on when the Wordgard code starts (R1), excepting the old files until they're replaced.
   Details in `eslint.config.js`.
+- **The browser edits the DOM itself when typing (found 2026-10-30):** "Input is already
+  `beforeinput`-driven" holds for computing the change, but Wordgard doesn't `preventDefault`
+  `insertText`, inline deletions or composition; it lets the browser's edit through and records it
+  (`addDOMChange` in `src/editor/input.ts`). React's text nodes will be mutated outside React. R2
+  must decide how React agrees with those edits, or which input types to prevent.
+- **React commits outside the flush look like foreign edits:** Wordgard ignores mutations only
+  inside `observer.ignore(() => runUpdate(...))`. A node view's own `setState` committing later
+  marks its tiles dirty and gets redrawn. Relevant to R1 (render inside the flush) and R4.
+- **Subclassing needs a typecast:** Wordgard's constructor is private and `docTile`, `runUpdate`
+  and the tile classes aren't in its typings. Keep the cast in one file, or get the renderer
+  interface above.
+
+## Progress
+
+- **2026-10-30, layout:** the ProseMirror view moved to `src/prosemirror/`; the Wordgard view is
+  built at the root of `src/` and the old folder is deleted when it's replaced.
+- **2026-10-30, test baseline (towards R2's safety net), done:** Wordgard 0.6.2's browser tests
+  (`test/webtest-*.ts`, 184 tests) and their helpers are copied unchanged into `test/wordgard/` and
+  pass against plain Wordgard in Vitest's browser mode (Chromium through Playwright). Unlike
+  upstream's single mocha page, each file runs in its own page inside an iframe, so
+  `test/wordgard-workspace.ts` adds the `#workspace` element and focuses the window; an audit
+  confirmed the composition tests then run with real focus. Next: a `tempEditor` that mounts the
+  React view, so the same files test it.

@@ -1,7 +1,7 @@
 /* Copyright (c) The New York Times Company */
 {
   "$schema": "https://json.schemastore.org/tsconfig",
-  "include": ["src", "demo", "*.ts"],
+  "include": ["src", "demo", "test/*.ts", "*.ts"],
   "compilerOptions": {
     "lib": ["DOM", "ES2023", "DOM.Iterable"],
     "target": "ES2022",
