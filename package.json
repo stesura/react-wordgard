@@ -102,7 +102,7 @@
     "prosemirror-tables": "^1.8.5",
     "prosemirror-test-builder": "^1.1.1",
     "prosemirror-transform": "^1.12.0",
-    "prosemirror-view": "1.42.3",
+    "prosemirror-view": "1.42.8",
     "puppeteer-core": "^25.0.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -120,7 +120,7 @@
     "prosemirror-model": "^1.0.0",
     "prosemirror-state": "^1.0.0",
     "prosemirror-transform": "^1.8.0",
-    "prosemirror-view": "1.42.3",
+    "prosemirror-view": "1.42.8",
     "react": ">=17 <20",
     "react-dom": ">=17 <20",
     "react-reconciler": ">=0.26.1 <=0.33.0"
@@ -133,6 +133,6 @@
     "wordgard": "0.6.2"
   },
   "overrides": {
-    "prosemirror-view": "1.42.3"
+    "prosemirror-view": "1.42.8"
   }
 }
