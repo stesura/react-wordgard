@@ -14,7 +14,7 @@ import React, { createElement } from "react";
 import { type Root, createRoot } from "react-dom/client";
 import { Leaf } from "wordgard/doc";
 import { Wordgard } from "wordgard/editor";
-import { basicSchema } from "wordgard/schema";
+import { basicSchema, image } from "wordgard/schema";
 import { GardState } from "wordgard/state";
 import { Strong } from "wordgard/types";
 
@@ -56,7 +56,8 @@ const middle = (lengths: readonly number[]) =>
 const wordgard =
   (create: (spec: Wordgard.Spec) => Wordgard): Mount =>
   async (html, n, parent) => {
-    const state = GardState.create({ doc: html.repeat(n), config: [basicSchema()] });
+    // basicSchema has no images: image() adds them, as prosemirror-schema-basic has.
+    const state = GardState.create({ doc: html.repeat(n), config: [basicSchema(), image()] });
     const start = performance.now();
     const wg = create({ state, parent });
     wg.flush();
@@ -202,6 +203,7 @@ it("times the editors", async () => {
         // The editor drew the document and what was typed.
         const drawn = parent.querySelectorAll("p");
         expect(drawn.length).toBe(n);
+        expect(parent.querySelectorAll("img[src]").length).toBe(html.includes("<img") ? n : 0);
         expect(drawn[Math.floor(n / 2)]?.textContent).toContain("x".repeat(warmup + keystrokes));
         editor.destroy();
         parent.remove();
