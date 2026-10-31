@@ -71,8 +71,11 @@ too.
   changes, …)` in the private `runUpdate`, called by the flush. The bridge replaces those two calls
   with a tree React built.
 - **Tiles aren't exported and `runUpdate` is private,** so the bridge subclasses Wordgard's editor
-  and uses its internals, as react-prosemirror does with ProseMirror's. The lasting version is a
-  renderer interface Marijn exposes; a working prototype is the case to make for it.
+  and uses its internals, as react-prosemirror does with ProseMirror's. The risk is the same in
+  kind; it's larger in degree because Wordgard is pre-1.0 and changes faster than
+  `prosemirror-view` (which react-prosemirror pins exactly). We pin `wordgard` and re-copy its tests
+  per tag. The lasting version is a renderer interface Marijn exposes; a working prototype is the
+  case to make for it.
 - **Positions count as in ProseMirror** (text by characters, a leaf as 1, a node with content as 2
   plus its content), so position logic ports as is.
 - **Input is already `beforeinput`-driven** (`src/editor/input.ts`), and the DOM observer is small
@@ -200,6 +203,17 @@ react-prosemirror is about 9,100 lines.
   components (about 2,500); the hooks (about 1,100, mostly an API-level port); decorations (about
   600); `ReactEditorView` as a subclass of Wordgard's editor; the composition pause.
 
+## Testing
+
+- **Documents:** test and benchmark documents put marks inside the paragraphs and, where there's an
+  example, inline nodes (images, line breaks, links, inline plots like the tests' `Chip`), not
+  plain text only. Plain-text cases are fine next to richer ones.
+- **Browsers:** Chromium, Firefox and WebKit through Playwright, in the `browser` and `view`
+  projects; all three run on Windows (`npx playwright install firefox webkit`). WebKit is
+  Safari's engine, not Safari: real Safari (autocapitalize, its IME handling) needs macOS, a Mac or
+  a cloud service (BrowserStack, Sauce Labs). Real IMEs are tested by hand on each platform: the
+  tests emulate composition events, as Wordgard's do.
+
 ## Phases
 
 ### R0: skeleton
@@ -240,8 +254,9 @@ composition tiles, as react-prosemirror pauses its own.
 - **Done when:** composition tests pass in Chrome, Safari and Firefox, including composing at a mark
   boundary and in a node whose shape has React widgets around its content.
 - **Status:** done in Chromium, where all 15 of Wordgard's composition tests pass on the React view,
-  mark boundaries included. Open: Safari and Firefox (the `browser` and `view` projects run
-  Chromium only) and a real IME (the tests emulate one, as Wordgard's do). Composing next to React
+  mark boundaries included. Open: Firefox and Safari. Next step: add Firefox and WebKit to the
+  `browser` and `view` projects (see "Testing"); real Safari and real IMEs need macOS and manual
+  runs. Composing next to React
   widgets, in a shape with a React header, is compared with Wordgard since R4 slice 5. Not done
   as planned: no pause, see Progress.
 
@@ -291,6 +306,25 @@ meets a real need, offer the Wordgard equivalent.
 ### R6: performance
 
 Stable inline partitions for Wordgard's mark shapes, memoised children from change sets.
+Starts only once the API (R5) is settled and stable (decided 2026-10-31).
+- **Baseline first:** profile a keystroke by phase (dev and production builds, documents with marks
+  and inline nodes) next to plain Wordgard, our react-prosemirror copy and plain ProseMirror, on a
+  machine on AC with nothing else running.
+- **Per-keystroke cost linear in the doc's top-level children:** typing in one paragraph gives
+  the doc a new identity, so React compares every top-level node view, and our layout, keys and
+  tile build walk every child. react-prosemirror has the same structure (its `ChildNodeViews`
+  re-renders the doc's whole child list and React compares every memoised node view); its cost per
+  child against ours is what the baseline measures.
+- **Candidates, chunking last:**
+  - Lay out, key and build tiles only for the changed sections of a re-laid plot, copying the rest.
+  - Skip Wordgard's first draw at load (about 0.64 s of 1.6 s at 15,000 paragraphs, R2) by
+    constructing with an empty state and swapping in the real one, as react-prosemirror's
+    `ReactEditorView` does. A hack: `viewState` and the plugin instances have to be rebuilt for the
+    real state. Measured in a production build; kept only if it cuts load by most of Wordgard's
+    own draw time, otherwise removed. Either way, ask Wordgard's author for a `setState` or a
+    `DocTile` lookup on the class, so it can go.
+  - Group the doc's children into memoised chunks, so React compares far fewer than one element
+    per top-level child.
 - **Done when:** measured on a 2,500-paragraph and a 15,000-paragraph document: keystroke, load, and
   a Ctrl+A formatting change, against react-prosemirror on the same documents.
 
@@ -298,6 +332,10 @@ Stable inline partitions for Wordgard's mark shapes, memoised children from chan
 
 - **A renderer interface from Marijn:** what minimum would let the bridge stop using internals
   (constructing tiles, replacing the producer, the flush hooks)? Worth raising once R1 works.
+  Concrete asks so far: a `setState` on the editor, or its constructor looking up `DocTile` on the
+  class (Wordgard draws the document once before we take over, see R6); a public way to map a
+  position over change sections (`docs/wordgard-upstream-bugs.md`, "Requests"). The list to send
+  him, bugs included, is `docs/wordgard-upstream-asks.md`.
 - **Several editors in one paginated layout** (headers, footers, notes): one flush per editor, or a
   way to coordinate their flushes so pagination measures them together.
 - **Accessibility of Wordgard's drawn cursor and selection** (`src/editor/drawcursor.ts`): untested.
@@ -686,7 +724,7 @@ Stable inline partitions for Wordgard's mark shapes, memoised children from chan
     for Chromium; Safari, Firefox and real IMEs still to check.
   - Wordgard's constructor still draws the document once before `ReactDocTile.create` replaces it
     (its constructor calls the module's `DocTile.create`, not `Wordgard.DocTile`): double work at
-    load, until the renderer interface.
+    load. To try in R6 (constructing with an empty state), and to raise upstream.
   - Every update re-renders from the root and rebuilt the whole tile tree (O(document)). Since R2,
     unchanged plots keep their tiles and are skipped by React; what remains is linear in the doc's
     top-level children (see R2's measurements).

@@ -6,7 +6,8 @@ what to do once Wordgard changes. Checked against `wordgard` 0.6.2 (installed)
 and Wordgard's `main` at `08804c9`, where all but the fourth are still present. None reported
 upstream yet.
 
-Code that depends on one of these points here: `grep -rn wordgard-upstream-bugs src`.
+Code that depends on one of these points here: `grep -rn wordgard-upstream-bugs src`. The list
+to send Marijn is `docs/wordgard-upstream-asks.md`; keep the two in step.
 
 ## 1. An inline atom gets a stray buffer after it
 
