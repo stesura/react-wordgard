@@ -61,7 +61,8 @@ Wordgard
 https://wordgard.net
 ================================================================================
 
-test/wordgard/ holds copies of Wordgard's browser tests and their helpers.
+test/wordgard/ holds copies of Wordgard's browser tests and their helpers;
+demo/wordgard/main.ts is adapted from Wordgard's demo (demo/demo.ts).
 
 MIT License
 

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- No favicon: an empty one stops the browser asking for /favicon.ico. -->
+    <link rel="icon" href="data:," />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>react-wordgard Demo (Wordgard)</title>
+    <style>
+      main {
+        margin: auto;
+        width: 80%;
+        max-width: 700px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <main>
+      <p>
+        Wordgard rendered by React. Line breaks, images, rules and tables aren't rendered yet: the
+        schema leaves them out. <a href="/">ProseMirror demo</a>
+      </p>
+      <div id="editor"></div>
+    </main>
+    <script type="module" src="/demo/wordgard/main.ts"></script>
+  </body>
+</html>
