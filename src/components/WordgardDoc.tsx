@@ -1,0 +1,46 @@
+// Named after react-prosemirror's ProseMirrorDoc, rewritten for Wordgard:
+// puts the editor's element in the page, inside a `div` taking the props, and
+// renders its document through a portal into Wordgard's content element, so
+// the document shares the app's React tree and contexts. The portal commits
+// first and builds the tiles; attaching the element then connects the editor,
+// as Wordgard's own editor is built before it's connected.
+import React, {
+  type HTMLAttributes,
+  useCallback,
+  useLayoutEffect,
+  useSyncExternalStore,
+} from "react";
+import { createPortal } from "react-dom";
+import type { Wordgard } from "wordgard/editor";
+
+import { editorOf, useEditorContext } from "../contexts/EditorContext.js";
+import { docPortal } from "../tile.js";
+
+const DocPortal = ({ wg }: { wg: Wordgard }) => {
+  const portal = docPortal(wg.contentDOM);
+  const element = useSyncExternalStore(portal.subscribe, portal.get);
+  useLayoutEffect(() => portal.committed(element));
+  useLayoutEffect(() => portal.mount(), [portal]);
+  return createPortal(element, wg.contentDOM);
+};
+
+type Props = Omit<HTMLAttributes<HTMLDivElement>, "children">;
+
+export const WordgardDoc = (props: Props) => {
+  const { wg } = useEditorContext();
+  const attach = useCallback(
+    (dom: HTMLDivElement | null) => {
+      if (!dom) return;
+      dom.appendChild(wg.dom);
+      // Effects waiting for the editor to be in the page.
+      editorOf(wg).requestEffects();
+    },
+    [wg]
+  );
+  return (
+    <>
+      <DocPortal wg={wg} />
+      <div {...props} ref={attach} />
+    </>
+  );
+};

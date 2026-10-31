@@ -41,7 +41,8 @@ import { reactWidget } from "../decorations/ReactWidgetType.js";
 import { useWidgetPos } from "../hooks/useWidgetPos.js";
 import { useWordgard } from "../hooks/useWordgard.js";
 import { ReactDocTile } from "../tile.js";
-import { DocTile, type Tile, TileFlag } from "../wordgardInternals.js";
+import { describeTile, docTileOf, pathOf } from "../testing/tiles.js";
+import { type Tile, TileFlag } from "../wordgardInternals.js";
 
 // A fixed-size image (see the style below), so layout doesn't wait on loading.
 const img = "data:image/gif;base64,R0lGODlhAQABAAAAACw=";
@@ -337,23 +338,6 @@ const mount = (create: Create, doc: Wordgard.Spec["doc"], extra: GardState.Exten
   return wg;
 };
 
-const docTileOf = (wg: Wordgard) => {
-  const tile = wg.contentDOM.wgTile;
-  if (!(tile instanceof DocTile)) throw new Error("No DocTile");
-  return tile;
-};
-
-const pathOf = (root: Node, node: Node) => {
-  const path: number[] = [];
-  for (let cur = node; cur != root;) {
-    const parent = cur.parentNode;
-    if (!parent) throw new Error("Node outside the content");
-    path.unshift([...parent.childNodes].findIndex((child) => child == cur));
-    cur = parent;
-  }
-  return path;
-};
-
 const nodeAt = (root: Node, path: readonly number[]) =>
   path.reduce<Node>((node, i) => {
     const child = node.childNodes[i];
@@ -374,14 +358,6 @@ const firstText = (node: Node | null) => {
 };
 
 const textIn = (content: HTMLElement, index: number) => firstText(blockIn(content, index));
-
-const describeTile = (tile: Tile, root: Node): unknown => ({
-  kind: tile.isDoc ? "doc" : Object.getPrototypeOf(tile).constructor.name,
-  flags: tile.flags,
-  length: tile.length,
-  dom: pathOf(root, tile.dom),
-  children: tile.children.map((child) => describeTile(child, root)),
-});
 
 const allDOMPoints = (root: Node) => {
   const points: { path: number[]; offset: number }[] = [];

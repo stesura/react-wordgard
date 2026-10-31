@@ -5,13 +5,11 @@
 // Wordgard's flush, before React renders. No subscriptions until something
 // needs to re-render without its props changing.
 import { createContext, useContext } from "react";
-import type { Wordgard } from "wordgard/editor";
 
 import type { ReactKeys } from "../reactKeys.js";
 
 export type RenderStore = {
   readonly keys: ReactKeys;
-  readonly wg: Wordgard;
 };
 
 export const RenderStoreContext = createContext<RenderStore | null>(null);

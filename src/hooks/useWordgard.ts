@@ -1,4 +1,5 @@
-// The editor a component is drawn in: what a widget's `render` gets.
-import { useRenderStore } from "../contexts/RenderStoreContext.js";
+// The editor a component is drawn in, or under (WordgardEditor): what a
+// widget's `render` gets.
+import { useEditorContext } from "../contexts/EditorContext.js";
 
-export const useWordgard = () => useRenderStore().wg;
+export const useWordgard = () => useEditorContext().wg;

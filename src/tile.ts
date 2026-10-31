@@ -4,16 +4,18 @@
 // render. Native widgets aren't React's: their DOM is rendered, reused,
 // connected and placed here, following Wordgard's ContentUpdate;
 // `setUneditable` is copied from it. React widgets are drawn by React, and
-// connected here.
-import { createElement } from "react";
+// connected here. React commits into a root of its own, or, for an editor
+// WordgardEditor hosts, a portal in the app's tree (WordgardDoc).
+import { type ReactElement, createElement } from "react";
 import { flushSync } from "react-dom";
-import { type Root, createRoot } from "react-dom/client";
+import { createRoot } from "react-dom/client";
 import { type Attributes, type Node as DocNode, Elt, Leaf, type Plot } from "wordgard/doc";
 import { Widget, type Wordgard } from "wordgard/editor";
 import type { GardState } from "wordgard/state";
 
 import { attrsToRecord } from "./helpers/index.js";
 import { DocNodeView } from "./components/nodes/DocNodeView.js";
+import { EditorContext, editorOf } from "./contexts/EditorContext.js";
 import { type RenderStore, RenderStoreContext } from "./contexts/RenderStoreContext.js";
 import { widgetRoots } from "./contexts/WidgetContext.js";
 import { isReactWidget } from "./decorations/ReactWidgetType.js";
@@ -42,15 +44,35 @@ import {
   getTileClasses,
 } from "./wordgardInternals.js";
 
-// One root and render store per content element. Wordgard's tests also render
-// into elements of their own, without an editor.
+// The portal WordgardDoc draws a hosted editor's document through. Its layout
+// effect reports each element it commits; `mount` builds the tiles over its
+// first commit.
+export type DocPortal = {
+  readonly get: () => ReactElement;
+  readonly subscribe: (listener: () => void) => () => void;
+  readonly committed: (element: ReactElement) => void;
+  readonly mount: () => void;
+};
+
+type Laid = { state: GardState; decoSet: DecoSet; views: readonly ChildView[] };
+
+// One React tree and render store per content element. Wordgard's tests also
+// render into elements of their own, without an editor.
+// `commit` renders an element there (inside flushSync), `portal` is set for a
+// hosted editor, with `reached` telling whether an element got committed and
+// `revert` handing React back the last one committed, `last` is what was last
+// rendered (for the portal to mount).
 // `rendered` records what React committed into text nodes and wrapper
 // elements, `layouts` each plot's content as last laid out, and `composition`
 // the last render's composition.
 const roots = new WeakMap<
   Element,
   {
-    root: Root;
+    commit: (element: ReactElement) => void;
+    portal: DocPortal | null;
+    reached: (element: ReactElement) => boolean;
+    revert: () => void;
+    last: Laid | null;
     store: RenderStore;
     rendered: Rendered;
     layouts: WeakMap<Plot, Layout>;
@@ -622,6 +644,14 @@ const keepsAll = (changes: readonly number[]) => {
 
 type Entry = NonNullable<ReturnType<typeof roots.get>>;
 
+type BuildOptions = {
+  wg: Wordgard;
+  old: ReactDocTile | null;
+  changes: readonly number[] | null;
+  dirty: ReadonlySet<Node>;
+  composition?: CompositionView | null;
+};
+
 // Lays out the document from Wordgard's decorations, keeping the layout of
 // plots outside the ranges `changes` redraws (all, without changes).
 const layout = (
@@ -650,6 +680,47 @@ const layout = (
   );
 };
 
+const newEntry = (commit: Entry["commit"]): Entry => ({
+  commit,
+  portal: null,
+  reached: () => true,
+  revert: () => {},
+  last: null,
+  store: { keys: new WeakMap() },
+  rendered: { texts: new WeakMap(), wrappers: new WeakMap() },
+  layouts: new WeakMap(),
+  composition: null,
+});
+
+const docElement = (wg: Wordgard, entry: Entry, doc: Plot, views: readonly ChildView[]) =>
+  createElement(
+    EditorContext.Provider,
+    { value: editorOf(wg) },
+    createElement(
+      RenderStoreContext.Provider,
+      { value: entry.store },
+      createElement(DocNodeView, { doc, views })
+    )
+  );
+
+// The first layout, keys included.
+const firstLayout = (state: GardState, entry: Entry): Laid => {
+  checkRenderable(state.doc);
+  addFreshKeys(entry.store.keys, state.doc);
+  const decoSet = getDecoSet(state);
+  return { state, decoSet, views: layout(state, decoSet, null, entry, null, new WeakMap()) };
+};
+
+// What `render` throws when React can't commit inside the flush (a flush from
+// inside a React render or commit); ReactWordgard asks for another.
+export class RefusedUpdate extends Error {}
+
+export const docPortal = (dom: Element) => {
+  const { portal } = rootOf(dom);
+  if (!portal) throw new Error("This editor isn't hosted by WordgardEditor");
+  return portal;
+};
+
 export class ReactDocTile extends DocTile {
   // Whether this tree, or one before it, held widget DOM: those get
   // disconnected when dropped.
@@ -659,19 +730,13 @@ export class ReactDocTile extends DocTile {
     if (!roots.has(dom)) {
       // Drops what Wordgard's constructor drew before we took over.
       dom.replaceChildren();
-      roots.set(dom, {
-        root: createRoot(dom),
-        store: { keys: new WeakMap(), wg },
-        rendered: { texts: new WeakMap(), wrappers: new WeakMap() },
-        layouts: new WeakMap(),
-        composition: null,
-      });
+      const root = createRoot(dom);
+      roots.set(
+        dom,
+        newEntry((element) => root.render(element))
+      );
     }
-    checkRenderable(state.doc);
-    const entry = rootOf(dom);
-    addFreshKeys(entry.store.keys, state.doc);
-    const decoSet = getDecoSet(state);
-    const views = layout(state, decoSet, null, entry, null, new WeakMap());
+    const { decoSet, views } = firstLayout(state, rootOf(dom));
     return ReactDocTile.render(state, dom, decoSet, views, {
       wg,
       old: null,
@@ -680,40 +745,102 @@ export class ReactDocTile extends DocTile {
     });
   };
 
+  // For an editor WordgardEditor hosts: React draws the document when
+  // WordgardDoc mounts its portal, which then calls `mount`. Until then the
+  // tree is empty; Wordgard doesn't flush an editor that isn't in the page.
+  static host = (state: GardState, dom: Element, wg: Wordgard, mount: () => void) => {
+    dom.replaceChildren();
+    let element: ReactElement | null = null;
+    let committed: ReactElement | null = null;
+    const listeners = new Set<() => void>();
+    const portal: DocPortal = {
+      get: () => {
+        if (!element) throw new Error("Nothing to render yet");
+        return element;
+      },
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+      committed: (element) => {
+        committed = element;
+      },
+      mount,
+    };
+    const entry = newEntry((next) => {
+      element = next;
+      for (const listener of listeners) listener();
+    });
+    entry.portal = portal;
+    entry.reached = (element) => committed == element;
+    entry.revert = () => {
+      element = committed;
+    };
+    roots.set(dom, entry);
+    const laid = firstLayout(state, entry);
+    entry.last = laid;
+    element = docElement(wg, entry, state.doc, laid.views);
+    return new ReactDocTile(state, dom, null, laid.decoSet);
+  };
+
+  // Builds the tiles over what the portal committed, for its first commit or
+  // a commit after it was unmounted.
+  static mount = (dom: Element, wg: Wordgard, old: DocTile) => {
+    const { last } = rootOf(dom);
+    if (!last) throw new Error("Nothing rendered to mount");
+    return ReactDocTile.build(last.state, dom, last.decoSet, last.views, {
+      wg,
+      old: old instanceof ReactDocTile ? old : null,
+      changes: null,
+      dirty: new Set(),
+    });
+  };
+
   // Runs inside Wordgard's flush, where its DOM observer ignores mutations, so
-  // React commits synchronously here. Then builds the tiles, puts widget DOM
-  // in place, and connects and disconnects widgets as Wordgard's updateRanges
-  // does.
+  // React commits synchronously here, with the state the hooks read. Then
+  // builds the tiles.
   private static render = (
     state: GardState,
     dom: Element,
     decoSet: DecoSet,
     views: readonly ChildView[],
-    {
-      wg,
-      old,
-      changes,
-      dirty,
-      composition = null,
-    }: {
-      wg: Wordgard;
-      old: ReactDocTile | null;
-      changes: readonly number[] | null;
-      dirty: ReadonlySet<Node>;
-      composition?: CompositionView | null;
+    options: BuildOptions
+  ) => {
+    const entry = rootOf(dom);
+    const editor = editorOf(options.wg);
+    const element = docElement(options.wg, entry, state.doc, views);
+    const before = { state: editor.store.getState(), last: entry.last };
+    entry.last = { state, decoSet, views };
+    flushSync(() => {
+      editor.publish(state);
+      entry.commit(element);
+    });
+    // flushSync defers inside a React render or commit, and the tiles can't
+    // be built over DOM React hasn't committed. React renders what the stores
+    // then hold, so it gets back what it last committed, and Wordgard, which
+    // keeps the update pending, redraws on its next flush.
+    if (!entry.reached(element)) {
+      entry.last = before.last;
+      entry.revert();
+      editor.publish(before.state);
+      throw new RefusedUpdate(
+        "ReactWordgard can't update while React renders or commits: read the editor's layout from useEditorEffect or useEditorMeasure, not from a React effect"
+      );
     }
+    return ReactDocTile.build(state, dom, decoSet, views, options);
+  };
+
+  // Builds the tiles over the DOM React committed, puts widget DOM in place,
+  // and connects and disconnects widgets as Wordgard's updateRanges does.
+  private static build = (
+    state: GardState,
+    dom: Element,
+    decoSet: DecoSet,
+    views: readonly ChildView[],
+    { wg, old, changes, dirty, composition = null }: BuildOptions
   ) => {
     const entry = rootOf(dom);
     entry.composition = composition;
-    flushSync(() =>
-      entry.root.render(
-        createElement(
-          RenderStoreContext.Provider,
-          { value: entry.store },
-          createElement(DocNodeView, { doc: state.doc, views })
-        )
-      )
-    );
     const tile = new ReactDocTile(state, dom, composition?.wrapCursor ?? null, decoSet);
     const cursor = childCursor(dom);
     const context: BuildContext = {
@@ -751,8 +878,13 @@ export class ReactDocTile extends DocTile {
     info?: CompositionInfo | null
   ) {
     const entry = rootOf(this.dom);
+    const editor = editorOf(wg);
+    if (editor.measures.size) wg.scheduleDOMRead(editor.readMeasures);
     const previous = entry.composition;
-    if (keepsAll(changes) && !info && !previous) return this;
+    if (keepsAll(changes) && !info && !previous) {
+      flushSync(() => editor.publish(state));
+      return this;
+    }
     checkRenderable(state.doc);
     const composition = info ? compositionView(state.doc, info, changes, entry.rendered) : null;
     const replaced = mapKeys(entry.store.keys, this.state.doc, state.doc, changes);

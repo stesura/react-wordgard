@@ -1,16 +1,20 @@
 # react-wordgard
 
-> **Work in progress.** Nothing here is ready to use yet.
+> **Work in progress.** The API below may still change.
 
-A starting point for a React view over
-[Wordgard](https://www.npmjs.com/package/wordgard).
+A React view for [Wordgard](https://www.npmjs.com/package/wordgard): React draws Wordgard's
+document, inside Wordgard's own update, and Wordgard keeps doing what it does (input, selection,
+composition, decorations). The API is Wordgard's; react-wordgard adds what React needs to draw it.
 
 This repository is derived from
 [react-prosemirror](https://github.com/handlewithcarecollective/react-prosemirror),
 by [Handle with Care Collective](https://github.com/handlewithcarecollective)
 and originally The New York Times Company. Thanks to them for the design this
-builds on. The view code, in `src/prosemirror/`, is still upstream's ProseMirror
-view, plus these changes for large documents:
+builds on.
+
+`src/prosemirror/` still holds the ProseMirror view of our react-prosemirror fork, for the
+ProseMirror demo and as the benchmark's comparison, until it's deleted. Its changes for large
+documents, against upstream:
 
 - Node, mark, text and widget views place their view description among their
   siblings with a binary search instead of re-sorting the sibling list.
@@ -21,8 +25,94 @@ view, plus these changes for large documents:
 - `ReactEditorView` detaches the React-rendered children around the base
   constructor's attribute changes.
 
-`wordgard` is installed but not used yet. For the current API, see upstream's
-README.
+## Usage
+
+```tsx
+import { forwardRef } from "react";
+import { Decoration } from "wordgard/editor";
+import { basicSchema, image } from "wordgard/schema";
+import { Image } from "wordgard/types";
+import { WordgardDoc, WordgardEditor, reactWidget, useEditorStateSelector } from "react-wordgard";
+
+// An image drawn by a React component. It forwards its ref to its root element,
+// which becomes the widget's DOM; `render` is what plain Wordgard draws.
+const ImageView = forwardRef<HTMLImageElement, { value: string }>(({ value }, ref) => (
+  <img ref={ref} src={value} />
+));
+const ReactImage = reactWidget({
+  render: (src) => Object.assign(document.createElement("img"), { src }),
+  component: ImageView,
+});
+
+const WordCount = () => {
+  const words = useEditorStateSelector((state) => state.doc.textContent().split(/\s+/).length);
+  return <output>{words} words</output>;
+};
+
+export const Editor = () => (
+  <WordgardEditor
+    doc="<p>Hello <strong>world</strong></p>"
+    config={[
+      basicSchema(),
+      image(),
+      Decoration.Tag.shape(Image, (tag) => ReactImage.of(tag.param)),
+    ]}
+  >
+    <WordCount />
+    <WordgardDoc className="editor" />
+  </WordgardEditor>
+);
+```
+
+- `<WordgardEditor>` creates the editor from a `Wordgard.Spec` (read once: the editor owns its
+  state; change it with `dispatch`, and its configuration with Wordgard's compartments) and
+  provides it to what it holds. `<WordgardDoc>` puts the editor in the page and renders the
+  document through a portal, in your React tree: your contexts reach React widgets.
+- `reactWidget(spec)` takes `Widget.define`'s spec plus a `component`. It's a real
+  `Widget.Type`: use it wherever Wordgard takes a widget (a node's shape, a tag or point widget,
+  inside an `Elt` shape). React widgets are uneditable by default, so a component may re-render
+  on its own; it must keep the same root element.
+- Hooks, from inside `<WordgardEditor>` or a React widget:
+  - `useWordgard()`: the editor.
+  - `useEditorState()`, `useEditorStateSelector(selector)`: the state as of the editor's last
+    flush, rendered in the same React commit as the document.
+  - `useEditorEffect(effect, deps)`: an effect run once the editor's DOM is up to date, where it
+    may read layout (`coordsAtPos`) and dispatch.
+  - `useEditorEventCallback(callback)`: a stable callback getting the editor.
+  - `useEditorMeasure({ read, write })`: reads in every update's read phase, writes in its write
+    phase, on the same paint as the document.
+  - `useWidgetPos()`, in a React widget: a function returning its position.
+- In React's StrictMode (development only), `<WordgardEditor>` creates its editor twice and
+  drops one, which is never put in the page.
+- Don't read the editor's layout from a plain React effect: it runs inside Wordgard's update,
+  before the editor's view of the new DOM exists. Use `useEditorEffect` or `useEditorMeasure`.
+
+## Migrating from react-prosemirror
+
+react-wordgard isn't a compatibility layer: it follows Wordgard's API, and most of a migration is
+moving from ProseMirror's concepts to Wordgard's (see Wordgard's
+[ProseMirror migration guide](https://wordgard.net/docs/prosemirror/)). What changes on the React
+side:
+
+| react-prosemirror                                 | react-wordgard                                                                                                                                                      |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<ProseMirror state={…} dispatchTransaction={…}>` | `<WordgardEditor doc={…} config={…}>`, uncontrolled: the editor owns its state, changes go through `wg.dispatch`                                                    |
+| `<ProseMirrorDoc />`                              | `<WordgardDoc />`                                                                                                                                                   |
+| `plugins` prop                                    | Wordgard extensions in `config`; to change them later, compartments or `GardState.appendConfig`                                                                     |
+| `nodeViews` prop and node view components         | Tag decorations (`Decoration.Tag.shape`, `.widget`, `.wrapper`, `.attribute`): an `Elt` shape for structure and editable content, React widgets for what needs code |
+| `widget()` decorations with a component           | `Decoration.Point.widget(MyReactWidget.of(value))`                                                                                                                  |
+| `getPos` prop, `useNodePos`                       | `useWidgetPos()`                                                                                                                                                    |
+| `useStopEvent`                                    | the widget spec's `propagateEvent`                                                                                                                                  |
+| `useIgnoreMutation`                               | not needed: React widgets are uneditable, Wordgard ignores their mutations                                                                                          |
+| `useEditorState`, `useEditorStateSelector`        | the same names, with the state of the last flush                                                                                                                    |
+| `useEditorEffect`                                 | the same name: runs after the editor's update                                                                                                                       |
+| `useEditorEventCallback`                          | the same name, getting the editor                                                                                                                                   |
+| `useEditorEventListener`                          | `Wordgard.domEventHandler` in `config`                                                                                                                              |
+| `useLayoutGroupEffect`                            | `useEditorEffect`; `useEditorMeasure` to measure, then write on the same paint                                                                                      |
+| `reactKeys()` plugin                              | not needed: keys come from the changes Wordgard gives the view                                                                                                      |
+
+Not offered yet: whether a node is selected (`useIsNodeSelected`, `useSelectNode`), composition
+state (`useIsComposingIn`) and focus state.
 
 ## Development
 
@@ -38,9 +128,12 @@ npm run demo                     # the demo, on Vite's dev server
 npm run bench                    # times ReactWordgard, Wordgard, react-prosemirror and ProseMirror
 ```
 
-The benchmark (`bench/`, not part of the package) uses React's production build; `npm run
-bench:dev` uses the development build and `npm run bench:smoke` checks it runs. Run it on an idle
-machine, on mains power.
+The benchmark (`bench/`, not part of the package) times load, a keystroke and bolding the whole
+document, and measures the memory each loaded editor holds, at 2,500 and 15,000 paragraphs. It uses
+React's production build; `npm run bench:dev` uses the development build and `npm run bench:smoke`
+checks it runs. Run it on an idle machine, on mains power. An editor holding over 1 GB skips the
+whole-document format: Chromium caps a page's heap at 4 GB, and react-prosemirror runs out of it
+there at 15,000 paragraphs with inline nodes.
 
 ## Licence
 

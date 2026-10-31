@@ -1,10 +1,11 @@
 # react-wordgard: a React view for Wordgard (plan, 2026-10-30)
 
 **Status:** R1 done; R2 mostly done; R3 done for what can be tested here; R4 done apart from its
-open slice 6 (2026-10-31, see Progress): React renders every node and mark Wordgard's schemas
+open slice 6; R5 done (2026-10-31, see Progress): React renders every node and mark Wordgard's schemas
 define, and every decoration, Wordgard's native widgets included, with stable keys and kept tiles,
 keeps the IME's text node through Wordgard's flush, and draws React widgets in the editor's own
-React tree. Next: R5 (hooks) and R6 (performance). The skeleton
+React tree. R5 done: the editor renders in the app's React tree, with hooks and a public API.
+Next: R6 (performance). The skeleton
 (a standalone copy of our react-prosemirror fork, Tiptap removed, `wordgard` installed, ProseMirror
 still in place) is done. The public API follows Wordgard's, not react-prosemirror's (see "Follow
 Wordgard's API").
@@ -302,6 +303,11 @@ meets a real need, offer the Wordgard equivalent.
   the table in "From ProseMirror to Wordgard".
 - **Done when:** each hook has tests, a measure-then-write hook lands its write on the same paint
   as the document update, and the README has the migration section.
+- **Status:** done (2026-10-31), see Progress: `<WordgardEditor>` and `<WordgardDoc>` host the
+  editor in the app's React tree; `useWordgard`, `useEditorState`, `useEditorStateSelector`,
+  `useEditorEffect`, `useEditorEventCallback`, `useEditorMeasure`, `useWidgetPos`; exports and the
+  README's migration section. Not offered yet: event listeners (Wordgard's config covers them),
+  node-selected, composition and focus state.
 
 ### R6: performance
 
@@ -719,6 +725,65 @@ Starts only once the API (R5) is settled and stable (decided 2026-10-31).
     a wrapper remounts (React can't reparent); with a React widget in the document every update
     walks the old tree to disconnect, as with native widgets. Slice 4's open items (a widget whose
     DOM is a `<br>`, reuse next to a composition) are still open.
+- **2026-10-31, R5 (hooks and the public API), done:** the editor renders in the app's React tree,
+  and the hooks follow react-prosemirror's names where the concept is the same.
+  - Hosting: `<WordgardEditor>` (react-prosemirror's `ProseMirror`) creates the editor with
+    `ReactWordgard.host(spec)`, the spec read once like `defaultState` since Wordgard's editor owns
+    its state, and provides an `EditorContext`. `<WordgardDoc>` (`ProseMirrorDoc`) renders a portal
+    into `contentDOM`, reading the element to draw from a store, then a `div` whose ref appends
+    `wg.dom`, which connects the editor. `ReactDocTile.host` returns an empty tile; the portal's
+    first layout effect calls `ReactDocTile.mount`, which builds the tiles over React's commit,
+    before the editor connects, as Wordgard builds before connecting. Later updates commit
+    through the portal store inside the flush (`flushSync`). `ReactWordgard.create` keeps its own
+    root for the copied Wordgard tests. App contexts reach React widgets.
+  - Store and hooks (`src/contexts/EditorContext.ts`, `src/hooks/`): one value per editor, never
+    changing: the editor, a store of the state as of the last flush, published in the same React
+    commit as the document, an effect queue and the measures. `useWordgard`, `useEditorState`,
+    `useEditorStateSelector`, `useEditorEffect` (runs after the flush under way or pending, else
+    in a microtask; never inside React's commit, so it may read layout and dispatch),
+    `useEditorEventCallback`, `useEditorMeasure({read, write})` (reads in Wordgard's read phase,
+    scheduled on every update, writes in the write phase inside `flushSync`, so React state they
+    set lands on the same paint), and `useWidgetPos` from R4. `ReactWordgard.flush` overrides
+    Wordgard's to run the effects after it.
+  - A flush from inside a React render or commit (a layout read from a plain React effect, with a
+    pending change) can't commit: `flushSync` defers there. The bridge detects it (the portal's
+    layout effect reports each commit), hands React back the last committed element and state,
+    and throws `RefusedUpdate` with a message pointing to `useEditorEffect` and
+    `useEditorMeasure`; `ReactWordgard.flush` then asks Wordgard for another frame, which
+    catches up. This closes R1's open point on `flushSync` inside React for hosted editors.
+  - Exports (`src/index.ts`): the two components, `reactWidget` and its types, the hooks.
+    `ReactWordgard` and the tile code stay internal; the exported typings reach no Wordgard
+    internals. README: a usage section and "Migrating from react-prosemirror". The Wordgard demo
+    (`/wordgard.html`) now runs on `WordgardEditor` in StrictMode, with images as React widgets
+    with hover state and a word count; driven in Chromium with real typing, no errors. Peer
+    dependencies now ask for React 18 or 19 (the code needed 18 already).
+  - Not offered yet: `useEditorEventListener` (Wordgard's `Wordgard.domEventHandler` in `config`
+    covers it), node-selected state (`useIsNodeSelected`, `useSelectNode`), composition state
+    (`useIsComposingIn`), focus state.
+  - How it differs from the plan: the component owning the editor was an R1 open point rather
+    than an R5 line; it's the base the hooks needed. No controlled `state` prop: Wordgard has no
+    way to replace an editor's state without a transaction.
+  - Tests (`src/__tests__/WordgardEditor.browser.test.tsx`, 15), on a document with marks, an
+    image, a line break, a link, an inline plot, React and native widgets: DOM and tile tree
+    matching plain Wordgard, through edits and in StrictMode; remounting `WordgardDoc`; widgets
+    connected once, as in Wordgard; an app context reaching a widget and changing outside the
+    flush (no redraw); each hook; the refused update recovering on its own. Sabotage: running
+    effects at once, measure writes outside `flushSync`, no revert, the state published in its
+    own commit, no retry, idle effects inside the commit, and the old state guard after the flush
+    each fail a test. Shared test helpers moved to `src/testing/tiles.ts`.
+  - Found on the way: Wordgard's `basicSchema` has no images, so the benchmark's "marks and inline
+    nodes" document had none on the Wordgard side (committed that way in the benchmark's first
+    commit). It now adds `image()` and checks each editor draws them.
+  - Audit (Fable) fixes: a refused update left Wordgard with no frame requested, so the DOM stayed
+    stale (and `ensureFlushed` quiet) until the next input; `useEditorEffect` ran inside React's
+    commit when the editor was idle, so dispatching then reading layout was refused there; queued
+    effects waited for `wg.state` to match the flushed state, which an update listener dispatching
+    after each flush would prevent. Documented: StrictMode creates a second, never-connected editor
+    in development; a measure's write is measured again only when it changes the content's size.
+  - Open: a `useEditorMeasure` registered makes every flush run the read and a write pass;
+    `plugin.update` runs twice for a refused update's transactions (inherent to throwing inside
+    Wordgard's flush); an uncaught refused update from a layout effect unmounts a React 18 root
+    without an error boundary.
 - **Open from R1's first slice:**
   - Composition: restoring the old tree undid the browser's composed text. Done in R3 (above),
     for Chromium; Safari, Firefox and real IMEs still to check.
@@ -734,8 +799,10 @@ Starts only once the API (R5) is settled and stable (decided 2026-10-31).
     `innerHTML` differs once a shape has several attributes.
   - `flushSync` inside a React render or effect doesn't flush synchronously: an editor created
     from there, or a `coordsAtPos`/`domAtPos`/`nodeDOM` call from an effect with a pending update
-    (`ensureFlushed`), would find React's DOM missing. Matters once a component owns the editor
-    (R5).
+    (`ensureFlushed`), would find React's DOM missing. Since R5, a hosted editor refuses such an
+    update with an error, hands React back what it committed and catches up on its next frame;
+    an editor with its own root (`ReactWordgard.create`, the copied tests) still doesn't detect
+    it.
   - Unrenderable content (now only namespaced shape elements and empty strings in shapes) throws
     from the flush and leaves the editor stuck on its last tree.
   - An empty text leaf with marks (Wordgard 0.6.2) is skipped with its wrappers, where Wordgard

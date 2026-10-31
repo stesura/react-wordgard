@@ -93,6 +93,13 @@ bugs below. Everything was checked on 0.6.2, and all of it is still present on `
    A supported way to supply the tile producer, plus exported tile classes or a builder for them,
    would cover most of it. I'm happy to share how the bridge uses each one.
 
+   Part of it: **adopting an existing element as the content element**, as ProseMirror's
+   `EditorView` takes a `mount`. The constructor creates `contentDOM` itself and attaches input
+   handling and the DOM observer to it, so React can't render that element; our view renders the
+   document through a React portal into it instead, and wraps the editor's element in a host
+   element of its own. With such an option, React could render the content element as part of the
+   app's tree, as react-prosemirror does.
+
 10. **Typings.**
     - The constructor is `private`, so subclassing `Wordgard` needs `@ts-expect-error`.
     - `@internal` members are stripped from the `.d.ts`.
