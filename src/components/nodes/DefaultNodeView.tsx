@@ -4,8 +4,7 @@
 import React, { createElement, memo } from "react";
 import type { Plot } from "wordgard/doc";
 
-import { attrsToRecord } from "../../attributes.js";
-import { htmlAttrsToReactProps } from "../../props.js";
+import { attrsToRecord, htmlAttrsToReactProps } from "../../helpers/index.js";
 import { ChildNodeViews } from "../ChildNodeViews.js";
 
 type Props = {

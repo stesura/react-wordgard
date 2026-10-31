@@ -36,8 +36,8 @@ export default tseslint.config(
     // The React Compiler's Rules of React (refs, immutability, purity, ...)
     // gave 35 findings on 2026-10-30, all in the ProseMirror view code, mostly
     // refs written during render. Off there until it's replaced, and in
-    // src/refs.ts (copied from react-prosemirror, a spread dependency list).
-    files: ["src/prosemirror/**", "src/refs.ts"],
+    // src/helpers/refs.ts (copied from react-prosemirror, a spread dependency list).
+    files: ["src/prosemirror/**", "src/helpers/refs.ts"],
     rules: Object.fromEntries(
       Object.keys(reactHooksRules)
         .filter((rule) => !/rules-of-hooks|exhaustive-deps/.test(rule))

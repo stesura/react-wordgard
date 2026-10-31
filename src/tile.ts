@@ -9,7 +9,7 @@ import { type Attributes, Leaf, type Plot } from "wordgard/doc";
 import { Widget, type Wordgard } from "wordgard/editor";
 import type { GardState } from "wordgard/state";
 
-import { attrsToRecord } from "./attributes.js";
+import { attrsToRecord } from "./helpers/index.js";
 import { needsTrailingHack } from "./components/ChildNodeViews.js";
 import { DocNodeView } from "./components/nodes/DocNodeView.js";
 import {

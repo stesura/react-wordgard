@@ -215,7 +215,7 @@ Stable inline partitions for Wordgard's mark shapes, memoised children from chan
   or render from Wordgard's HTML serializer.
 - **Rules of React lint (done at R1's start, 2026-10-30):** the react-hooks plugin's full
   `recommended` preset (the React Compiler's checks) is on, except in `src/prosemirror/` and
-  `src/refs.ts` (35 findings there, mostly refs written during render). Details in
+  `src/helpers/refs.ts` (35 findings there, mostly refs written during render). Details in
   `eslint.config.js`.
 - **The browser edits the DOM itself when typing (found 2026-10-30):** "Input is already
   `beforeinput`-driven" holds for computing the change, but Wordgard doesn't `preventDefault`
