@@ -1,4 +1,5 @@
-// Times load, a keystroke and formatting the whole document (Ctrl+A, bold) in
+// Times load, a keystroke and formatting the whole document (Ctrl+A, bold), and
+// measures the memory the loaded editor holds, in
 // ReactWordgard, plain Wordgard, react-prosemirror and plain ProseMirror, on
 // the same documents. react-prosemirror is our fork's copy in src/prosemirror,
 // imported here only to compare against; once that folder is deleted, this
@@ -32,6 +33,10 @@ const sizes = smoke ? [50] : [2500, 15000];
 const keystrokes = smoke ? 5 : 30;
 const warmup = smoke ? 1 : 5;
 const formats = smoke ? 2 : 4;
+// Chromium gives a page at most 4 GB of heap. react-prosemirror holds about
+// 2 GB at 15,000 paragraphs with inline nodes, and formatting all of them
+// then crashes the page: an editor holding more than this skips the format.
+const formatLimit = 1000;
 
 const img = "data:image/gif;base64,R0lGODlhAQABAAAAACw=";
 const paragraphs = {
@@ -169,6 +174,14 @@ const time = (parent: HTMLElement, f: () => void) => {
   return performance.now() - start;
 };
 
+// The JS heap after a full garbage collection, in MB (Chromium flags in
+// vitest.config.ts).
+const heap = () => {
+  const gc = Reflect.get(window, "gc");
+  if (typeof gc == "function") gc();
+  return (Reflect.get(performance, "memory")?.usedJSHeapSize ?? 0) / 1e6;
+};
+
 // React's development build has debug internals its production build lacks.
 const reactBuild = () => {
   const internals = Reflect.get(React, "__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED");
@@ -190,16 +203,19 @@ it("times the editors", async () => {
         const parent = document.createElement("div");
         parent.style.cssText = "position: absolute; left: 0; top: 0; width: 600px;";
         document.body.appendChild(parent);
+        const before = heap();
         const editor = await mount(html, n, parent);
         const load = timings.load;
+        const memory = heap() - before;
         const typed: number[] = [];
         for (let i = 0; i < warmup + keystrokes; i++) {
           const ms = time(parent, () => editor.type(i));
           if (i >= warmup) typed.push(ms);
         }
         const formatted: number[] = [];
-        for (let i = 0; i < formats; i++)
-          formatted.push(time(parent, () => editor.format(i % 2 == 0)));
+        if (memory < formatLimit)
+          for (let i = 0; i < formats; i++)
+            formatted.push(time(parent, () => editor.format(i % 2 == 0)));
         // The editor drew the document and what was typed.
         const drawn = parent.querySelectorAll("p");
         expect(drawn.length).toBe(n);
@@ -207,19 +223,23 @@ it("times the editors", async () => {
         expect(drawn[Math.floor(n / 2)]?.textContent).toContain("x".repeat(warmup + keystrokes));
         editor.destroy();
         parent.remove();
-        rows.push(
-          `| ${docName} | ${n} | ${name} | ${load.toFixed(0)} | ${median(typed).toFixed(1)} | ${median(formatted).toFixed(0)} |`
-        );
+        // Lets React finish unmounting, so the next "before" reading is clean.
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        const row = `| ${docName} | ${n} | ${name} | ${load.toFixed(0)} | ${median(typed).toFixed(1)} | ${formatted.length ? median(formatted).toFixed(0) : `skipped (> ${formatLimit} MB held)`} | ${memory.toFixed(0)} |`;
+        rows.push(row);
+        // As it goes, so a crash keeps the rows before it.
+        // eslint-disable-next-line no-console
+        console.log(row);
       }
   // The benchmark's output.
   // eslint-disable-next-line no-console
   console.log(
     [
       `React ${React.version}, ${build} build, ${navigator.userAgent}`,
-      `Medians: ${keystrokes} keystrokes after ${warmup} unmeasured, ${formats} whole-document format changes (bold on, off).`,
+      `Medians: ${keystrokes} keystrokes after ${warmup} unmeasured, ${formats} whole-document format changes (bold on, off). Memory: the heap the loaded editor holds, after garbage collection, give or take a few tens of MB (small negative values mean about nothing).`,
       "",
-      "| Document | Paragraphs | Editor | Load (ms) | Keystroke (ms) | Format all (ms) |",
-      "|---|---|---|---|---|---|",
+      "| Document | Paragraphs | Editor | Load (ms) | Keystroke (ms) | Format all (ms) | Memory (MB) |",
+      "|---|---|---|---|---|---|---|",
       ...rows,
     ].join("\n")
   );

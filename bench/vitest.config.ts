@@ -39,7 +39,10 @@ export default defineConfig(({ mode }) => {
       testTimeout: 30 * 60 * 1000,
       browser: {
         enabled: true,
-        provider: playwright(),
+        // Exact heap sizes and `gc()`, for the memory column.
+        provider: playwright({
+          launchOptions: { args: ["--enable-precise-memory-info", "--js-flags=--expose-gc"] },
+        }),
         headless: true,
         instances: [{ browser: "chromium" }],
       },
