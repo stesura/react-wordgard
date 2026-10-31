@@ -1,32 +1,34 @@
-// Named after react-prosemirror's ChildNodeViews, rewritten for Wordgard.
-// Renders only plots and unmarked text so far.
+// Named after react-prosemirror's ChildNodeViews, rewritten for Wordgard: draws
+// what iterDeco lays out, so far plots, text and mark wrappers.
 import React from "react";
-import { Leaf, type Plot } from "wordgard/doc";
+import type { Plot } from "wordgard/doc";
 
+import { type ChildView, iterDeco } from "../decorations/iterDeco.js";
 import { TextNodeView } from "./TextNodeView.js";
 import { TrailingHackView } from "./TrailingHackView.js";
+import { MarkView } from "./marks/MarkView.js";
 import { DefaultNodeView } from "./nodes/DefaultNodeView.js";
 
 type Props = {
   node: Plot;
 };
 
-// Wordgard 0.6.2 can leave empty text leaves in a document (later versions
-// refuse them). React draws no text node for them, so they're drawn as
-// nothing, and a textblock holding only those gets the trailing <br>.
-export const needsTrailingHack = (node: Plot) =>
-  node.isTextblock && node.content.every((child) => child.is(Leaf.Text) && !child.param);
-
 // Keys are indices until R2 derives them from change sets.
-export const ChildNodeViews = ({ node }: Props) => (
-  <>
-    {node.content.map((child, i) =>
-      child.isPlot ? (
-        <DefaultNodeView key={i} node={child} />
-      ) : child.is(Leaf.Text) ? (
-        <TextNodeView key={i} text={child.param} />
-      ) : null
-    )}
-    {needsTrailingHack(node) && <TrailingHackView />}
-  </>
-);
+const renderChildView = (view: ChildView, key: number) => {
+  switch (view.type) {
+    case "node":
+      return <DefaultNodeView key={key} node={view.node} />;
+    case "text":
+      return <TextNodeView key={key} text={view.text} />;
+    case "wrapper":
+      return (
+        <MarkView key={key} elt={view.elt}>
+          {view.children.map(renderChildView)}
+        </MarkView>
+      );
+    case "trailingHack":
+      return <TrailingHackView key={key} />;
+  }
+};
+
+export const ChildNodeViews = ({ node }: Props) => <>{iterDeco(node).map(renderChildView)}</>;

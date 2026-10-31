@@ -3,7 +3,7 @@
 // repo, at the pinned version). The declarations below are trusted, not
 // checked: re-read them against Wordgard's source after `npm run
 // update-wordgard`.
-import type { Node as DocNode, Elt, Mark } from "wordgard/doc";
+import type { Attributes, Node as DocNode, Elt, Mark } from "wordgard/doc";
 import { Widget, Wordgard } from "wordgard/editor";
 import { basicSchema } from "wordgard/schema";
 import type { GardState } from "wordgard/state";
@@ -79,11 +79,18 @@ interface WidgetTileClass {
 // Wordgard's `TileFlag`, a const enum its typings declare without exporting.
 export const TileFlag = {
   PlotContent: 0x2,
+  Spanning: 0x4,
+  Wrapper: 0x8,
   Point: 0x10,
   PointAfter: 0x40,
   Synced: 0x100,
   Dirty: 0x2000,
 } as const;
+
+// Wordgard's `Elt.Selector`, opaque here: we only hand it back to `addAttrs`.
+export interface EltSelector {
+  match(elt: Elt): boolean;
+}
 
 declare module "wordgard/doc" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -92,6 +99,22 @@ declare module "wordgard/doc" {
     interface Type<Param = unknown> {
       readonly shape: { readonly atom: boolean; create(param: Param): Elt };
     }
+  }
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace Mark {
+    // A mark type has either an element or an attribute shape.
+    interface Type<Param = unknown> {
+      readonly rank: number;
+      readonly element: { readonly name: string; attrs(value: Param): Attributes } | null;
+      readonly attribute: {
+        get(value: Param): Attributes;
+        readonly target: EltSelector | null;
+      } | null;
+    }
+  }
+  interface Elt<T = string> {
+    // Merges onto the element `target` matches, or else onto this one.
+    addAttrs(attrs: Attributes, target?: EltSelector): Elt<T>;
   }
 }
 

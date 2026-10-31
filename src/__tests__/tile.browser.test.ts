@@ -2,7 +2,16 @@
 // and answers the tile queries the same way.
 import { Leaf } from "wordgard/doc";
 import { Wordgard } from "wordgard/editor";
-import { basicSchema } from "wordgard/schema";
+import {
+  alignment,
+  basicSchema,
+  blockDoc,
+  heading,
+  inlineMarks,
+  lineBreak,
+  paragraph,
+} from "wordgard/schema";
+import { Color, Emphasis, Strong } from "wordgard/types";
 
 import { ReactWordgard } from "../ReactWordgard.js";
 import { ReactDocTile } from "../tile.js";
@@ -15,7 +24,22 @@ const docs = {
   "wrapped lines": `<p>${"Lorem ipsum dolor sit amet, consectetur adipiscing elit. ".repeat(4)}</p>`,
   "bidi text": "<p>abc אבג דהו def</p><p>אבג abc</p>",
   "nested plots": "<h2>Title</h2><blockquote><p>quoted</p><p></p></blockquote><p>after</p>",
+  "marks on text":
+    "<p>plain <em>em <strong>both</strong></em><strong> strong</strong> <code>code</code></p>",
+  "marks of different ranks":
+    "<p><strong>ab<em>cd</em>ef</strong> <em>gh<strong>ij</strong>kl</em></p>",
+  links:
+    '<p><a href="https://a.example">a link <em>in em</em></a> and <a href="https://b.example">another</a></p>',
+  "attribute marks":
+    '<p><span style="color: red">red <span style="background-color: yellow">on yellow</span></span> plain</p>',
+  "attribute and element marks":
+    '<p><u style="color: blue">under<strong>lined</strong></u><s> struck</s></p>',
+  "marks on blocks":
+    '<p style="text-align: center">centered <em>text</em></p><h2 style="text-align: end">Title</h2>',
 };
+
+// Inline marks and alignment (attribute marks on text and on textblocks).
+const config = [blockDoc(), paragraph(), heading(), lineBreak(), inlineMarks(), alignment()];
 
 type Create = (spec: Wordgard.Spec) => Wordgard;
 
@@ -23,7 +47,7 @@ const mount = (create: Create, doc: string) => {
   const parent = document.createElement("div");
   parent.style.cssText = "position: absolute; left: 0; top: 0; width: 300px;";
   document.body.appendChild(parent);
-  const wg = create({ doc, config: [basicSchema()], parent });
+  const wg = create({ doc, config, parent });
   wg.flush();
   return wg;
 };
@@ -58,11 +82,13 @@ const blockIn = (content: HTMLElement, index: number) => {
   return block;
 };
 
-const textIn = (content: HTMLElement, index: number) => {
-  const text = blockIn(content, index).firstChild;
+const firstText = (node: Node | null) => {
+  const text = node?.firstChild;
   if (!(text instanceof Text)) throw new Error("No text node");
   return text;
 };
+
+const textIn = (content: HTMLElement, index: number) => firstText(blockIn(content, index));
 
 const describeTile = (tile: Tile, root: Node): unknown => ({
   kind: tile.isDoc ? "doc" : Object.getPrototypeOf(tile).constructor.name,
@@ -177,6 +203,10 @@ describe("ReactDocTile", () => {
       { changes: { from: 9, to: 11 } },
       { changes: { from: 0, to: 9 } },
       { changes: { from: 2, insert: [Leaf.text("x")] } },
+      { changes: { from: 2, insert: [Leaf.text("bold", [Strong])] } },
+      { changes: { from: 4, to: 7, insert: [Leaf.text("em", [Emphasis, Strong])] } },
+      { changes: { from: 1, insert: [Leaf.text("red", [Color.of("red")])] } },
+      { changes: { from: 3, to: 6 } },
     ];
     for (const spec of edits) {
       for (const wg of [wordgard, react]) {
@@ -221,6 +251,15 @@ describe("ReactDocTile", () => {
       edit: (content: HTMLElement) => {
         const text = textIn(content, 0);
         return { range: [text, 1, text, 3], mutate: () => text.deleteData(1, 2) } as const;
+      },
+    },
+    "typing inside a mark": {
+      doc: "<p><strong>bold</strong> text</p>",
+      inputType: "insertText",
+      data: "X",
+      edit: (content: HTMLElement) => {
+        const text = firstText(content.querySelector("strong"));
+        return { range: [text, 2, text, 2], mutate: () => text.insertData(2, "X") } as const;
       },
     },
     "deleting a paragraph's last character": {
@@ -278,9 +317,18 @@ describe("ReactDocTile", () => {
     expect(docTileOf(react).resolve(1, 1).tile.dom.nodeName).toBe("P");
   });
 
+  it("draws the marks it's given", () => {
+    const html = (doc: string) => both(doc).react.contentDOM.innerHTML;
+    expect(html(docs["marks of different ranks"])).toContain("<em><strong>cd</strong></em>");
+    expect(html(docs["attribute marks"])).toContain(
+      '<span style="color: red;background-color: yellow">'
+    );
+    expect(html(docs["marks on blocks"])).toContain('<p style="text-align: center">');
+  });
+
   it("refuses content it can't render yet", () => {
-    expect(() =>
-      ReactWordgard.create({ doc: "<p><em>x</em></p>", config: [basicSchema()] })
-    ).toThrow(/marks/);
+    expect(() => ReactWordgard.create({ doc: "<p>a<br>b</p>", config: [basicSchema()] })).toThrow(
+      /can't render/
+    );
   });
 });

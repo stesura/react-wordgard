@@ -1,7 +1,7 @@
 # react-wordgard: a React view for Wordgard (plan, 2026-10-30)
 
-**Status:** R1 in progress: React renders plots with a plain element shape and unmarked text
-(2026-10-30, see Progress). The skeleton (a standalone copy of our react-prosemirror fork, Tiptap
+**Status:** R1 in progress: React renders plots with a plain element shape, text, and element- and
+attribute-shaped marks (2026-10-31, see Progress); other nodes are next. The skeleton (a standalone copy of our react-prosemirror fork, Tiptap
 removed, `wordgard` installed, ProseMirror still in place) is done.
 
 Related: `docs/wordgard-feasibility.md` (why Wordgard, and what a migration would mean),
@@ -165,8 +165,9 @@ attribute- and element-shaped marks, following `DecoIterator`'s shapes. Wordgard
 bypassed (`DocTile.create` and `runUpdate`'s tile update). React renders inside the flush.
 - **Done when:** a static document renders identically to Wordgard's own view (DOM compared), and
   `posFromDOM`, `resolve`, `nodeTile` and `posAtCoords` give the same answers over both trees.
-- **Status:** met for paragraphs and unmarked text (and plots whose shape is one element with only
-  the content hole: headings, blockquotes); marks are the next slice.
+- **Status:** met for paragraphs, text and marks (and plots whose shape is one element with only
+  the content hole: headings, blockquotes); leaves other than text, inline plots and structured
+  shapes are the next slice.
 
 ### R2: editing
 
@@ -299,6 +300,30 @@ Stable inline partitions for Wordgard's mark shapes, memoised children from chan
     decorations 28 (R4), composition 10 (R3).
   - How it differs from the plan: R1 stops short of marks; the React root belongs to the editor
     (not a portal from the app's tree yet), because Wordgard's tests create editors imperatively.
+- **2026-10-31, R1 marks, done:** element- and attribute-shaped marks render from React, on text
+  and on plots.
+  - Layout: `src/decorations/iterDeco.ts` (named after react-prosemirror's `iterDeco`) computes
+    a plot's children the way Wordgard's `DecoIterator.walk` and `ContentUpdate.build` do: mark
+    wrappers sorted spanning-first then by rank; attribute marks merged onto the plot's element
+    (`addMarkAttributes`) or, for text, onto a span opened as an innermost spanning wrapper; a
+    spanning wrapper continuing the previous sibling when it draws the same element
+    (`enterSpanning`); adjacent text in one wrapper joined into one text node (`addText`); the
+    trailing `<br>` when a textblock's last leaf, looking inside wrappers, isn't text
+    (`ensureHackNode`). Cached per plot, shape per tag, wrapper per mark (all immutable).
+  - React renders that layout (`ChildNodeViews`, `MarkView` in `src/components/marks/`), and
+    `addChildTiles` builds tiles over it: wrapper tiles get `Wrapper` (and `Spanning`) flags and
+    their children's length. The plan's per-mark partitioning (react-prosemirror's
+    `InlinePartition`) isn't ported: Wordgard groups by drawn wrapper, not by mark.
+  - Internals added to `src/wordgardInternals.ts`: `Mark.Type`'s `rank`, `element` and
+    `attribute` shapes, and `Elt.addAttrs`.
+  - Verified: six marked documents (nested element marks, marks of different ranks, links,
+    attribute marks merging into one span, attribute plus element marks, alignment on blocks)
+    added to `tile.browser.test.ts`, with the same checks as the first slice; marked text in the
+    edit sequence; a native edit typing inside a mark. 69 tests.
+  - `view` project: 99 pass (was 87), 86 skipped. Of the 29 tests listed under marks, 12 now
+    pass; the other 17 first hit something else and moved: 10 to nodes (images, rules), 5 to
+    composition (composing inside wrappers), 2 to decorations (point widgets, a mark shape
+    override). The `marks` category is gone.
 - **Open from R1's first slice:**
   - Composition: restoring the old tree undoes the browser's composed text, so the IME's text node
     doesn't survive the flush. R3 has to keep it (Wordgard's `Composition` tile) while React's own
@@ -307,16 +332,34 @@ Stable inline partitions for Wordgard's mark shapes, memoised children from chan
     (its constructor calls the module's `DocTile.create`, not `Wordgard.DocTile`): double work at
     load, until the renderer interface.
   - Every update re-renders from the root and rebuilds the whole tile tree (O(document)); R2's
-    change-set keys and kept tiles fix it.
-  - Tag decorations (`Decoration.Tag.*`) live in internal facets, so `checkRenderable` can't see
-    them: a paragraph with a tag decoration renders without it instead of throwing.
+    change-set keys and kept tiles fix it. The layout is cached per plot since the marks slice, so
+    unchanged plots aren't laid out again, but their tiles are still rebuilt.
+  - Tag decorations (`Decoration.Tag.*`) and mark shape overrides (`Decoration.Mark.shape`) live
+    in internal facets, so `checkRenderable` can't see them: a paragraph with a tag decoration, or
+    a mark whose shape is overridden, renders with its default shape instead of throwing. Point
+    and range decorations aren't seen either.
   - React writes attributes in prop order, Wordgard in sorted order: the DOM is equivalent but
     `innerHTML` differs once a shape has several attributes.
   - `flushSync` inside a React render or effect doesn't flush synchronously: an editor created
     from there, or a `coordsAtPos`/`domAtPos`/`nodeDOM` call from an effect with a pending update
     (`ensureFlushed`), would find React's DOM missing. Matters once a component owns the editor
     (R5).
-  - Unrenderable content (typing inside a mark, pasting an image) throws from the flush and leaves
-    the editor stuck on its last tree, until support lands.
+  - Unrenderable content (pasting an image, a line break) throws from the flush and leaves the
+    editor stuck on its last tree, until support lands.
+  - An empty text leaf with marks (Wordgard 0.6.2) is skipped with its wrappers, where Wordgard
+    draws them around an empty text node; text on either side is then joined into one text node,
+    so `resolve` and `posFromDOM` answers at that spot differ from Wordgard's.
+  - Wordgard 0.6.2 bug, found by the marks audit (still in Wordgard's main): when an update reuses
+    a wrapper whose new attributes add a name sorting before an existing one (`data-a` or `class`
+    next to `style`), `Attributes.compare` returns 0 early, so `matchingWrapper` skips
+    `updateAttributes` and the attribute is missing from Wordgard's DOM. Wordgard's fresh render
+    and React's output have it. Worth reporting upstream; a comparison test hitting it fails on
+    Wordgard's side.
+  - Attribute order also differs after updates: React appends an added attribute (`style data-a`),
+    Wordgard's fresh render sorts them. Comparisons by `innerHTML` after edits are order-fragile.
+  - For later slices: `iterDeco`'s spanning continuation looks at the last child only, where
+    Wordgard's `enterSpanning` skips point widgets and moves them into the wrapper (R4); and its
+    trailing-`<br>` rule doesn't descend into inline plots or treat a trailing line break as needing
+    the `<br>`, as `ensureHackNode` does (the next slice).
   - Wordgard has no `destroy()`, so the React root is never unmounted; it lives as long as the
     content element.

@@ -10,8 +10,8 @@ import { Widget, type Wordgard } from "wordgard/editor";
 import type { GardState } from "wordgard/state";
 
 import { attrsToRecord } from "./helpers/index.js";
-import { needsTrailingHack } from "./components/ChildNodeViews.js";
 import { DocNodeView } from "./components/nodes/DocNodeView.js";
+import { type ChildView, iterDeco, plotShape } from "./decorations/iterDeco.js";
 import {
   type CompositeTile,
   DocTile,
@@ -27,7 +27,6 @@ const roots = new WeakMap<Element, Root>();
 // Throws for what React can't render yet, rather than drawing it wrong.
 const checkRenderable = (plot: Plot) => {
   for (const node of plot.content) {
-    if (node.marks.length) throw new Error(`react-wordgard can't render marks yet (${node.name})`);
     if (node.isPlot) {
       const { children } = node.type.shape.create(node.tag.param);
       if (node.isInline || node.type.shape.atom || children.length != 1 || children[0] !== 0)
@@ -41,37 +40,41 @@ const checkRenderable = (plot: Plot) => {
 
 // Mirrors what Wordgard's ContentUpdate builds for the same content, over the
 // DOM React committed for it.
-const addChildTiles = (parent: CompositeTile, plot: Plot, dom: Element) => {
+const addChildTiles = (parent: CompositeTile, views: readonly ChildView[], dom: Element) => {
   const { EltTile, TextTile, WidgetTile } = getTileClasses();
   const childDOM = dom.childNodes;
-  let index = 0;
-  const next = () => {
-    const child = childDOM[index++];
-    if (!child) throw new Error("React's DOM is missing a node");
-    return child;
-  };
-  for (const node of plot.content) {
-    if (node.is(Leaf.Text) && !node.param) continue;
-    const child = next();
-    if (node.isPlot) {
-      if (!(child instanceof Element)) throw new Error(`Expected an element for ${node.name}`);
-      const shape = node.type.shape.create(node.tag.param);
-      const tile = EltTile.of(shape, node.tag, TileFlag.PlotContent, node.length, child);
-      addChildTiles(tile, node, child);
-      parent.addChild(synced(tile));
-    } else if (node.is(Leaf.Text) && node.param) {
+  if (childDOM.length != views.length) throw new Error("React's DOM doesn't match the layout");
+  views.forEach((view, i) => {
+    const child = childDOM[i];
+    if (view.type == "text") {
       if (!(child instanceof Text)) throw new Error("Expected a text node");
-      parent.addChild(synced(new TextTile(node.param, child)));
+      parent.addChild(synced(new TextTile(view.text, child)));
+      return;
     }
-  }
-  if (needsTrailingHack(plot)) {
-    const br = next();
-    if (!(br instanceof Element)) throw new Error("Expected the trailing <br>");
-    parent.addChild(
-      synced(new WidgetTile(Widget.br, null, TileFlag.Point | TileFlag.PointAfter, br))
-    );
-  }
-  if (index != childDOM.length) throw new Error("React's DOM has extra nodes");
+    if (!(child instanceof Element)) throw new Error(`Expected an element for ${view.type}`);
+    if (view.type == "node") {
+      const { node } = view;
+      const tile = EltTile.of(
+        plotShape(node.tag),
+        node.tag,
+        TileFlag.PlotContent,
+        node.length,
+        child
+      );
+      addChildTiles(tile, iterDeco(node), child);
+      parent.addChild(synced(tile));
+    } else if (view.type == "wrapper") {
+      const flags = TileFlag.Wrapper | (view.spanning ? TileFlag.Spanning : 0);
+      const tile = EltTile.of(view.elt, null, flags, 0, child);
+      addChildTiles(tile, view.children, child);
+      tile.length = tile.children.reduce((length, ch) => length + ch.length, 0);
+      parent.addChild(synced(tile));
+    } else {
+      parent.addChild(
+        synced(new WidgetTile(Widget.br, null, TileFlag.Point | TileFlag.PointAfter, child))
+      );
+    }
+  });
 };
 
 // The flag Wordgard's `sync()` sets once a tile's DOM matches it.
@@ -124,7 +127,7 @@ export class ReactDocTile extends DocTile {
     if (!root) throw new Error("No React root for this element");
     flushSync(() => root.render(createElement(DocNodeView, { doc: state.doc })));
     const tile = new ReactDocTile(state, dom, null, null);
-    addChildTiles(tile, state.doc, dom);
+    addChildTiles(tile, iterDeco(state.doc), dom);
     tile.length = state.doc.length;
     return synced(tile);
   };
