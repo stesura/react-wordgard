@@ -7,8 +7,9 @@
 import { Attributes, Elt, Leaf, type Mark, type Node, type Plot } from "wordgard/doc";
 import { type Decoration, Widget } from "wordgard/editor";
 
+import { unchangedEnds } from "../changes.js";
 import type { CompositionView } from "../composition.js";
-import { createNodeKey } from "../reactKeys.js";
+import { type ReactKeys, createNodeKey } from "../reactKeys.js";
 import type { DecoElt } from "../wordgardInternals.js";
 import {
   type DecoIterator,
@@ -23,8 +24,8 @@ import { isReactWidget } from "./ReactWidgetType.js";
 export type NodeView = {
   type: "node";
   node: Node;
-  // The node's index in its parent plot's content, for its key.
-  index: number;
+  // Its React key, from ReactKeys.
+  key: string;
   shape: Decoration.Shape;
   // The plot's content, laid out on its own, or null when its shape has no hole.
   children: readonly ChildView[] | null;
@@ -171,6 +172,7 @@ const needsTrailingHack = (views: readonly ChildView[]): boolean | undefined => 
 
 export type LayoutContext = {
   deco: DecoIterator;
+  keys: ReactKeys;
   // The ranges this update redraws, as change sections, or null for all.
   changes: readonly number[] | null;
   // Each plot's content as last laid out, and where it started.
@@ -183,8 +185,22 @@ export type LayoutContext = {
 };
 
 // `offset` is where the plot's content starts in its parent's content (the
-// doc's is 0), so the layouts inside a kept one stay right as it moves.
-export type Layout = { offset: number; readonly views: readonly ChildView[] };
+// doc's is 0), so the layouts inside a kept one stay right as it moves. `flat`
+// when each child is a node view of its own, in order, and nothing else: its
+// unchanged ends can then be kept as they are.
+export type Layout = {
+  offset: number;
+  readonly views: readonly ChildView[];
+  readonly flat: boolean;
+};
+
+// Whether views laid out with `head` and `tail` views of a flat layout kept
+// are flat.
+const isFlat = (plot: Plot, views: readonly ChildView[], head: number, tail: number) => {
+  if (plot.isTextblock || plot.isInline || views.length != plot.content.length) return false;
+  for (let i = head; i < views.length - tail; i++) if (views[i]?.type != "node") return false;
+  return true;
+};
 
 // Where a plot's parent's content starts, now and in the old document (null
 // when the parent is new).
@@ -311,18 +327,38 @@ export const iterDeco = (
     return previous.views;
   }
   // The layout this plot replaces, and where it started.
-  const old = context.layouts.get(context.replaced.get(plot) ?? plot);
+  const oldPlot = context.replaced.get(plot) ?? plot;
+  const old = context.layouts.get(oldPlot);
   const oldStart = oldStartOf(old);
-  const views: ChildView[] = [];
+  const nodeKeys = context.keys.get(plot);
+  if (!nodeKeys) throw new Error(`No keys for ${plot.name}`);
+  // A flat plot's unchanged ends keep their views; the walk covers the rest.
+  let head = 0;
+  let tail = 0;
+  // A plot object can appear more than once: only its layout from this place.
+  if (
+    old?.flat &&
+    oldStart !== null &&
+    context.changes &&
+    mapKept(context.changes, oldStart) == start &&
+    !context.composing.has(plot)
+  )
+    ({ head, tail } = unchangedEnds(context.changes, oldPlot, oldStart, plot));
+  const content = plot.content;
+  const middle = content.length - tail;
+  let from = start;
+  for (let i = 0; i < head; i++) from += content[i]?.length ?? 0;
+  let to = end;
+  for (let i = middle; i < content.length; i++) to -= content[i]?.length ?? 0;
+  const views: ChildView[] = old && head ? old.views.slice(0, head) : [];
   const plots: { view: NodeView; plot: Plot; pos: number }[] = [];
   // Where the walk is, for point widgets.
   let at = start;
   let keyAt: ReturnType<typeof pointKeys> | null = null;
   const indexAt = new Map<number, number>();
-  let offset = start;
-  for (const [index, child] of plot.content.entries()) {
+  for (let index = head, offset = from; index < middle; index++) {
     indexAt.set(offset, index);
-    offset += child.length;
+    offset += content[index]?.length ?? 0;
   }
   const wrapped = (wrappers: readonly WrapperView[]) => {
     let target = views;
@@ -334,9 +370,9 @@ export const iterDeco = (
     return target;
   };
   const nodeView = (node: Node, shape: Decoration.Shape, pos: number): NodeView => {
-    const index = indexAt.get(pos);
-    if (index === undefined) throw new Error(`No index for ${node.name}`);
-    return { type: "node", node, index, shape, children: null };
+    const key = nodeKeys[indexAt.get(pos) ?? -1];
+    if (key === undefined) throw new Error(`No key for ${node.name}`);
+    return { type: "node", node, key, shape, children: null };
   };
   const walker: DecoWalker = {
     enter: (node, shape, wrappers, pos) => {
@@ -401,12 +437,27 @@ export const iterDeco = (
     at = start + composition.layout.to;
     context.deco.walk(start + composition.layout.to, false, end, walker);
   } else {
-    context.deco.walk(start, true, end, walker);
+    context.deco.walk(from, true, to, walker);
   }
   for (const { view, plot, pos } of plots)
     view.children = iterDeco(context, plot, pos + 1, { start, oldStart });
+  if (old && tail) {
+    views.push(...old.views.slice(old.views.length - tail));
+    // The layouts inside moved with their plots.
+    for (let i = middle, pos = to; i < content.length; i++) {
+      const child = content[i];
+      if (!child) continue;
+      const layout = child.isPlot ? context.layouts.get(child) : undefined;
+      if (layout) layout.offset = pos + 1 - start;
+      pos += child.length;
+    }
+  }
   if ((plot.isTextblock || plot.isInline) && needsTrailingHack(views) !== false)
     views.push({ type: "trailingHack" });
-  context.layouts.set(plot, { offset: start - parent.start, views });
+  context.layouts.set(plot, {
+    offset: start - parent.start,
+    views,
+    flat: isFlat(plot, views, head, tail),
+  });
   return views;
 };

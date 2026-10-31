@@ -315,9 +315,15 @@ meets a real need, offer the Wordgard equivalent.
 
 Stable inline partitions for Wordgard's mark shapes, memoised children from change sets.
 Starts only once the API (R5) is settled and stable (decided 2026-10-31).
-- **Baseline first:** profile a keystroke by phase (dev and production builds, documents with marks
-  and inline nodes) next to plain Wordgard, our react-prosemirror copy and plain ProseMirror, on a
-  machine on AC with nothing else running.
+- **Baseline first (done 2026-10-31):** `npm run bench:profile` runs Chromium's CPU profiler
+  around mounting and around typing in each editor, and tables time by function (with callees and
+  own), react-wordgard's functions apart, and by script file. Before R6, per keystroke at 15,000
+  paragraphs with inline nodes (production, this machine, not idle): ReactWordgard 25.9 ms of work,
+  Wordgard 11.3; our `updateRanges` 15.2 against Wordgard's own 2.7. In it: tile build 4.6,
+  `checkRenderable` 3.4, layout 3.0, React's commit about 2.9, `mapKeys` 1.3, `childViewKeys` 0.4.
+  Wordgard's own costs (reading the selection, about 5 ms; validating the new document, about 2)
+  are in both. The user's idle machine gives the numbers to keep; this one's vary by tens of
+  percent between runs.
 - **Heap by class (done 2026-10-31):** `npm run bench:heap` diffs heap snapshots taken before and
   after mounting each editor. At 15,000 paragraphs ReactWordgard holds 72 MB of JS heap against
   Wordgard's 21 (marks; 135 against 36 with inline nodes). The extra is React's tree: about 70% is
@@ -332,26 +338,57 @@ Starts only once the API (R5) is settled and stable (decided 2026-10-31).
   re-renders the doc's whole child list and React compares every memoised node view); its cost per
   child against ours is what the baseline measures.
 - **Candidates, chunking last:**
-  - Lay out, key and build tiles only for the changed sections of a re-laid plot, copying the rest.
-  - Skip Wordgard's first draw at load (about 0.64 s of 1.6 s at 15,000 paragraphs, R2) by
-    constructing with an empty state and swapping in the real one, as react-prosemirror's
-    `ReactEditorView` does. A hack: `viewState` and the plugin instances have to be rebuilt for the
-    real state. Measured in a production build; kept only if it cuts load by most of Wordgard's
-    own draw time, otherwise removed. Either way, ask Wordgard's author for a `setState` or a
-    `DocTile` lookup on the class, so it can go. Also halves the text widgets and node shapes
-    held: Wordgard's first draw fills its own `baseTagShape` cache next to our port's (about 3 MB
-    at 15,000 paragraphs).
+  - **Changed sections only (done 2026-10-31).** A re-laid plot whose last layout was flat (one
+    node view per child, nothing else: the doc, block containers) keeps the views of its
+    unchanged ends, the same node objects wholly outside every redrawn or replaced range
+    (`unchangedEnds`, `src/changes.ts`), and walks decorations over the middle only. Node views
+    carry their keys instead of their index, so a kept view stays the same object when the
+    children after it shift. `mapKeys` copies the ends' keys and maps the middle;
+    `checkRenderable` caches checked plots. In the tile build, a node view that's the same
+    object as before takes its old tile without the cursor reading the DOM, but only in an
+    element React kept (one that had a tile, in an update): under an element React drew anew
+    (a heading's level changing its element), the same views have new DOM. For that to hold,
+    `DefaultNodeView` keys the content it puts in a shape's hole, so React keeps it when a
+    shape moves its hole within the same element (found by the audit: it crashed the build). Per keystroke at
+    15,000 paragraphs with inline nodes, our `flush` went from 21.6 ms to 14.0: layout 3.0 to
+    0.3, `checkRenderable` 3.4 to 0.5, `mapKeys` 1.3 to 0.4, `addChildTiles` 2.9 to 1.6. Still
+    linear in the doc's children: React compares one element per child (about 3 ms), and the
+    build and layout still loop over them, cheaply.
+  - **Wordgard's first draw (done 2026-10-31), not as planned.** No empty state: the base
+    constructor draws through `DocTile.create`, looked up on the class `Wordgard.DocTile`
+    exposes, so for the length of `super()` that function is React's draw (put back on first
+    call, for any editor React's render creates). The base constructor also isn't given the
+    `parent`: putting the editor in the page connects it, which measured Wordgard's drawing, a
+    forced layout React's drawing then needed again; the editor goes in the page once built. At
+    15,000 paragraphs with inline nodes, the base constructor's own work went from about 540 ms
+    (its draw, about 210, and that layout, about 330) to under 1 ms; ReactWordgard's
+    constructor from 1,456 to 1,124 ms though our own draw ran 19% slower in that run (noise).
+    Only a `ReactWordgard` takes the swap: an editor a plugin creates during the base
+    constructor draws as before.
+    Without that draw, Wordgard's own `baseTagShape` cache stays empty: the heap holds as many
+    text widgets and node shapes as plain Wordgard's (at 15,000 paragraphs, 69 MB instead of 72
+    with marks, 128 instead of 135 with inline nodes). The ask to Wordgard's author now only
+    removes the swap (`docs/wordgard-upstream-asks.md`, 8).
   - Group the doc's children into memoised chunks, so React compares far fewer than one element
-    per top-level child.
+    per top-level child. Not started.
 - **Done when:** measured on a 2,500-paragraph and a 15,000-paragraph document: keystroke, load, and
   a Ctrl+A formatting change, against react-prosemirror on the same documents.
+- **Status:** partly done (2026-10-31): the baseline, changed sections only, and Wordgard's first
+  draw. Next: chunking, then the user's timing run (`npm run bench`) on an idle machine.
+- **Open from the audit (performance only; the output matches Wordgard):**
+  - `unchangedEnds` takes the first and last change in the whole document, so a transaction
+    with two edits re-walks every plot between them, and a nested plot holding one of them is
+    walked whole.
+  - An insertion exactly at a plot's content start (a paragraph inserted at position 0) maps
+    the old start past it, so neither the kept layout nor the unchanged ends are used for the
+    doc in that update.
 
 ## Open questions
 
 - **A renderer interface from Marijn:** what minimum would let the bridge stop using internals
   (constructing tiles, replacing the producer, the flush hooks)? Worth raising once R1 works.
-  Concrete asks so far: a `setState` on the editor, or its constructor looking up `DocTile` on the
-  class (Wordgard draws the document once before we take over, see R6); a public way to map a
+  Concrete asks so far: the constructor looking up `DocTile` on `this.constructor` (R6 swaps the
+  base class's `create` during `super()` instead); a public way to map a
   position over change sections (`docs/wordgard-upstream-bugs.md`, "Requests"). The list to send
   him, bugs included, is `docs/wordgard-upstream-asks.md`.
 - **Several editors in one paginated layout** (headers, footers, notes): one flush per editor, or a
@@ -825,7 +862,7 @@ Starts only once the API (R5) is settled and stable (decided 2026-10-31).
     for Chromium; Safari, Firefox and real IMEs still to check.
   - Wordgard's constructor still draws the document once before `ReactDocTile.create` replaces it
     (its constructor calls the module's `DocTile.create`, not `Wordgard.DocTile`): double work at
-    load. To try in R6 (constructing with an empty state), and to raise upstream.
+    load. Done in R6, by swapping that class's `create` during `super()`.
   - Every update re-renders from the root and rebuilt the whole tile tree (O(document)). Since R2,
     unchanged plots keep their tiles and are skipped by React; what remains is linear in the doc's
     top-level children (see R2's measurements).

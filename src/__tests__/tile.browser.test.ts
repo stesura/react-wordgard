@@ -26,6 +26,7 @@ import {
   Emphasis,
   Figure,
   HeaderCell,
+  Heading,
   HorizontalRule,
   Image,
   LineBreak,
@@ -602,6 +603,56 @@ describe("ReactDocTile", () => {
       edit(react, { from: 10, insert: [Leaf.text("y")] });
       expect(blockIn(react.contentDOM, 1).textContent).toBe("bcy");
       expect(blockIn(react.contentDOM, 1).children[0]?.wgTile).toBe(kept);
+    });
+
+    // A heading's level changes its element, which React draws anew under the
+    // same key; the chip inside keeps its layout, and its line break's view.
+    it("builds tiles over the new DOM of a kept layout React drew again", () => {
+      const { wordgard, react } = both('<h1>a <span class="chip">b<br>c</span> d</h1><p>e</p>');
+      for (const changes of [
+        { from: 0, to: 1, insert: [Heading.of(2)] },
+        { from: 5, insert: [Leaf.text("x")] },
+      ]) {
+        for (const wg of [wordgard, react]) edit(wg, changes);
+        expect(react.contentDOM.innerHTML).toBe(wordgard.contentDOM.innerHTML);
+        expect(describeTile(docTileOf(react), react.contentDOM)).toEqual(
+          describeTile(docTileOf(wordgard), wordgard.contentDOM)
+        );
+      }
+    });
+
+    // A parameter moving the content hole within the same element: the
+    // paragraphs inside keep their layouts and stay where they were.
+    it("keeps the content of an element whose hole moves", () => {
+      const Box = Plot.Type.define<string>("Box", {
+        validate: "string",
+        blockContent: DocNode.Group.Content,
+        group: DocNode.Group.Content,
+        shape: {
+          structure: (side) =>
+            Elt.mk("div", { class: "box" }, side == "before" ? ["L", 0] : [0, "L"]),
+          atom: false,
+        },
+      });
+      const { wordgard, react } = both("<p>x</p>", GardState.schemaElement.of([Box]));
+      const box = Box.of("before").create([
+        Paragraph.create([Leaf.text("a")]),
+        Paragraph.create([Leaf.text("b")]),
+      ]);
+      edit(wordgard, { from: 0, insert: [box] });
+      edit(react, { from: 0, insert: [box] });
+      const a = blockIn(react.contentDOM, 0).querySelector("p");
+      for (const changes of [
+        { from: 0, to: 1, insert: [Box.of("after")] },
+        { from: 6, insert: [Leaf.text("y")] },
+      ]) {
+        for (const wg of [wordgard, react]) edit(wg, changes);
+        expect(react.contentDOM.innerHTML).toBe(wordgard.contentDOM.innerHTML);
+        expect(describeTile(docTileOf(react), react.contentDOM)).toEqual(
+          describeTile(docTileOf(wordgard), wordgard.contentDOM)
+        );
+      }
+      expect(blockIn(react.contentDOM, 0).querySelector("p")).toBe(a);
     });
   });
 

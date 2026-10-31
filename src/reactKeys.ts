@@ -5,6 +5,7 @@
 import type { Node, Plot } from "wordgard/doc";
 import type { Widget } from "wordgard/editor";
 
+import { unchangedEnds } from "./changes.js";
 import type { ChildView } from "./decorations/iterDeco.js";
 
 // The React keys of each plot's children, by index in its content. Text
@@ -65,19 +66,27 @@ export const mapKeys = (
     if (keys.has(newPlot)) return;
     replaced.set(newPlot, oldPlot);
     const oldKeys = keys.get(oldPlot) ?? [];
+    // The children at both ends are the same nodes at the same places: they
+    // keep their keys, and only the middle is mapped.
+    const { head, tail } = unchangedEnds(changes, oldPlot, oldStart, newPlot);
+    const oldTail = oldPlot.content.length - tail;
+    const newTail = newPlot.content.length - tail;
     const found = new Map<number, { key: string; node: Node; start: number; retagged: boolean }>();
     let pos = oldStart;
     oldPlot.content.forEach((node, i) => {
-      const mapped = node.isText ? null : mapNodePos(changes, pos);
+      const mapped = node.isText || i < head || i >= oldTail ? null : mapNodePos(changes, pos);
       const key = oldKeys[i];
       if (mapped && key)
         found.set(mapped.pos, { key, node, start: pos, retagged: mapped.retagged });
       pos += node.length;
     });
     pos = newStart;
-    const newKeys = newPlot.content.map((child) => {
+    const newKeys = newPlot.content.map((child, i) => {
       const start = pos;
       pos += child.length;
+      const same =
+        i < head ? oldKeys[i] : i >= newTail ? oldKeys[i - newTail + oldTail] : undefined;
+      if (same !== undefined) return same;
       if (child.isText) return "";
       const old = found.get(start);
       const kept = old && (!old.retagged || old.node.type == child.type) ? old : undefined;
@@ -103,7 +112,8 @@ const typeId = (type: Widget.Type<unknown>) => {
 };
 
 // The keys of a list of sibling views (ChildNodeViews renders them, ReactDocTile
-// records them), paired with them. A node's key comes from ReactKeys; other
+// records them), paired with them. A node's key comes from ReactKeys, through
+// its view (iterDeco); other
 // views are keyed after their previous sibling, so a text run keeps its text
 // node while its start changes. Widgets don't count as that sibling: one
 // coming or going leaves the next text node alone. React point widgets come
@@ -113,10 +123,14 @@ const typeId = (type: Widget.Type<unknown>) => {
 // node does.
 // A composition, and the wrappers around it, keep the keys of the nodes React
 // committed there, and nothing else in their list may take those.
-export const childViewKeys = (views: readonly ChildView[], nodeKeys: readonly string[]) => {
+export const childViewKeys = (views: readonly ChildView[]) => {
   const fixed = (view: ChildView) =>
     view.type == "composition" || view.type == "wrapper" ? view.key : undefined;
-  const taken = new Set(views.map(fixed));
+  const taken = new Set<string>();
+  for (const view of views) {
+    const key = fixed(view);
+    if (key !== undefined) taken.add(key);
+  }
   let previous = "";
   let widgets = false;
   // Widgets first get the key before them, and their own key below.
@@ -130,9 +144,8 @@ export const childViewKeys = (views: readonly ChildView[], nodeKeys: readonly st
     if (key === undefined) {
       key =
         view.type == "node"
-          ? nodeKeys[view.index]
+          ? view.key
           : `${previous}>${view.type == "buffer" ? `buffer${view.side}` : view.type}`;
-      if (key === undefined) throw new Error("No key for a node");
       while (taken.has(key)) key += "+";
     }
     previous = key;

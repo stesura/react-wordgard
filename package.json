@@ -42,6 +42,8 @@
     "bench:smoke": "vitest run --config bench/vitest.config.ts --mode smoke",
     "bench:heap": "vitest run --config bench/vitest.config.ts --mode heap",
     "bench:heap-dev": "vitest run --config bench/vitest.config.ts --mode heap-development",
+    "bench:profile": "vitest run --config bench/vitest.config.ts --mode profile",
+    "bench:profile-dev": "vitest run --config bench/vitest.config.ts --mode profile-development",
     "sync-wordgard-tests": "node scripts/sync-wordgard-tests.js",
     "update-wordgard": "node scripts/update-wordgard.js",
     "prepack": "npm run build"

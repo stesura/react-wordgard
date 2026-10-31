@@ -48,10 +48,12 @@ export const DefaultNodeView = memo(
   ({ view }: Props) => {
     const { node, shape, children } = view;
     if (!(shape instanceof Elt)) return isReactWidget(shape) ? <WidgetView widget={shape} /> : null;
+    // Keyed, so React keeps the content where a shape moves its hole: the tile
+    // build counts on an element React kept keeping its content.
     return renderShape(
       shape,
       true,
-      node.isPlot && children ? <ChildNodeViews node={node} views={children} /> : null
+      node.isPlot && children ? <ChildNodeViews key="content" views={children} /> : null
     );
   },
   (a, b) => sameNodeView(a.view, b.view)

@@ -70,12 +70,11 @@ bugs below. Everything was checked on 0.6.2, and all of it is still present on `
    its update has to copy `ChangeSet.mapPos`. Could you export a
    `mapPos(sections, pos, assoc, track)`, or a public constructor from sections?
 
-8. **Replace the state without a transaction, or choose the renderer before the first draw.** The
-   constructor calls the module's own `DocTile.create`, not `Wordgard.DocTile.create`. A
-   replacement renderer can only take over after Wordgard has already drawn the whole document
-   once; that's about 40% of our load time on 15,000 paragraphs. Either fix would remove it:
-   - the constructor looking up `DocTile` on the class, as the tests already redirect it;
-   - a CodeMirror-style `setState`.
+8. **Choose the renderer before the first draw.** The constructor calls the module's own
+   `DocTile.create`, so a subclass's `DocTile` isn't used for the first draw. We swap the base
+   class's `create` for the length of `super()`, which works but is fragile. The constructor
+   looking up `DocTile` on `this.constructor`, as the tests already redirect it, would remove the
+   swap. (A CodeMirror-style `setState` would also do.)
 
 9. **A renderer interface.** The minimum that would let a view like ours stop reaching into
    internals. Today we use:

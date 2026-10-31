@@ -89,19 +89,26 @@ const rootOf = (dom: Element) => {
 };
 
 // The layout each node tile was built for, so a node React skipped keeps its
-// tiles.
+// tiles, and the tile built for each node view.
 const tileViews = new WeakMap<Tile, NodeView>();
+const viewTiles = new WeakMap<NodeView, Tile>();
+
+// Plots already checked: they never change.
+const renderable = new WeakSet<Plot>();
 
 // Throws for what React can't render yet, rather than drawing it wrong.
 const checkRenderable = (plot: Plot) => {
+  if (renderable.has(plot)) return;
   for (const node of plot.content) {
-    if (node.is(Leaf.Text)) continue;
+    // A checked plot's shape was checked with it.
+    if (node.is(Leaf.Text) || (node.isPlot && renderable.has(node))) continue;
     const shape = node.isPlot
       ? node.type.shape.create(node.tag.param)
       : node.type.shape.create(node.param);
     checkShape(node.name, shape);
     if (node.isPlot && shape.hasContent) checkRenderable(node);
   }
+  renderable.add(plot);
 };
 
 // React can't draw an empty text node, nor namespaced elements from a tag name.
@@ -141,6 +148,11 @@ const childCursor = (dom: Element) => {
   const order: ChildNode[] = [];
   const after = () => (last ? last.nextSibling : dom.firstChild);
   return {
+    // Takes a node React left where it was, without reading the DOM.
+    skip: (node: ChildNode) => {
+      last = node;
+      order.push(node);
+    },
     next: () => {
       let child = after();
       for (; child && widgetDOM.has(child); child = child.nextSibling) widgets = true;
@@ -304,7 +316,8 @@ const reactWidgetTile = (
 
 // Mirrors what Wordgard's ContentUpdate builds for the same content, from
 // position `start`, over the DOM React committed for it, and puts widget DOM,
-// which React doesn't draw, in place.
+// which React doesn't draw, in place. `kept` when React kept the element the
+// views are drawn in, in an update: its children are then as React left them.
 const addChildTiles = (
   parent: CompositeTile,
   plot: Plot,
@@ -312,17 +325,16 @@ const addChildTiles = (
   cursor: ChildCursor,
   context: BuildContext,
   pool: WidgetPool,
-  start: number
+  start: number,
+  kept: boolean
 ) => {
   const { EltTile, TextTile, WidgetTile } = getTileClasses();
-  const nodeKeys = context.keys.get(plot);
-  if (!nodeKeys) throw new Error(`No keys for ${plot.name}`);
   let pos = start;
   const add = (tile: Tile) => {
     parent.addChild(tile);
     pos += tile.length;
   };
-  for (const { view, key } of childViewKeys(views, nodeKeys)) {
+  for (const { view, key } of childViewKeys(views)) {
     if (view.type == "composition" && !context.composition?.node) continue;
     if (view.type == "widget") {
       // TilePointer.matchingWidget: an equal point widget on the same side,
@@ -393,7 +405,11 @@ const addChildTiles = (
       add(placeWidget(tile, cursor, context, true));
       continue;
     }
-    const dom = cursor.next();
+    // In a kept element, a view laid out before, the same object, is one React
+    // skipped (DefaultNodeView's memo): its DOM and tile are as they were.
+    const same = kept && view.type == "node" ? viewTiles.get(view) : undefined;
+    const dom = same ? same.dom : cursor.next();
+    if (same) cursor.skip(same.dom);
     if (view.type == "text") {
       if (!(dom instanceof Text)) throw new Error("Expected a text node");
       context.rendered.texts.set(dom, { key, text: view.text });
@@ -407,7 +423,7 @@ const addChildTiles = (
       // React skipped a node whose layout is the same (DefaultNodeView's memo),
       // and `restore` already undid any edit the browser made in it, so its DOM,
       // and the tiles over it, are as they were.
-      const old = dom.wgTile;
+      const old = same ?? dom.wgTile;
       const oldView = old && tileViews.get(old);
       if (old && oldView && sameNodeView(oldView, view)) {
         // An atom's tile holds its shape's widgets: reconnected where redrawn.
@@ -415,6 +431,7 @@ const addChildTiles = (
           if (!children && redrawn(context.changes, pos)) context.toConnect.push(old);
           else context.reused.set(old, Reused.Full);
         }
+        viewTiles.set(view, old);
         add(old);
         continue;
       }
@@ -427,8 +444,10 @@ const addChildTiles = (
         !!oldTag?.eq(tag) && !!oldView?.shape.eq(shape) && !redrawn(context.changes, pos);
       const contentStart = pos + 1;
       const fill = (tile: CompositeTile, content: ChildCursor, pool: WidgetPool) => {
+        // The element at the hole had a tile: React kept it.
+        const kept = !!context.changes && !!pool.old;
         if (node.isPlot && children)
-          addChildTiles(tile, node, children, content, context, pool, contentStart);
+          addChildTiles(tile, node, children, content, context, pool, contentStart, kept);
       };
       const tile = shapeTile(shape, tag, node.length, elementOf(dom, node.name), {
         inEditable: true,
@@ -438,14 +457,16 @@ const addChildTiles = (
         context,
       });
       tileViews.set(tile, view);
+      viewTiles.set(view, tile);
       add(tile);
     } else if (view.type == "wrapper") {
       const flags = TileFlag.Wrapper | (view.spanning ? TileFlag.Spanning : 0);
       const element = elementOf(dom, "a wrapper");
       context.rendered.wrappers.set(element, key);
+      const wrapperKept = kept && !!element.wgTile;
       const tile = EltTile.of(view.elt, null, flags, 0, element);
       const content = childCursor(element);
-      addChildTiles(tile, plot, view.children, content, context, pool, pos);
+      addChildTiles(tile, plot, view.children, content, context, pool, pos, wrapperKept);
       finish(content, context);
       tile.length = tile.children.reduce((length, ch) => length + ch.length, 0);
       add(synced(tile));
@@ -671,6 +692,7 @@ const layout = (
   return iterDeco(
     {
       deco: new DecoIterator(state, decoSet),
+      keys: entry.store.keys,
       changes,
       layouts: entry.layouts,
       composition,
@@ -694,14 +716,14 @@ const newEntry = (commit: Entry["commit"]): Entry => ({
   composition: null,
 });
 
-const docElement = (wg: Wordgard, entry: Entry, doc: Plot, views: readonly ChildView[]) =>
+const docElement = (wg: Wordgard, entry: Entry, views: readonly ChildView[]) =>
   createElement(
     EditorContext.Provider,
     { value: editorOf(wg) },
     createElement(
       RenderStoreContext.Provider,
       { value: entry.store },
-      createElement(DocNodeView, { doc, views })
+      createElement(DocNodeView, { views })
     )
   );
 
@@ -730,7 +752,7 @@ export class ReactDocTile extends DocTile {
 
   static create = (state: GardState, dom: Element, wg: Wordgard) => {
     if (!roots.has(dom)) {
-      // Drops what Wordgard's constructor drew before we took over.
+      // Wordgard's own tests build trees in elements already drawn.
       dom.replaceChildren();
       const root = createRoot(dom);
       roots.set(
@@ -794,7 +816,7 @@ export class ReactDocTile extends DocTile {
     roots.set(dom, entry);
     const laid = firstLayout(state, entry);
     entry.last = laid;
-    element = docElement(wg, entry, state.doc, laid.views);
+    element = docElement(wg, entry, laid.views);
     return new ReactDocTile(state, dom, null, laid.decoSet);
   };
 
@@ -823,7 +845,7 @@ export class ReactDocTile extends DocTile {
   ) => {
     const entry = rootOf(dom);
     const editor = editorOf(options.wg);
-    const element = docElement(options.wg, entry, state.doc, views);
+    const element = docElement(options.wg, entry, views);
     const before = { state: editor.store.getState(), last: entry.last };
     entry.last = { state, decoSet, views };
     flushSync(() => {
@@ -871,7 +893,9 @@ export class ReactDocTile extends DocTile {
       strays: [],
       dirty,
     };
-    addChildTiles(tile, state.doc, views, cursor, context, widgetPool(old), 0);
+    // Wordgard's content element stays; React's children in it only in an
+    // update (a mount draws them anew).
+    addChildTiles(tile, state.doc, views, cursor, context, widgetPool(old), 0, !!changes && !!old);
     finish(cursor, context);
     for (const stray of context.strays) if (!context.taken.has(stray)) stray.remove();
     tile.length = state.doc.length;

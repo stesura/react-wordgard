@@ -128,6 +128,7 @@ npm test                                        # unit (jsdom) and browser (Chro
 npm run demo                                    # the demo, on Vite's dev server
 npm run bench                                   # times ReactWordgard, Wordgard, react-prosemirror and ProseMirror
 npm run bench:heap                              # what each editor holds in the heap, by class
+npm run bench:profile                           # where load's and a keystroke's time go, by function
 ```
 
 The benchmark (`bench/`, not part of the package) times load, a keystroke and bolding the whole

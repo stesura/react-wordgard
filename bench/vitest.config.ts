@@ -1,12 +1,14 @@
 // The benchmarks' own Vitest config, kept apart from `npm test`. React's
 // production build unless the mode ends in "development"; modes containing
 // "smoke" run small documents, to check the benchmark works, and modes
-// starting with "heap" run the heap breakdown instead of the timings.
+// starting with "heap" or "profile" run the heap breakdown or the keystroke's
+// CPU profile instead of the timings.
 import react from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
+import { profileStart, profileStop } from "./cpuProfile.js";
 import { heapBaseline, heapHeld } from "./heapSnapshot.js";
 
 export default defineConfig(({ mode }) => {
@@ -38,7 +40,11 @@ export default defineConfig(({ mode }) => {
     test: {
       globals: true,
       include: [
-        mode.startsWith("heap") ? "bench/heap.bench.test.ts" : "bench/editors.bench.test.ts",
+        mode.startsWith("heap")
+          ? "bench/heap.bench.test.ts"
+          : mode.startsWith("profile")
+            ? "bench/profile.bench.test.ts"
+            : "bench/editors.bench.test.ts",
       ],
       reporters: ["verbose"],
       testTimeout: 30 * 60 * 1000,
@@ -50,7 +56,7 @@ export default defineConfig(({ mode }) => {
         }),
         headless: true,
         instances: [{ browser: "chromium" }],
-        commands: { heapBaseline, heapHeld },
+        commands: { heapBaseline, heapHeld, profileStart, profileStop },
       },
     },
   };

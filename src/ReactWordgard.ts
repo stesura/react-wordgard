@@ -1,12 +1,12 @@
 // Adapted from react-prosemirror's ReactEditorView, to fit Wordgard: it
-// extends Wordgard instead of EditorView and, like ReactEditorView with
-// ProseMirror's docView, replaces the tile tree the base constructor builds
-// with one React renders.
+// extends Wordgard instead of EditorView and, where ReactEditorView replaces
+// the docView ProseMirror's constructor builds, has the base constructor build
+// a tile tree React renders.
 import { Wordgard } from "wordgard/editor";
 
 import { editorOf } from "./contexts/EditorContext.js";
 import { ReactDocTile, RefusedUpdate } from "./tile.js";
-import type { DOMObserver, DocTile } from "./wordgardInternals.js";
+import { type DOMObserver, DocTile } from "./wordgardInternals.js";
 
 // Asks Wordgard for a frame: a no-op read schedules a flush.
 const retry = () => {};
@@ -30,22 +30,34 @@ export class ReactWordgard
   static DocTile = ReactDocTile;
 
   constructor(spec: Wordgard.Spec, hosted = false) {
-    // @ts-expect-error The typings drop the private constructor's parameter.
-    super(spec);
-    // Wordgard's constructor has already drawn the document once; there's no
-    // way in before it. With a `parent` in the page, its DOM observer is
-    // already watching, so React's first commit mustn't count as an edit. Its
-    // widgets were connected there, and go as an update would drop them.
-    if (this.connected) this.docTile.disconnect();
-    this.docTile = this.observer.ignore(() =>
-      hosted
-        ? ReactDocTile.host(this.state, this.contentDOM, this, () => {
-            this.docTile = this.observer.ignore(() =>
-              ReactDocTile.mount(this.contentDOM, this, this.docTile)
-            );
-          })
-        : ReactDocTile.create(this.state, this.contentDOM, this)
-    );
+    // Wordgard's constructor draws the document with `DocTile.create`, before
+    // this one can run: React draws it there instead, so it's drawn once. Put
+    // back at once, for any editor React's render creates; other editors
+    // created first (by a plugin) draw as before.
+    const create = DocTile.create;
+    const self: { editor: ReactWordgard | null } = { editor: null };
+    DocTile.create = (state, dom, wg) => {
+      if (!(wg instanceof ReactWordgard)) return create(state, dom, wg);
+      DocTile.create = create;
+      if (!hosted) return ReactDocTile.create(state, dom, wg);
+      return ReactDocTile.host(state, dom, wg, () => {
+        const { editor } = self;
+        if (editor)
+          editor.docTile = editor.observer.ignore(() =>
+            ReactDocTile.mount(editor.contentDOM, editor, editor.docTile)
+          );
+      });
+    };
+    // Given a `parent`, it would also put the editor in the page, where
+    // connecting measures it: that's left until it's built.
+    try {
+      // @ts-expect-error The typings drop the private constructor's parameter.
+      super({ ...spec, parent: undefined });
+    } finally {
+      DocTile.create = create;
+    }
+    self.editor = this;
+    spec.parent?.appendChild(this.dom);
   }
 
   // Wordgard's flush runs from an animation frame and from the methods that

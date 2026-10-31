@@ -3,14 +3,12 @@
 // is React's container.
 
 import React from "react";
-import type { Plot } from "wordgard/doc";
 
 import type { ChildView } from "../../decorations/iterDeco.js";
 import { ChildNodeViews } from "../ChildNodeViews.js";
 
 type Props = {
-  doc: Plot;
   views: readonly ChildView[];
 };
 
-export const DocNodeView = ({ doc, views }: Props) => <ChildNodeViews node={doc} views={views} />;
+export const DocNodeView = ({ views }: Props) => <ChildNodeViews views={views} />;

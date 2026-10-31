@@ -3,9 +3,7 @@
 // React widgets. Native widgets aren't React's: ReactDocTile puts their DOM in
 // place after the commit.
 import React from "react";
-import type { Plot } from "wordgard/doc";
 
-import { useRenderStore } from "../contexts/RenderStoreContext.js";
 import { isReactWidget } from "../decorations/ReactWidgetType.js";
 import type { ChildView } from "../decorations/iterDeco.js";
 import { childViewKeys } from "../reactKeys.js";
@@ -17,12 +15,11 @@ import { MarkView } from "./marks/MarkView.js";
 import { DefaultNodeView } from "./nodes/DefaultNodeView.js";
 
 type Props = {
-  node: Plot;
   views: readonly ChildView[];
 };
 
-const renderChildViews = (views: readonly ChildView[], nodeKeys: readonly string[]) =>
-  childViewKeys(views, nodeKeys).map(({ view, key }) => {
+const renderChildViews = (views: readonly ChildView[]) =>
+  childViewKeys(views).map(({ view, key }) => {
     switch (view.type) {
       case "node":
         return <DefaultNodeView key={key} view={view} />;
@@ -31,7 +28,7 @@ const renderChildViews = (views: readonly ChildView[], nodeKeys: readonly string
       case "wrapper":
         return (
           <MarkView key={key} elt={view.elt}>
-            {renderChildViews(view.children, nodeKeys)}
+            {renderChildViews(view.children)}
           </MarkView>
         );
       case "buffer":
@@ -47,8 +44,4 @@ const renderChildViews = (views: readonly ChildView[], nodeKeys: readonly string
     }
   });
 
-export const ChildNodeViews = ({ node, views }: Props) => {
-  const nodeKeys = useRenderStore().keys.get(node);
-  if (!nodeKeys) throw new Error(`No keys for ${node.name}`);
-  return <>{renderChildViews(views, nodeKeys)}</>;
-};
+export const ChildNodeViews = ({ views }: Props) => <>{renderChildViews(views)}</>;
