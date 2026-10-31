@@ -209,8 +209,10 @@ react-prosemirror is about 9,100 lines.
 - **Documents:** test and benchmark documents put marks inside the paragraphs and, where there's an
   example, inline nodes (images, line breaks, links, inline plots like the tests' `Chip`), not
   plain text only. Plain-text cases are fine next to richer ones.
-- **Browsers:** Chromium, Firefox and WebKit through Playwright, in the `browser` and `view`
-  projects; all three run on Windows (`npx playwright install firefox webkit`). WebKit is
+- **Browsers (done 2026-10-31):** Chromium, Firefox and WebKit through Playwright, in the
+  `browser` and `view` projects; all three run on Windows (`npx playwright install firefox webkit`).
+  Copied Wordgard tests that fail in one browser on plain Wordgard too are skipped there
+  (`test/skipInBrowser.ts`): one so far, `moveVertically` in WebKit. WebKit is
   Safari's engine, not Safari: real Safari (autocapitalize, its IME handling) needs macOS, a Mac or
   a cloud service (BrowserStack, Sauce Labs). Real IMEs are tested by hand on each platform: the
   tests emulate composition events, as Wordgard's do.
@@ -316,6 +318,14 @@ Starts only once the API (R5) is settled and stable (decided 2026-10-31).
 - **Baseline first:** profile a keystroke by phase (dev and production builds, documents with marks
   and inline nodes) next to plain Wordgard, our react-prosemirror copy and plain ProseMirror, on a
   machine on AC with nothing else running.
+- **Heap by class (done 2026-10-31):** `npm run bench:heap` diffs heap snapshots taken before and
+  after mounting each editor. At 15,000 paragraphs ReactWordgard holds 72 MB of JS heap against
+  Wordgard's 21 (marks; 135 against 36 with inline nodes). The extra is React's tree: about 70% is
+  fibers (18 per paragraph with marks, 34 with inline nodes) and the plain objects of their props
+  and hooks. The DOM is about the same size in every editor (79 MB with marks), so counting it,
+  ReactWordgard holds about 1.5× Wordgard. Wordgard and ProseMirror hold the same; the 4× in the
+  first memory column was a measuring error (Progress). react-prosemirror holds 126 fibers per
+  paragraph with marks, about 9× our heap.
 - **Per-keystroke cost linear in the doc's top-level children:** typing in one paragraph gives
   the doc a new identity, so React compares every top-level node view, and our layout, keys and
   tile build walk every child. react-prosemirror has the same structure (its `ChildNodeViews`
@@ -328,7 +338,9 @@ Starts only once the API (R5) is settled and stable (decided 2026-10-31).
     `ReactEditorView` does. A hack: `viewState` and the plugin instances have to be rebuilt for the
     real state. Measured in a production build; kept only if it cuts load by most of Wordgard's
     own draw time, otherwise removed. Either way, ask Wordgard's author for a `setState` or a
-    `DocTile` lookup on the class, so it can go.
+    `DocTile` lookup on the class, so it can go. Also halves the text widgets and node shapes
+    held: Wordgard's first draw fills its own `baseTagShape` cache next to our port's (about 3 MB
+    at 15,000 paragraphs).
   - Group the doc's children into memoised chunks, so React compares far fewer than one element
     per top-level child.
 - **Done when:** measured on a 2,500-paragraph and a 15,000-paragraph document: keystroke, load, and
@@ -784,6 +796,30 @@ Starts only once the API (R5) is settled and stable (decided 2026-10-31).
     `plugin.update` runs twice for a refused update's transactions (inherent to throwing inside
     Wordgard's flush); an uncaught refused update from a layout effect unmounts a React 18 root
     without an error boundary.
+- **2026-10-31, heap breakdown (R6 baseline), done:** `bench/heap.bench.test.ts` takes heap
+  snapshots through the DevTools protocol, in a browser command that parses them as they stream
+  (`bench/heapSnapshot.ts`), and tables objects held by class per editor. The editors and documents
+  moved to `bench/editors.ts`, shared with the timing benchmark. Two measuring errors found and
+  fixed in both benchmarks, so the timing benchmark's earlier memory column is wrong: a suspended
+  async test function kept the previous editor alive while the next was measured; and React DOM
+  keeps the last event's target fiber (`return_targetInst`; an image's `load`) after its root
+  unmounts, pinning the editor until its next event. Editors holding over 500 MB aren't
+  snapshotted (react-prosemirror at 15,000 paragraphs): after snapshotting it at 700 MB, the page
+  crashed later in the run.
+- **2026-10-31, before R6: one WordgardDoc per editor, three browsers, done:**
+  - A second `<WordgardDoc>` for one editor throws ("already rendered by another WordgardDoc"),
+    whether added with the first or later: the editor's element can only be in one place, and two
+    portals draw the document twice into one content element. Each portal claims the editor in
+    `useInsertionEffect`, since every insertion effect runs before the first layout effect builds
+    the tiles; StrictMode doesn't run them twice. react-prosemirror doesn't check, but its second
+    `ProseMirrorDoc` would be broken too (the last one to commit takes the mount).
+  - Firefox and WebKit run in the `browser` and `view` projects. Firefox passed as it was. In
+    WebKit, our native-edit and composition tests failed because WebKit ignores `InputEvent`'s
+    `targetRanges` option: patched in, as Wordgard's own tests do. Wordgard's `moveVertically`
+    test fails in WebKit on plain Wordgard too; skipped there (`docs/wordgard-upstream-bugs.md`,
+    8).
+  - Left out, as decided: skipping a measure's write when `read` returns the same value (it
+    needs an `eq` option to be useful; it can be added later without breaking anything).
 - **Open from R1's first slice:**
   - Composition: restoring the old tree undid the browser's composed text. Done in R3 (above),
     for Chromium; Safari, Firefox and real IMEs still to check.

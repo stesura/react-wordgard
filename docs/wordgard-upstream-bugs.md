@@ -111,6 +111,15 @@ to send Marijn is `docs/wordgard-upstream-asks.md`; keep the two in step.
   draws the same DOM. The "tag widgets" document in `tile.browser.test.ts` has one.
 - **Once fixed:** wrap the text widget as Wordgard then does (the tile likely holding the span).
 
+## 8. `moveVertically` lands one character off in WebKit (unconfirmed)
+
+- **Repro:** Wordgard's own `webtest-coords.ts > moveVertically > can move between paragraphs`,
+  on plain Wordgard in Playwright's WebKit on Windows: moving up from position 7 (`t|wo`) gives 1,
+  not 2. Chromium and Firefox pass.
+- **What we do:** skip it in WebKit (`test/skipInBrowser.ts`).
+- **Before sending:** check it in Safari; Playwright's WebKit on Windows isn't Safari (fonts,
+  layout). Not in `docs/wordgard-upstream-asks.md` until confirmed.
+
 ## Requests
 
 ### Mapping a position over bare sections

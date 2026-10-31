@@ -338,6 +338,13 @@ const mount = (create: Create, doc: Wordgard.Spec["doc"], extra: GardState.Exten
   return wg;
 };
 
+// WebKit ignores the `targetRanges` option: patched in, as Wordgard's tests do.
+const beforeInput = (init: InputEventInit & { targetRanges: StaticRange[] }) => {
+  const event = new InputEvent("beforeinput", init);
+  if (!event.getTargetRanges().length) event.getTargetRanges = () => init.targetRanges;
+  return event;
+};
+
 const nodeAt = (root: Node, path: readonly number[]) =>
   path.reduce<Node>((node, i) => {
     const child = node.childNodes[i];
@@ -729,7 +736,7 @@ describe("ReactDocTile", () => {
             endOffset: offset + to - from,
           });
           const init = { inputType: "insertCompositionText", data: text, isComposing: true };
-          fire(new InputEvent("beforeinput", { ...init, targetRanges: [range] }));
+          fire(beforeInput({ ...init, targetRanges: [range] }));
           node.replaceData(offset, to - from, text);
           sel?.collapse(node, offset + text.length);
           fire(new InputEvent("input", init));
@@ -822,9 +829,7 @@ describe("ReactDocTile", () => {
         document
           .getSelection()
           ?.setBaseAndExtent(startContainer, startOffset, endContainer, endOffset);
-        wg.contentDOM.dispatchEvent(
-          new InputEvent("beforeinput", { inputType, data, targetRanges: [range] })
-        );
+        wg.contentDOM.dispatchEvent(beforeInput({ inputType, data, targetRanges: [range] }));
         mutate();
         wg.contentDOM.dispatchEvent(new InputEvent("input", { inputType, data }));
         wg.flush();

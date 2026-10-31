@@ -218,6 +218,36 @@ describe("WordgardEditor", () => {
     expect(drawing(wg)).toEqual(drawing(reference));
   });
 
+  it("refuses a second WordgardDoc for one editor", () => {
+    expect(() =>
+      render(
+        <WordgardEditor doc={doc} config={config}>
+          <WordgardDoc />
+          <WordgardDoc />
+        </WordgardEditor>
+      )
+    ).toThrow(/already rendered by another WordgardDoc/);
+  });
+
+  it("refuses a WordgardDoc added for an editor already rendered", () => {
+    let add: () => void = () => {};
+    const Second = () => {
+      const [on, setOn] = useState(false);
+      useLayoutEffect(() => {
+        add = () => flushSync(() => setOn(true));
+      }, []);
+      return on ? <WordgardDoc /> : null;
+    };
+    render(
+      <WordgardEditor doc={doc} config={config}>
+        <Grab />
+        <WordgardDoc />
+        <Second />
+      </WordgardEditor>
+    );
+    expect(add).toThrow(/already rendered by another WordgardDoc/);
+  });
+
   it("gives React widgets the app's contexts, which may change outside the flush", () => {
     const Theme = createContext("none");
     const Themed = forwardRef<HTMLSpanElement, { value: string }>(({ value }, ref) => (

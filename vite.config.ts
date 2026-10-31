@@ -10,7 +10,7 @@ const browser = (): BrowserConfigOptions => ({
   enabled: true,
   provider: playwright(),
   headless: true,
-  instances: [{ browser: "chromium" }],
+  instances: [{ browser: "chromium" }, { browser: "firefox" }, { browser: "webkit" }],
 });
 
 // Wordgard's own browser tests, copied unchanged from its repo.
@@ -47,7 +47,7 @@ export default defineConfig({
         test: {
           name: "browser",
           include: ["src/**/*.browser.test.{ts,tsx}", wordgardTests],
-          setupFiles: ["test/wordgard-workspace.ts"],
+          setupFiles: ["test/wordgard-workspace.ts", "test/skipInBrowser.ts"],
           browser: browser(),
         },
       },
@@ -68,7 +68,11 @@ export default defineConfig({
         test: {
           name: "view",
           include: [wordgardTests, "test/view/*.test.ts"],
-          setupFiles: ["test/wordgard-workspace.ts", "test/view/skipPending.ts"],
+          setupFiles: [
+            "test/wordgard-workspace.ts",
+            "test/skipInBrowser.ts",
+            "test/view/skipPending.ts",
+          ],
           browser: browser(),
         },
       },

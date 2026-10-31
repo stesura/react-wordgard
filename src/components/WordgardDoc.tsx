@@ -7,6 +7,7 @@
 import React, {
   type HTMLAttributes,
   useCallback,
+  useInsertionEffect,
   useLayoutEffect,
   useSyncExternalStore,
 } from "react";
@@ -19,6 +20,10 @@ import { docPortal } from "../tile.js";
 const DocPortal = ({ wg }: { wg: Wordgard }) => {
   const portal = docPortal(wg.contentDOM);
   const element = useSyncExternalStore(portal.subscribe, portal.get);
+  // Insertion effects all run before any layout effect, so a second portal
+  // committed alongside this one has claimed the editor by the time `mount`
+  // builds the tiles. StrictMode doesn't run them twice.
+  useInsertionEffect(() => portal.claim(), [portal]);
   useLayoutEffect(() => portal.committed(element));
   useLayoutEffect(() => portal.mount(), [portal]);
   return createPortal(element, wg.contentDOM);

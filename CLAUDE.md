@@ -14,10 +14,11 @@ derived from react-prosemirror. The plan is `docs/react-wordgard-plan.md`.
 - Checks: `npm run check` (tsc, ESLint, Prettier); `npm run fix` fixes what it
   can.
 - Tests: `npm test` (Vitest). Three projects in `vite.config.ts`: `unit`
-  (jsdom, `*.test.ts(x)`), `browser` (Chromium through Playwright,
-  `*.browser.test.ts(x)` and Wordgard's tests; run
-  `npx playwright install chromium` once) and `view` (Wordgard's tests with
-  their editors created as `ReactWordgard`).
+  (jsdom, `*.test.ts(x)`), `browser` (Chromium, Firefox and WebKit through
+  Playwright, `*.browser.test.ts(x)` and Wordgard's tests; run
+  `npx playwright install chromium firefox webkit` once) and `view` (Wordgard's
+  tests with their editors created as `ReactWordgard`, same browsers). Copied
+  tests failing in one browser on plain Wordgard too: `test/skipInBrowser.ts`.
 - Wordgard internals: only `src/wordgardInternals.ts` reaches them (types and
   the `DocTile` handle), plus `src/ReactWordgard.ts` (`declare docTile` and two
   `@ts-expect-error` for Wordgard's private constructor). `test/view/` checks

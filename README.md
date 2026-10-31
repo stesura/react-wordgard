@@ -67,7 +67,8 @@ export const Editor = () => (
 - `<WordgardEditor>` creates the editor from a `Wordgard.Spec` (read once: the editor owns its
   state; change it with `dispatch`, and its configuration with Wordgard's compartments) and
   provides it to what it holds. `<WordgardDoc>` puts the editor in the page and renders the
-  document through a portal, in your React tree: your contexts reach React widgets.
+  document through a portal, in your React tree: your contexts reach React widgets. One
+  `<WordgardDoc>` per editor; a second one throws.
 - `reactWidget(spec)` takes `Widget.define`'s spec plus a `component`. It's a real
   `Widget.Type`: use it wherever Wordgard takes a widget (a node's shape, a tag or point widget,
   inside an `Elt` shape). React widgets are uneditable by default, so a component may re-render
@@ -120,18 +121,20 @@ Needs Node 22.12 or later.
 
 ```sh
 npm install
-npx playwright install chromium  # once, for the browser tests
+npx playwright install chromium firefox webkit  # once, for the browser tests
 npm run build
-npm run check                    # types, lint, format
-npm test                         # unit (jsdom) and browser (Chromium) tests
-npm run demo                     # the demo, on Vite's dev server
-npm run bench                    # times ReactWordgard, Wordgard, react-prosemirror and ProseMirror
+npm run check                                   # types, lint, format
+npm test                                        # unit (jsdom) and browser (Chromium, Firefox, WebKit) tests
+npm run demo                                    # the demo, on Vite's dev server
+npm run bench                                   # times ReactWordgard, Wordgard, react-prosemirror and ProseMirror
+npm run bench:heap                              # what each editor holds in the heap, by class
 ```
 
 The benchmark (`bench/`, not part of the package) times load, a keystroke and bolding the whole
 document, and measures the memory each loaded editor holds, at 2,500 and 15,000 paragraphs. It uses
 React's production build; `npm run bench:dev` uses the development build and `npm run bench:smoke`
-checks it runs. Run it on an idle machine, on mains power. An editor holding over 1 GB skips the
+checks it runs; `npm run bench:heap` breaks the memory down by class, from heap snapshots. Run it
+on an idle machine, on mains power. An editor holding over 1 GB skips the
 whole-document format: Chromium caps a page's heap at 4 GB, and react-prosemirror runs out of it
 there at 15,000 paragraphs with inline nodes.
 

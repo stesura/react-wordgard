@@ -46,11 +46,13 @@ import {
 
 // The portal WordgardDoc draws a hosted editor's document through. Its layout
 // effect reports each element it commits; `mount` builds the tiles over its
-// first commit.
+// first commit. Each portal `claim`s the editor first, so `mount` can refuse a
+// second one.
 export type DocPortal = {
   readonly get: () => ReactElement;
   readonly subscribe: (listener: () => void) => () => void;
   readonly committed: (element: ReactElement) => void;
+  readonly claim: () => () => void;
   readonly mount: () => void;
 };
 
@@ -753,6 +755,7 @@ export class ReactDocTile extends DocTile {
     let element: ReactElement | null = null;
     let committed: ReactElement | null = null;
     const listeners = new Set<() => void>();
+    let claims = 0;
     const portal: DocPortal = {
       get: () => {
         if (!element) throw new Error("Nothing to render yet");
@@ -765,7 +768,19 @@ export class ReactDocTile extends DocTile {
       committed: (element) => {
         committed = element;
       },
-      mount,
+      claim: () => {
+        claims++;
+        return () => {
+          claims--;
+        };
+      },
+      // The editor's element and content element exist once: a second
+      // WordgardDoc would move the first's element and draw the document
+      // twice into one content element.
+      mount: () => {
+        if (claims > 1) throw new Error("This editor is already rendered by another WordgardDoc");
+        mount();
+      },
     };
     const entry = newEntry((next) => {
       element = next;
