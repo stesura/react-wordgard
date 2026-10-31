@@ -35,7 +35,12 @@ npm run build
 npm run check                    # types, lint, format
 npm test                         # unit (jsdom) and browser (Chromium) tests
 npm run demo                     # the demo, on Vite's dev server
+npm run bench                    # times ReactWordgard, Wordgard, react-prosemirror and ProseMirror
 ```
+
+The benchmark (`bench/`, not part of the package) uses React's production build; `npm run
+bench:dev` uses the development build and `npm run bench:smoke` checks it runs. Run it on an idle
+machine, on mains power.
 
 ## Licence
 

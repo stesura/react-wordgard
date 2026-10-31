@@ -37,6 +37,9 @@
     "test": "vitest run",
     "test:unit": "vitest run --project unit",
     "test:browser": "vitest run --project browser",
+    "bench": "vitest run --config bench/vitest.config.ts",
+    "bench:dev": "vitest run --config bench/vitest.config.ts --mode development",
+    "bench:smoke": "vitest run --config bench/vitest.config.ts --mode smoke",
     "sync-wordgard-tests": "node scripts/sync-wordgard-tests.js",
     "update-wordgard": "node scripts/update-wordgard.js",
     "prepack": "npm run build"
