@@ -1,8 +1,9 @@
 # react-wordgard: a React view for Wordgard (plan, 2026-10-30)
 
-**Status:** R1 done; R2 mostly done (2026-10-31, see Progress): stable keys from change sets, kept
-tiles, a render store. React renders every node and mark Wordgard's schemas define, without
-decorations; R3 (composition) is next. The skeleton (a standalone copy of our react-prosemirror fork, Tiptap
+**Status:** R1 done; R2 mostly done; R3 done for what can be tested here (2026-10-31, see
+Progress): React renders every node and mark Wordgard's schemas define, without decorations, with
+stable keys and kept tiles, and keeps the IME's text node through Wordgard's flush. R4
+(decorations, widgets, node views) is next. The skeleton (a standalone copy of our react-prosemirror fork, Tiptap
 removed, `wordgard` installed, ProseMirror still in place) is done.
 
 Related: `docs/wordgard-feasibility.md` (why Wordgard, and what a migration would mean),
@@ -190,6 +191,10 @@ Pause React-driven DOM and selection updates during IME composition, coordinated
 composition tiles, as react-prosemirror pauses its own.
 - **Done when:** composition tests pass in Chrome, Safari and Firefox, including composing at a mark
   boundary and inside a node view.
+- **Status:** done in Chromium, where all 15 of Wordgard's composition tests pass on the React view,
+  mark boundaries included. Open: Safari and Firefox (the `browser` and `view` projects run
+  Chromium only), a real IME (the tests emulate one, as Wordgard's do), and composing inside a node
+  view (R4: there are none yet). Not done as planned: no pause, see Progress.
 
 ### R4: decorations, widgets and node views
 
@@ -405,10 +410,48 @@ Stable inline partitions for Wordgard's mark shapes, memoised children from chan
   - The pending "preserves DOM nodes with changed wrappers marks" test can't be fixed by keys: a
     wrapper changing element remounts what it holds in React, which never reparents. Moved to
     `reparent` in `test/view/pending.ts`.
+- **2026-10-31, R3 composition, done in Chromium:** the browser's composed text node survives the
+  flush, as in Wordgard's `ContentUpdate.composition`, rather than by pausing React.
+  - How it differs from the plan and from react-prosemirror: the fork froze the composing block
+    (`freezeFrom`: React kept rendering a cached element) and remounted it after the composition.
+    Here React keeps rendering, and only the composed node is set apart: the layout
+    (`iterDecoComposing`) splits the text around Wordgard's composition range into a `composition`
+    view, placed in the wrappers the node sits in in the DOM (as Wordgard does, not by marks:
+    composing at a mark boundary types into the `<strong>`'s node), or, when typing with marks and
+    no text yet, the marks' wrappers around a buffer. React writes nothing to the node: when it's
+    React's, React renders the value it last committed there under the same key (`childViewKeys`
+    gives the composition that key and keeps it from its siblings), and when the browser made it,
+    React renders nothing in its place. The tile is a `TextTile` flagged `Composition`, over the
+    node.
+  - `src/composition.ts`: finds the plot holding the composition and the plots down to it, which
+    re-render through a `composition` prop (`DocNodeView`, `DefaultNodeView`, `ChildNodeViews`)
+    and don't reuse their tiles. `ReactDocTile` records what React rendered into each text node,
+    to know whose node is composed.
+  - `restore` keeps the composed node as it is: the browser's own node gets a tile in the old tree
+    first, since `sync()` removing it, even for a moment, moved the selection out of it. When a
+    composition ends, React's node gets back the value React committed (React's next diff then
+    writes the new one) and the browser's node is removed.
+  - Verified: the 15 tests under `composition` in `test/view/pending.ts` pass and the group is
+    gone (view project 139 passed, 46 skipped); four composition comparisons in
+    `tile.browser.test.ts` (inside text, inside a mark, a new node at a block's end, an empty line)
+    match Wordgard's DOM and tile tree at every step, and check the node and its parents are kept
+    and the selection stays in it; they fail with composition handling switched off. After the
+    composition, Wordgard keeps a stale `Composition` flag on the tile it reused, where React's
+    view builds a new one; the comparison masks that flag there.
+  - Audit (Fable) fixes: an edit before the wrapper holding the composition re-keyed the wrapper,
+    so React remounted it and the composed node was lost; React's wrapper keys are now recorded
+    too, and the wrappers around a composition keep theirs. A composed node inside an element
+    the browser added (Chrome may wrap it in a `<span>` or `<font>`) was removed by `restore`;
+    that element now takes the composition's place, with a tile as Wordgard makes for it.
+    Wordgard drops a composition when `separateChange` fails (a replaced range across its edges),
+    and so does the React view now. The comparisons also check the caret's offset (a write of
+    the same value moves it to 0) and cover both bugs (10 steps, 6 cases).
+  - Accepted: when a composition is cut short by an edit inside it, React's node gets React's
+    committed value back and then the new one, two writes where Wordgard makes one; both inside
+    the flush, selection restored by Wordgard.
 - **Open from R1's first slice:**
-  - Composition: restoring the old tree undoes the browser's composed text, so the IME's text node
-    doesn't survive the flush. R3 has to keep it (Wordgard's `Composition` tile) while React's own
-    tree stays consistent.
+  - Composition: restoring the old tree undid the browser's composed text. Done in R3 (above),
+    for Chromium; Safari, Firefox and real IMEs still to check.
   - Wordgard's constructor still draws the document once before `ReactDocTile.create` replaces it
     (its constructor calls the module's `DocTile.create`, not `Wordgard.DocTile`): double work at
     load, until the renderer interface.

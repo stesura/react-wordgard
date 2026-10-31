@@ -4,6 +4,8 @@
 // keeps its identity keeps its keys without any work.
 import type { Node, Plot } from "wordgard/doc";
 
+import type { ChildView } from "./decorations/iterDeco.js";
+
 // The React keys of each plot's children, by index in its content. Text
 // children get none: their keys come from their neighbours (ChildNodeViews).
 export type ReactKeys = WeakMap<Plot, readonly string[]>;
@@ -84,4 +86,34 @@ export const mapKeys = (
     keys.set(newPlot, newKeys);
   };
   mapChildren(oldDoc, 0, newDoc, 0);
+};
+
+// The keys of a list of sibling views (ChildNodeViews renders them, ReactDocTile
+// records them), paired with them. A node's key comes from ReactKeys; other
+// views are keyed after their previous sibling, so a text run keeps its text
+// node while its start changes. A composition, and the wrappers around it,
+// keep the keys of the nodes React committed there, and nothing else in their
+// list may take those.
+export const childViewKeys = (
+  views: readonly ChildView[],
+  nodeKeys: readonly string[],
+  compositionKey: string
+) => {
+  const fixed = (view: ChildView) =>
+    view.type == "composition" ? compositionKey : view.type == "wrapper" ? view.key : undefined;
+  const taken = new Set(views.map(fixed));
+  let previous = "";
+  return views.map((view) => {
+    let key = fixed(view);
+    if (key === undefined) {
+      key =
+        view.type == "node"
+          ? nodeKeys[view.index]
+          : `${previous}>${view.type == "buffer" ? `buffer${view.side}` : view.type}`;
+      if (key === undefined) throw new Error("No key for a node");
+      while (taken.has(key)) key += "+";
+    }
+    previous = key;
+    return { view, key };
+  });
 };

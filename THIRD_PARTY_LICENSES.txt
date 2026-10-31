@@ -62,7 +62,9 @@ https://wordgard.net
 ================================================================================
 
 test/wordgard/ holds copies of Wordgard's browser tests and their helpers;
-demo/wordgard/main.ts is adapted from Wordgard's demo (demo/demo.ts).
+demo/wordgard/main.ts is adapted from Wordgard's demo (demo/demo.ts), and the
+IME emulation in src/__tests__/tile.browser.test.ts from its `compose` test
+helper (test/webtest-composition.ts).
 
 MIT License
 

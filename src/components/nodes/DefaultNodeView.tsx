@@ -5,12 +5,16 @@
 import React, { type ReactElement, type ReactNode, createElement, memo } from "react";
 import type { Elt, Node } from "wordgard/doc";
 
+import type { CompositionView } from "../../composition.js";
 import { nodeShape, uneditable } from "../../decorations/iterDeco.js";
 import { attrsToRecord, htmlAttrsToReactProps } from "../../helpers/index.js";
 import { ChildNodeViews } from "../ChildNodeViews.js";
 
 type Props = {
   node: Node;
+  // Set on the plots down to an ongoing composition, so they re-render when it
+  // changes.
+  composition?: CompositionView;
 };
 
 const renderShape = (
@@ -40,6 +44,10 @@ const renderShape = (
 
 // Wordgard's documents share unchanged nodes between states, so a node that
 // keeps its identity doesn't re-render.
-export const DefaultNodeView = memo(({ node }: Props) =>
-  renderShape(nodeShape(node), true, node.isPlot ? <ChildNodeViews node={node} /> : null)
+export const DefaultNodeView = memo(({ node, composition }: Props) =>
+  renderShape(
+    nodeShape(node),
+    true,
+    node.isPlot ? <ChildNodeViews node={node} composition={composition} /> : null
+  )
 );

@@ -9,10 +9,44 @@ export type ChildView =
   // `index` is the node's index in its parent plot's content.
   | { type: "node"; node: Node; index: number }
   | { type: "text"; text: string }
-  | { type: "wrapper"; elt: Elt; spanning: boolean; children: ChildView[] }
+  | WrapperChildView
   // The `<img class="wg-buffer">` at the start (-1) or end (1) of an inline plot.
   | { type: "buffer"; side: -1 | 1 }
+  // The browser's text node during a composition (ContentUpdate.composition).
+  | { type: "composition" }
   | { type: "trailingHack" };
+
+// `key` is set on wrappers that must keep the element React committed: those
+// around a composition.
+type WrapperChildView = {
+  type: "wrapper";
+  elt: Elt;
+  spanning: boolean;
+  children: ChildView[];
+  key?: string;
+};
+
+// A wrapper to open: a mark's, or one the DOM already has (with the key React
+// gave it).
+export type WrapperView = { readonly elt: Elt; readonly spanning: boolean; readonly key?: string };
+
+// Where a composition sits in a plot's content, as offsets in it, and the
+// wrappers around it. Like Wordgard, those are the ones the browser's node sits
+// in, not its marks', or, for `cursor` (typing with marks and no text yet), the
+// marks' around a buffer.
+export type CompositionLayout = {
+  readonly from: number;
+  readonly to: number;
+  readonly wrappers: readonly WrapperView[];
+  readonly cursor: boolean;
+};
+
+// The wrappers of the marks the cursor types with (ContentUpdate.composition
+// opens only those with an element).
+export const cursorWrappers = (marks: Mark.Set): WrapperView[] =>
+  marks
+    .filter((mark) => mark.type.element)
+    .map((mark) => ({ elt: markWrapper(mark), spanning: mark.type.spanning }));
 
 const memo = <A extends object, T>(f: (arg: A) => T) => {
   const cache = new WeakMap<A, T>();
@@ -92,11 +126,11 @@ const openWrapper = (views: ChildView[], elt: Elt, spanning: boolean) => {
   const prev = views[i];
   if (spanning && prev?.type == "wrapper" && prev.spanning && prev.elt.eq(elt)) {
     prev.children.push(...views.splice(i + 1));
-    return prev.children;
+    return prev;
   }
-  const wrapper: ChildView = { type: "wrapper", elt, spanning, children: [] };
+  const wrapper: WrapperChildView = { type: "wrapper", elt, spanning, children: [] };
   views.push(wrapper);
-  return wrapper.children;
+  return wrapper;
 };
 
 // Adjacent text in the same wrapper is one text node (ContentUpdate.addText).
@@ -134,16 +168,44 @@ const needsTrailingHack = (views: readonly ChildView[]): boolean | undefined => 
   return undefined;
 };
 
-// A plot's content, for plots whose shape has a content hole.
-export const iterDeco = memo((plot: Plot): readonly ChildView[] => {
+const layout = (plot: Plot, composition?: CompositionLayout): readonly ChildView[] => {
   const views: ChildView[] = [];
+  const wrapped = (node: Node) => {
+    let target = views;
+    for (const { elt, spanning } of nodeWrappers(node))
+      target = openWrapper(target, elt, spanning).children;
+    return target;
+  };
+  let placed = !composition;
+  const place = () => {
+    if (placed || !composition) return;
+    placed = true;
+    let target = views;
+    for (const { elt, spanning, key } of composition.wrappers) {
+      const wrapper = openWrapper(target, elt, spanning);
+      if (key) wrapper.key = key;
+      target = wrapper.children;
+    }
+    target.push(composition.cursor ? { type: "buffer", side: -1 } : { type: "composition" });
+  };
   if (plot.isInline) views.push({ type: "buffer", side: -1 });
+  let pos = 0;
   for (const [index, node] of plot.content.entries()) {
+    const start = pos;
+    pos += node.length;
+    if (composition && composition.from == composition.to && composition.from <= start) place();
     // Wordgard 0.6.2 can leave empty text leaves; React draws nothing for them
     // (docs/wordgard-upstream-bugs.md).
     if (node.is(Leaf.Text) && !node.param) continue;
-    let target = views;
-    for (const { elt, spanning } of nodeWrappers(node)) target = openWrapper(target, elt, spanning);
+    if (node.is(Leaf.Text) && composition && composition.from < pos && composition.to > start) {
+      const before = node.param.slice(0, Math.max(0, composition.from - start));
+      const after = node.param.slice(Math.max(0, composition.to - start));
+      if (before) addText(wrapped(node), before);
+      place();
+      if (after) addText(wrapped(node), after);
+      continue;
+    }
+    const target = wrapped(node);
     if (node.is(Leaf.Text)) addText(target, node.param);
     else target.push({ type: "node", node, index });
     // Wordgard bug: an inline plot drawn as an atom still gets the buffer an
@@ -152,8 +214,15 @@ export const iterDeco = memo((plot: Plot): readonly ChildView[] => {
     if (node.isPlot && node.isInline && !nodeShape(node).hasContent)
       views.push({ type: "buffer", side: -1 });
   }
+  place();
   if (plot.isInline) views.push({ type: "buffer", side: 1 });
   if ((plot.isTextblock || plot.isInline) && needsTrailingHack(views) !== false)
     views.push({ type: "trailingHack" });
   return views;
-});
+};
+
+// A plot's content, for plots whose shape has a content hole.
+export const iterDeco = memo((plot: Plot) => layout(plot));
+
+// The same, with a composition in it: not cached, it changes every flush.
+export const iterDecoComposing = layout;

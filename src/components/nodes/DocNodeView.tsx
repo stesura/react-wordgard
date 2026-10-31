@@ -5,10 +5,14 @@
 import React from "react";
 import type { Plot } from "wordgard/doc";
 
+import type { CompositionView } from "../../composition.js";
 import { ChildNodeViews } from "../ChildNodeViews.js";
 
 type Props = {
   doc: Plot;
+  composition?: CompositionView;
 };
 
-export const DocNodeView = ({ doc }: Props) => <ChildNodeViews node={doc} />;
+export const DocNodeView = ({ doc, composition }: Props) => (
+  <ChildNodeViews node={doc} composition={composition} />
+);

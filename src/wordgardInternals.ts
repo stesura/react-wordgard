@@ -21,12 +21,23 @@ export interface DocTile extends CompositeTile {
     state: GardState,
     changes: readonly number[],
     wg: Wordgard,
-    composition?: unknown
+    composition?: CompositionInfo | null
   ): DocTile;
   // The queries Wordgard's input, selection and coordinates code use.
   resolve(pos: number, side?: -1 | 1): { tile: Tile; offset: number; pos: number };
   nodeTile(pos: number): Tile | null;
   posFromDOM(dom: Node, offset: number, bias?: -1 | 1): number;
+}
+
+// What Wordgard's flush tells the doc tile about an ongoing composition: the
+// browser's text node (`target`) and the range it covers, or, when typing with
+// marks and no text yet, the marks to wrap the cursor in.
+export interface CompositionInfo {
+  readonly fromB: number;
+  readonly toB: number;
+  readonly text: string;
+  readonly target: Text | null;
+  readonly wrapCursor?: Mark.Set | null;
 }
 
 export interface DOMObserver {
@@ -85,6 +96,7 @@ export const TileFlag = {
   Point: 0x10,
   PointBefore: 0x20,
   PointAfter: 0x40,
+  Composition: 0x80,
   Synced: 0x100,
   Atom: 0x200,
   AfterContent: 0x800,

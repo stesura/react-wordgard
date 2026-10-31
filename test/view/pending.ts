@@ -52,24 +52,6 @@ export const pendingWordgardTests = {
     "webtest-resolve-dom.ts > DocTile.resolve > picks the right side of widgets on wrapper boundaries",
     "webtest-resolve-dom.ts > DocTile.resolve > resolves properly between widgets",
   ],
-  // Composition (R3): the composed text node must survive the flush.
-  composition: [
-    "webtest-composition.ts > composition > can compose at the end of a wrapping mark",
-    "webtest-composition.ts > composition > can compose at the start of a wrapping mark",
-    "webtest-composition.ts > composition > can compose inside a wrapping mark",
-    "webtest-composition.ts > composition > can handle API-driven insertions around the composition",
-    "webtest-composition.ts > composition > gracefully handles API-produced changes inside the composition",
-    "webtest-composition.ts > composition > gracefully handles starting a composition in a modified text node",
-    "webtest-composition.ts > composition > handles composition in a wrapper that has multiple children",
-    "webtest-composition.ts > composition > handles replacement of existing words",
-    "webtest-composition.ts > composition > supports composition at end of block in a new node",
-    "webtest-composition.ts > composition > supports composition at end of block in existing node",
-    "webtest-composition.ts > composition > supports composition at start of block in a new node",
-    "webtest-composition.ts > composition > supports composition at start of line",
-    "webtest-composition.ts > composition > supports composition in a cursor wrapper",
-    "webtest-composition.ts > composition > supports composition inside existing text",
-    "webtest-composition.ts > composition > supports composition on an empty line",
-  ],
   // DOM nodes Wordgard moves into a new parent and React recreates: when a
   // wrapper's element changes (<strong> to <em>), React remounts what it
   // holds. Keys can't help; react-prosemirror has the same limit.

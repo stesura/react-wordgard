@@ -34,7 +34,7 @@ import {
 
 import { ReactWordgard } from "../ReactWordgard.js";
 import { ReactDocTile } from "../tile.js";
-import { DocTile, type Tile } from "../wordgardInternals.js";
+import { DocTile, type Tile, TileFlag } from "../wordgardInternals.js";
 
 // A fixed-size image (see the style below), so layout doesn't wait on loading.
 const img = "data:image/gif;base64,R0lGODlhAQABAAAAACw=";
@@ -371,6 +371,140 @@ describe("ReactDocTile", () => {
       expect(kept?.parent).toBe(docTileOf(react));
     });
   });
+
+  // Emulates an IME, adapted from Wordgard's `compose` test helper
+  // (test/wordgard/webtest-composition.ts): each step edits a text node (the
+  // one at `from`, or one `start` makes) and fires the events, or runs an edit
+  // of the editor's own.
+  type CompositionStep =
+    { from: number; to: number; text: string } | { run: (wg: Wordgard) => void };
+  const compositions: Record<
+    string,
+    { doc: string; steps: CompositionStep[]; start?: (content: HTMLElement) => Text }
+  > = {
+    "inside text": {
+      doc: "<p>ab</p>",
+      steps: [
+        { from: 2, to: 2, text: "-" },
+        { from: 2, to: 3, text: "*" },
+      ],
+    },
+    "inside a mark": {
+      doc: "<p>a<strong>bc</strong>d</p>",
+      steps: [
+        { from: 3, to: 3, text: "-" },
+        { from: 4, to: 4, text: "$" },
+      ],
+    },
+    "in a new node at the end of a block": {
+      doc: "<p>foo</p>",
+      start: (content) => blockIn(content, 0).appendChild(document.createTextNode("")),
+      steps: [
+        { from: 4, to: 4, text: "!" },
+        { from: 5, to: 5, text: "?" },
+      ],
+    },
+    "on an empty line": {
+      doc: "<p>.</p><p></p>",
+      start: (content) => blockIn(content, 1).appendChild(document.createTextNode("")),
+      steps: [
+        { from: 4, to: 4, text: "a" },
+        { from: 5, to: 5, text: "b" },
+      ],
+    },
+    "with an insertion before its wrapper": {
+      doc: "<p><strong>bc</strong>d</p>",
+      steps: [
+        { from: 2, to: 2, text: "-" },
+        { run: (wg) => wg.dispatch({ changes: { from: 1, insert: [Leaf.text("x")] } }) },
+        { from: 4, to: 4, text: "$" },
+      ],
+    },
+    "in an element the browser added": {
+      doc: "<p>foo</p>",
+      start: (content) => {
+        const span = document.createElement("span");
+        span.style.fontWeight = "bold";
+        blockIn(content, 0).appendChild(span);
+        return span.appendChild(document.createTextNode(""));
+      },
+      steps: [
+        { from: 4, to: 4, text: "!" },
+        { from: 5, to: 5, text: "?" },
+      ],
+    },
+  };
+
+  for (const [name, { doc, steps, start }] of Object.entries(compositions)) {
+    it(`keeps the composition's node and matches Wordgard: ${name}`, () => {
+      const run = (wg: Wordgard) => {
+        wg.focus();
+        const sel = document.getSelection();
+        const fire = (event: Event) => wg.contentDOM.dispatchEvent(event);
+        const states = [];
+        let node = start?.(wg.contentDOM) ?? null;
+        fire(new CompositionEvent("compositionstart"));
+        const settle = (node: Text) => {
+          const parents = [];
+          for (let p = node.parentNode; p && p != wg.contentDOM; p = p.parentNode) parents.push(p);
+          const offset = sel?.focusOffset;
+          wg.flush();
+          const kept = [];
+          for (let p = node.parentNode; p && p != wg.contentDOM; p = p.parentNode) kept.push(p);
+          expect(kept).toEqual(parents);
+          expect(sel?.focusNode).toBe(node);
+          expect(sel?.focusOffset).toBe(offset);
+          states.push({
+            html: wg.contentDOM.innerHTML,
+            tiles: describeTile(docTileOf(wg), wg.contentDOM),
+          });
+        };
+        for (const step of steps) {
+          if ("run" in step) {
+            step.run(wg);
+            if (!node) throw new Error("No composition to keep");
+            settle(node);
+            continue;
+          }
+          const { from, to, text } = step;
+          fire(new CompositionEvent("compositionupdate"));
+          const at = wg.domAtPos(from, -1);
+          if (!node) {
+            if (!(at.node instanceof Text)) throw new Error("No text node to compose in");
+            node = at.node;
+          }
+          const offset = at.node == node ? at.offset : (node.nodeValue ?? "").length;
+          const range = new StaticRange({
+            startContainer: node,
+            startOffset: offset,
+            endContainer: node,
+            endOffset: offset + to - from,
+          });
+          const init = { inputType: "insertCompositionText", data: text, isComposing: true };
+          fire(new InputEvent("beforeinput", { ...init, targetRanges: [range] }));
+          node.replaceData(offset, to - from, text);
+          sel?.collapse(node, offset + text.length);
+          fire(new InputEvent("input", init));
+          settle(node);
+        }
+        fire(new CompositionEvent("compositionend"));
+        wg.flush();
+        // Wordgard's update keeps the composed node's tile, flag included, where
+        // React's view builds a new one.
+        const settled = JSON.stringify(describeTile(docTileOf(wg), wg.contentDOM)).replace(
+          /"flags":(\d+)/g,
+          (_, flags) => `"flags":${Number(flags) & ~TileFlag.Composition}`
+        );
+        states.push({ doc: String(wg.state.doc), html: wg.contentDOM.innerHTML, tiles: settled });
+        return states;
+      };
+      const expected = alone(Wordgard.create, doc, run);
+      expect(JSON.stringify(expected)).toContain(
+        `"flags":${TileFlag.Composition | TileFlag.Synced}`
+      );
+      expect(alone(ReactWordgard.create, doc, run)).toEqual(expected);
+    });
+  }
 
   // Wordgard lets the browser do these edits and records them; the flush then
   // has to bring React's DOM back in line.
