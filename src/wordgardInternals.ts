@@ -78,14 +78,24 @@ interface WidgetTileClass {
 
 // Wordgard's `TileFlag`, a const enum its typings declare without exporting.
 export const TileFlag = {
+  NodeInner: 0x1,
   PlotContent: 0x2,
   Spanning: 0x4,
   Wrapper: 0x8,
   Point: 0x10,
+  PointBefore: 0x20,
   PointAfter: 0x40,
   Synced: 0x100,
+  Atom: 0x200,
+  AfterContent: 0x800,
   Dirty: 0x2000,
 } as const;
+
+// Wordgard's NodeShape: the element a node type renders as.
+interface NodeShape<Param> {
+  readonly atom: boolean;
+  create(param: Param): Elt;
+}
 
 // Wordgard's `Elt.Selector`, opaque here: we only hand it back to `addAttrs`.
 export interface EltSelector {
@@ -95,9 +105,14 @@ export interface EltSelector {
 declare module "wordgard/doc" {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Plot {
-    // Wordgard's NodeShape: the element a node type renders as.
     interface Type<Param = unknown> {
-      readonly shape: { readonly atom: boolean; create(param: Param): Elt };
+      readonly shape: NodeShape<Param>;
+    }
+  }
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace Leaf {
+    interface Type<Param = unknown> {
+      readonly shape: NodeShape<Param>;
     }
   }
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -129,6 +144,10 @@ declare module "wordgard/editor" {
   namespace Widget {
     // The `<br>` Wordgard puts at the end of a textblock that needs one.
     const br: Widget<null>;
+    // The `<img class="wg-buffer">` at the start and end of an inline plot.
+    const img: Widget<null>;
+    // Text inside a node's shape.
+    const text: Widget.Type<string>;
   }
 }
 

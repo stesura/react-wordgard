@@ -1,9 +1,10 @@
 // Named after react-prosemirror's ChildNodeViews, rewritten for Wordgard: draws
-// what iterDeco lays out, so far plots, text and mark wrappers.
+// what iterDeco lays out: nodes, text, mark wrappers and Wordgard's hack nodes.
 import React from "react";
 import type { Plot } from "wordgard/doc";
 
 import { type ChildView, iterDeco } from "../decorations/iterDeco.js";
+import { SeparatorHackView } from "./SeparatorHackView.js";
 import { TextNodeView } from "./TextNodeView.js";
 import { TrailingHackView } from "./TrailingHackView.js";
 import { MarkView } from "./marks/MarkView.js";
@@ -26,6 +27,8 @@ const renderChildView = (view: ChildView, key: number) => {
           {view.children.map(renderChildView)}
         </MarkView>
       );
+    case "buffer":
+      return <SeparatorHackView key={key} />;
     case "trailingHack":
       return <TrailingHackView key={key} />;
   }

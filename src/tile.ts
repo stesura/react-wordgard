@@ -5,13 +5,13 @@
 import { createElement } from "react";
 import { flushSync } from "react-dom";
 import { type Root, createRoot } from "react-dom/client";
-import { type Attributes, Leaf, type Plot } from "wordgard/doc";
+import { type Attributes, type Node as DocNode, Elt, Leaf, type Plot } from "wordgard/doc";
 import { Widget, type Wordgard } from "wordgard/editor";
 import type { GardState } from "wordgard/state";
 
 import { attrsToRecord } from "./helpers/index.js";
 import { DocNodeView } from "./components/nodes/DocNodeView.js";
-import { type ChildView, iterDeco, plotShape } from "./decorations/iterDeco.js";
+import { type ChildView, iterDeco, nodeShape, uneditable } from "./decorations/iterDeco.js";
 import {
   type CompositeTile,
   DocTile,
@@ -27,54 +27,144 @@ const roots = new WeakMap<Element, Root>();
 // Throws for what React can't render yet, rather than drawing it wrong.
 const checkRenderable = (plot: Plot) => {
   for (const node of plot.content) {
-    if (node.isPlot) {
-      const { children } = node.type.shape.create(node.tag.param);
-      if (node.isInline || node.type.shape.atom || children.length != 1 || children[0] !== 0)
-        throw new Error(`react-wordgard can't render the shape of ${node.name} yet`);
-      checkRenderable(node);
-    } else if (!node.is(Leaf.Text)) {
-      throw new Error(`react-wordgard can't render ${node.name} yet`);
-    }
+    if (node.is(Leaf.Text)) continue;
+    const shape = node.isPlot
+      ? node.type.shape.create(node.tag.param)
+      : node.type.shape.create(node.param);
+    checkShape(node.name, shape);
+    if (node.isPlot && shape.hasContent) checkRenderable(node);
   }
+};
+
+// React can't draw an empty text node, nor namespaced elements from a tag name.
+const checkShape = (name: string, shape: Elt) => {
+  if (/^(svg|math):/.test(shape.tagName))
+    throw new Error(`react-wordgard can't render the shape of ${name} yet`);
+  for (const child of shape.children) {
+    if (child === "") throw new Error(`react-wordgard can't render the shape of ${name} yet`);
+    if (child instanceof Elt) checkShape(name, child);
+  }
+};
+
+// Hands out an element's children in order, checking React drew no more.
+const childCursor = (dom: Element) => {
+  let index = 0;
+  return {
+    next: () => {
+      const child = dom.childNodes[index++];
+      if (!child) throw new Error("React's DOM is missing a node");
+      return child;
+    },
+    done: () => {
+      if (index != dom.childNodes.length) throw new Error("React's DOM has extra nodes");
+    },
+  };
+};
+
+type ChildCursor = ReturnType<typeof childCursor>;
+
+const elementOf = (dom: ChildNode, what: string) => {
+  if (!(dom instanceof Element)) throw new Error(`Expected an element for ${what}`);
+  return dom;
 };
 
 // Mirrors what Wordgard's ContentUpdate builds for the same content, over the
 // DOM React committed for it.
-const addChildTiles = (parent: CompositeTile, views: readonly ChildView[], dom: Element) => {
+const addChildTiles = (parent: CompositeTile, views: readonly ChildView[], cursor: ChildCursor) => {
   const { EltTile, TextTile, WidgetTile } = getTileClasses();
-  const childDOM = dom.childNodes;
-  if (childDOM.length != views.length) throw new Error("React's DOM doesn't match the layout");
-  views.forEach((view, i) => {
-    const child = childDOM[i];
+  for (const view of views) {
+    const dom = cursor.next();
     if (view.type == "text") {
-      if (!(child instanceof Text)) throw new Error("Expected a text node");
-      parent.addChild(synced(new TextTile(view.text, child)));
-      return;
-    }
-    if (!(child instanceof Element)) throw new Error(`Expected an element for ${view.type}`);
-    if (view.type == "node") {
+      if (!(dom instanceof Text)) throw new Error("Expected a text node");
+      parent.addChild(synced(new TextTile(view.text, dom)));
+    } else if (view.type == "node") {
       const { node } = view;
-      const tile = EltTile.of(
-        plotShape(node.tag),
-        node.tag,
-        TileFlag.PlotContent,
-        node.length,
-        child
-      );
-      addChildTiles(tile, iterDeco(node), child);
-      parent.addChild(synced(tile));
+      const tag = node.isPlot ? node.tag : node;
+      const fill = (tile: CompositeTile, content: ChildCursor) => {
+        if (node.isPlot) addChildTiles(tile, iterDeco(node), content);
+      };
+      const tile = shapeTile(nodeShape(node), tag, node.length, elementOf(dom, node.name), {
+        inEditable: true,
+        afterContent: 0,
+        fill,
+      });
+      parent.addChild(tile);
     } else if (view.type == "wrapper") {
       const flags = TileFlag.Wrapper | (view.spanning ? TileFlag.Spanning : 0);
-      const tile = EltTile.of(view.elt, null, flags, 0, child);
-      addChildTiles(tile, view.children, child);
+      const element = elementOf(dom, "a wrapper");
+      const tile = EltTile.of(view.elt, null, flags, 0, element);
+      const content = childCursor(element);
+      addChildTiles(tile, view.children, content);
+      content.done();
       tile.length = tile.children.reduce((length, ch) => length + ch.length, 0);
       parent.addChild(synced(tile));
-    } else {
-      parent.addChild(
-        synced(new WidgetTile(Widget.br, null, TileFlag.Point | TileFlag.PointAfter, child))
+    } else if (view.type == "buffer") {
+      const side = view.side < 0 ? TileFlag.PointBefore : TileFlag.PointAfter;
+      const tile = new WidgetTile(
+        Widget.img,
+        null,
+        TileFlag.Point | side,
+        elementOf(dom, "a buffer")
       );
+      parent.addChild(synced(tile));
+    } else {
+      const tile = new WidgetTile(
+        Widget.br,
+        null,
+        TileFlag.Point | TileFlag.PointAfter,
+        elementOf(dom, "the trailing <br>")
+      );
+      parent.addChild(synced(tile));
     }
-  });
+  }
+};
+
+type ShapeContext = {
+  inEditable: boolean;
+  afterContent: number;
+  // Adds the plot's content tiles at the hole.
+  fill: (tile: CompositeTile, content: ChildCursor) => void;
+};
+
+// Wordgard's buildNodeShape: the node's own tile (with `tag`) or a tile for
+// structure inside its shape (`tag` null).
+const shapeTile = (
+  shape: Elt,
+  tag: DocNode.Tag | null,
+  length: number,
+  dom: Element,
+  { inEditable, afterContent, fill }: ShapeContext
+): Tile => {
+  const { EltTile, WidgetTile } = getTileClasses();
+  const { shape: elt, inEditable: inner } = uneditable(shape, inEditable);
+  const flags = tag
+    ? elt.hasContent
+      ? 0
+      : TileFlag.Atom
+    : TileFlag.NodeInner | (elt.hasContent ? 0 : TileFlag.Point);
+  const tile = EltTile.of(elt, tag, flags | afterContent, tag ? length : 0, dom);
+  const cursor = childCursor(dom);
+  let after = 0;
+  for (const child of elt.children) {
+    if (child === 0) {
+      tile.flags |= TileFlag.PlotContent;
+      fill(tile, cursor);
+      after = TileFlag.AfterContent;
+    } else if (typeof child == "string") {
+      const text = cursor.next();
+      if (!(text instanceof Text)) throw new Error("Expected a text node in a shape");
+      const flags = TileFlag.Point | TileFlag.NodeInner | after;
+      tile.addChild(synced(new WidgetTile(Widget.text.of(child), null, flags, text)));
+    } else {
+      const context = { inEditable: inner, afterContent: after, fill };
+      tile.addChild(shapeTile(child, null, 0, elementOf(cursor.next(), child.tagName), context));
+    }
+  }
+  cursor.done();
+  // What `sync()` computes for tiles whose length follows their children.
+  if (!(tile.flags & TileFlag.Atom))
+    tile.length = tile.children.reduce((sum, ch) => sum + ch.length, tile.boundary * 2);
+  return synced(tile);
 };
 
 // The flag Wordgard's `sync()` sets once a tile's DOM matches it.
@@ -127,7 +217,9 @@ export class ReactDocTile extends DocTile {
     if (!root) throw new Error("No React root for this element");
     flushSync(() => root.render(createElement(DocNodeView, { doc: state.doc })));
     const tile = new ReactDocTile(state, dom, null, null);
-    addChildTiles(tile, iterDeco(state.doc), dom);
+    const cursor = childCursor(dom);
+    addChildTiles(tile, iterDeco(state.doc), cursor);
+    cursor.done();
     tile.length = state.doc.length;
     return synced(tile);
   };

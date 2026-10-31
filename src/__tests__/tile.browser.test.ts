@@ -1,21 +1,42 @@
 // R1's "done when": React's tree draws the same DOM as Wordgard's own renderer
 // and answers the tile queries the same way.
-import { Leaf } from "wordgard/doc";
+import { Node as DocNode, Elt, Leaf, Mark, Plot } from "wordgard/doc";
 import { Wordgard } from "wordgard/editor";
 import {
   alignment,
-  basicSchema,
   blockDoc,
+  blockquote,
+  bulletList,
   heading,
+  horizontalRule,
   inlineMarks,
   lineBreak,
+  orderedList,
   paragraph,
 } from "wordgard/schema";
-import { Color, Emphasis, Strong } from "wordgard/types";
+import { GardState } from "wordgard/state";
+import {
+  CaptionedFigure,
+  Cell,
+  ColSpan,
+  Color,
+  Emphasis,
+  Figure,
+  HeaderCell,
+  Image,
+  LineBreak,
+  RowSpan,
+  Strong,
+  Table,
+  TableRow,
+} from "wordgard/types";
 
 import { ReactWordgard } from "../ReactWordgard.js";
 import { ReactDocTile } from "../tile.js";
 import { DocTile, type Tile } from "../wordgardInternals.js";
+
+// A fixed-size image (see the style below), so layout doesn't wait on loading.
+const img = "data:image/gif;base64,R0lGODlhAQABAAAAACw=";
 
 const docs = {
   "a paragraph": "<p>hello</p>",
@@ -36,12 +57,100 @@ const docs = {
     '<p><u style="color: blue">under<strong>lined</strong></u><s> struck</s></p>',
   "marks on blocks":
     '<p style="text-align: center">centered <em>text</em></p><h2 style="text-align: end">Title</h2>',
+  "line breaks": "<p>one<br>two</p><p>ends in a break<br></p><p><em>a<br></em></p>",
+  images: `<p>an <img src="${img}"> image</p><p><img src="${img}"></p><p><strong>a<img src="${img}">b</strong></p>`,
+  "a rule": "<p>above</p><hr><p>below</p>",
+  lists: "<ul><li><p>one</p></li><li><p>two</p><ol><li><p>nested</p></li></ol></li></ul>",
+  "a table":
+    "<table><tbody><tr><th>head</th><th></th></tr><tr><td>a <em>b</em></td><td>c</td></tr></tbody></table>",
+  figures: `<figure><img src="${img}"></figure><figure><img src="${img}"><figcaption>a <em>caption</em></figcaption></figure>`,
+  "inline plots":
+    '<p>a <span class="chip">chip <em>b</em></span> c</p><p><span class="chip"></span></p>',
+  // Wordgard's trailing-<br> scan skips the structure around such a plot's content.
+  "inline plots with nested content":
+    '<p><span class="nested"><span class="in">x</span></span></p><p>a<br><span class="nested"><span class="in">y</span></span></p>',
+  "inline atoms":
+    '<p>a<span class="atom">x</span>b</p><p><strong>a<span class="atom">x</span>b</strong></p><p><span class="atom">x</span></p>',
+  "shape attributes":
+    '<p>a<span class="marker"></span>b</p><table><tbody><tr><td colspan="2" rowspan="2">wide</td></tr></tbody></table>',
 };
 
-// Inline marks and alignment (attribute marks on text and on textblocks).
-const config = [blockDoc(), paragraph(), heading(), lineBreak(), inlineMarks(), alignment()];
+// An inline plot, which Wordgard draws between two `wg-buffer` images.
+const Chip = Plot.define("Chip", {
+  inline: true,
+  inlineContent: true,
+  shape: { element: "span", attributes: { class: "chip" } },
+  parseRules: [{ selector: "span.chip" }],
+});
+
+const Nested = Plot.define("Nested", {
+  inline: true,
+  inlineContent: true,
+  shape: {
+    structure: Elt.mk("span", { class: "nested" }, [Elt.mk("span", { class: "in" }, [0])]),
+    atom: false,
+  },
+  parseRules: [{ selector: "span.nested", contentElement: "span.in", precedence: 10 }],
+});
+
+// Wordgard 0.6.2 draws a stray buffer after an inline atom, which React mirrors
+// (docs/wordgard-upstream-bugs.md).
+const InlineAtom = Plot.define("InlineAtom", {
+  inline: true,
+  inlineContent: true,
+  shape: { structure: Elt.mk("span", { class: "atom" }), atom: true },
+  parseRules: [{ selector: "span.atom", precedence: 10 }],
+});
+
+// A spanning mark inline plots can take, to wrap an atom and its buffer.
+const Highlight = Mark.define("Highlight", {
+  shape: { element: "mark" },
+  target: DocNode.Group.Inline,
+});
+
+// Attributes React would get wrong through its own props handling.
+const Marker = Leaf.define("Marker", {
+  inline: true,
+  shape: { element: "span", attributes: { class: "marker", draggable: "false", hidden: "" } },
+  parseRules: [{ selector: "span.marker", precedence: 10 }],
+});
+
+// Schema parts only: their extensions can add decorations (image resizing,
+// table cell selection), which React doesn't draw yet.
+const config = [
+  blockDoc(),
+  paragraph(),
+  heading(),
+  blockquote(),
+  bulletList(),
+  orderedList(),
+  horizontalRule(),
+  lineBreak(),
+  inlineMarks(),
+  alignment(),
+  GardState.schemaElement.of([
+    Image,
+    Figure,
+    CaptionedFigure,
+    Table,
+    TableRow,
+    Cell,
+    HeaderCell,
+    ColSpan,
+    RowSpan,
+    Chip,
+    Nested,
+    InlineAtom,
+    Highlight,
+    Marker,
+  ]),
+];
 
 type Create = (spec: Wordgard.Spec) => Wordgard;
+
+const imageSize = document.createElement("style");
+imageSize.textContent = "img[src] { width: 20px; height: 20px; }";
+document.head.appendChild(imageSize);
 
 const mount = (create: Create, doc: string) => {
   const parent = document.createElement("div");
@@ -207,6 +316,10 @@ describe("ReactDocTile", () => {
       { changes: { from: 4, to: 7, insert: [Leaf.text("em", [Emphasis, Strong])] } },
       { changes: { from: 1, insert: [Leaf.text("red", [Color.of("red")])] } },
       { changes: { from: 3, to: 6 } },
+      { changes: { from: 2, insert: [LineBreak] } },
+      { changes: { from: 1, insert: [Image.of(img, [Strong])] } },
+      { changes: { from: 1, to: 2 } },
+      { changes: { from: 2, to: 3 } },
     ];
     for (const spec of edits) {
       for (const wg of [wordgard, react]) {
@@ -317,18 +430,49 @@ describe("ReactDocTile", () => {
     expect(docTileOf(react).resolve(1, 1).tile.dom.nodeName).toBe("P");
   });
 
-  it("draws the marks it's given", () => {
+  it("draws the marks and nodes it's given", () => {
     const html = (doc: string) => both(doc).react.contentDOM.innerHTML;
     expect(html(docs["marks of different ranks"])).toContain("<em><strong>cd</strong></em>");
     expect(html(docs["attribute marks"])).toContain(
       '<span style="color: red;background-color: yellow">'
     );
     expect(html(docs["marks on blocks"])).toContain('<p style="text-align: center">');
+    expect(html(docs["line breaks"])).toContain("<p>ends in a break<br><br></p>");
+    expect(html(docs["a rule"])).toContain("<hr>");
+    expect(html(docs["a table"])).toContain("<table><tbody><tr><th>head</th>");
+    expect(html(docs.figures)).toContain("<figcaption>a <em>caption</em></figcaption>");
+    expect(html(docs["inline plots with nested content"])).toContain("</span></span><br></p>");
+    expect(html(docs["inline atoms"])).toContain(
+      '<p>a<span class="atom" contenteditable="false"></span><img class="wg-buffer">b</p>'
+    );
+    expect(html(docs["shape attributes"])).toContain('draggable="false" hidden=""');
+    expect(html(docs["shape attributes"])).toContain('<td colspan="2" rowspan="2">');
+    expect(html(docs["inline plots"])).toContain(
+      '<span class="chip"><img class="wg-buffer">chip <em>b</em><img class="wg-buffer"></span>'
+    );
+  });
+
+  // Wordgard 0.6.2 leaves the point in the parent too, so its sync moves the
+  // buffer after the wrapper (docs/wordgard-upstream-bugs.md). React keeps it
+  // inside, as Wordgard intends.
+  it("moves the points a spanning wrapper continues over into it", () => {
+    const { react } = both('<p><mark>a<span class="atom">x</span>b</mark></p>');
+    expect(react.contentDOM.innerHTML).toBe(
+      '<p><mark>a<span class="atom" contenteditable="false"></span><img class="wg-buffer">b</mark></p>'
+    );
+    const buffer = react.contentDOM.querySelector("img.wg-buffer");
+    expect(buffer?.wgTile?.parent?.dom).toBe(react.contentDOM.querySelector("mark"));
   });
 
   it("refuses content it can't render yet", () => {
-    expect(() => ReactWordgard.create({ doc: "<p>a<br>b</p>", config: [basicSchema()] })).toThrow(
-      /can't render/
-    );
+    const Blank = Leaf.define("Blank", {
+      inline: true,
+      shape: { structure: Elt.mk("span", { class: "blank" }, [""]) },
+      parseRules: [{ selector: "span.blank", precedence: 10 }],
+    });
+    const blankConfig = [...config, GardState.schemaElement.of(Blank)];
+    expect(() =>
+      ReactWordgard.create({ doc: '<p>a<span class="blank"></span>b</p>', config: blankConfig })
+    ).toThrow(/can't render the shape of Blank/);
   });
 });

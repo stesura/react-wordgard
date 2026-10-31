@@ -1,4 +1,6 @@
-// taken verbatim from react-prosemirror
+// Adapted from react-prosemirror, for Wordgard: `draggable`, `hidden`,
+// `colspan` and `rowspan` render as Wordgard's own setAttribute does (shape
+// attributes, such as an image's `draggable="false"`, go through here).
 
 import cx from "classnames";
 import { HTMLProps } from "react";
@@ -100,7 +102,7 @@ export function htmlAttrsToReactProps(attrs: Record<string, string>): HTMLProps<
         break;
       }
       case "draggable": {
-        props.draggable = attrValue != null;
+        props.draggable = attrValue !== "false";
         break;
       }
       case "enterkeyhint": {
@@ -112,7 +114,7 @@ export function htmlAttrsToReactProps(attrs: Record<string, string>): HTMLProps<
         break;
       }
       case "hidden": {
-        props.hidden = attrValue;
+        props.hidden = true;
         break;
       }
       case "inputmode": {
@@ -133,6 +135,14 @@ export function htmlAttrsToReactProps(attrs: Record<string, string>): HTMLProps<
           break;
         }
         props.spellCheck = null;
+        break;
+      }
+      case "colspan":
+      case "rowspan": {
+        const numValue = parseInt(attrValue, 10);
+        if (!Number.isNaN(numValue)) {
+          props[attrName.toLowerCase() == "colspan" ? "colSpan" : "rowSpan"] = numValue;
+        }
         break;
       }
       case "tabindex": {
