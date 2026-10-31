@@ -3,7 +3,7 @@
 Bugs in Wordgard's own view that react-wordgard's comparison tests ran into, and, at the end,
 requests: Wordgard logic we copy because it isn't reachable. Each says what we do about it now and
 what to do once Wordgard changes. Checked against `wordgard` 0.6.2 (installed)
-and Wordgard's `main` at `08804c9`, where all but the last are still present. None reported
+and Wordgard's `main` at `08804c9`, where all but the fourth are still present. None reported
 upstream yet.
 
 Code that depends on one of these points here: `grep -rn wordgard-upstream-bugs src`.
@@ -70,6 +70,34 @@ Code that depends on one of these points here: `grep -rn wordgard-upstream-bugs 
   only an empty text leaf as an empty one" builds its document with `Leaf.text("")` and will
   throw; rebuild it with `Leaf.Text.of("")` or drop it. Keep the guard in `iterDeco` while
   `Leaf.Text.of("")` can still produce empty leaves.
+
+## 5. A range set's second layer can hold overlapping ranges
+
+- **Repro:** one range source with three mutually overlapping ranges, e.g. `[1,3]`, `[2,20]`,
+  `[6,8]`, `[12,14]`, `[13,15]` over `<p>one</p><p>two</p><p>three</p><p>four</p>`: a cursor
+  seeking to 18 (the last paragraph) misses `[2,20]`.
+- **Cause:** `SetBuilder.addRange` (`src/set/range.ts`) checks for overlap against its own layer
+  only, then calls `this.next.addInner`, which doesn't check: layer 2 can hold overlapping ranges
+  with an unsorted `to` array, and `Chunk.end` and the binary search in `LayerCursor.goto` assume
+  it sorted. Wordgard walks forward from a fresh cursor, so its fresh render is right; its
+  incremental update can hit it when an update section starts inside such a range.
+- **What we do:** React lays out one plot at a time, so it seeks. `DecoIterator` (copied) splits
+  each range set into layers that don't overlap for its cursor (`seekable`, cached per set);
+  the DecoSet given back to Wordgard is untouched. Test: "overlapping ranges (decorated)".
+- **Once fixed:** `seekable` can go.
+
+## 6. Wordgard's incremental update with position-dependent decorations
+
+- **Repro:** not reduced. In the R4 audit's random runs (random documents, random point and range
+  decorations, edits), Wordgard's incremental update differed from its own fresh render in about
+  90 of 1,900 steps (point attributes or wrappers dropped, content duplicated), and threw
+  (`Cannot read properties of null (reading 'isNodeOuter')`, `Missing partial node`, `Moving past
+  end of document` in `addAtomicityChanges`). The last one also reaches the React view, through
+  the `update` it inherits. Fresh Wordgard threw `isNodeOuter` on some documents with point shapes
+  or wrappers on nested blockquotes.
+- **What we do:** nothing: React's view matched fresh Wordgard everywhere else. Our comparison
+  tests compare against Wordgard's fresh render, or against short edit sequences.
+- **Once fixed:** worth a random comparison suite (React against fresh Wordgard after each edit).
 
 ## Requests
 

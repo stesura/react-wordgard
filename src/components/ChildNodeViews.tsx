@@ -4,8 +4,7 @@ import React from "react";
 import type { Plot } from "wordgard/doc";
 
 import { useRenderStore } from "../contexts/RenderStoreContext.js";
-import { type CompositionView, compositionKey } from "../composition.js";
-import { type ChildView, iterDeco, iterDecoComposing } from "../decorations/iterDeco.js";
+import type { ChildView } from "../decorations/iterDeco.js";
 import { childViewKeys } from "../reactKeys.js";
 import { SeparatorHackView } from "./SeparatorHackView.js";
 import { TextNodeView } from "./TextNodeView.js";
@@ -15,33 +14,20 @@ import { DefaultNodeView } from "./nodes/DefaultNodeView.js";
 
 type Props = {
   node: Plot;
-  // Set on the plots down to an ongoing composition.
-  composition?: CompositionView;
+  views: readonly ChildView[];
 };
 
-const renderChildViews = (
-  views: readonly ChildView[],
-  nodeKeys: readonly string[],
-  composition?: CompositionView
-) => {
-  return childViewKeys(views, nodeKeys, compositionKey(composition)).map(({ view, key }) => {
+const renderChildViews = (views: readonly ChildView[], nodeKeys: readonly string[]) =>
+  childViewKeys(views, nodeKeys).map(({ view, key }) => {
     switch (view.type) {
       case "node":
-        return (
-          <DefaultNodeView
-            key={key}
-            node={view.node}
-            composition={
-              view.node.isPlot && composition?.path.has(view.node) ? composition : undefined
-            }
-          />
-        );
+        return <DefaultNodeView key={key} view={view} />;
       case "text":
         return <TextNodeView key={key} text={view.text} />;
       case "wrapper":
         return (
           <MarkView key={key} elt={view.elt}>
-            {renderChildViews(view.children, nodeKeys, composition)}
+            {renderChildViews(view.children, nodeKeys)}
           </MarkView>
         );
       case "buffer":
@@ -49,19 +35,14 @@ const renderChildViews = (
       case "composition":
         // React keeps what it last committed in its own node, so it never
         // writes to it; the browser's own node isn't React's to draw.
-        return composition?.rendered ? (
-          <TextNodeView key={key} text={composition.rendered.text} />
-        ) : null;
+        return view.rendered === null ? null : <TextNodeView key={key} text={view.rendered} />;
       case "trailingHack":
         return <TrailingHackView key={key} />;
     }
   });
-};
 
-export const ChildNodeViews = ({ node, composition }: Props) => {
+export const ChildNodeViews = ({ node, views }: Props) => {
   const nodeKeys = useRenderStore().keys.get(node);
   if (!nodeKeys) throw new Error(`No keys for ${node.name}`);
-  const views =
-    composition?.plot == node ? iterDecoComposing(node, composition.layout) : iterDeco(node);
-  return <>{renderChildViews(views, nodeKeys, composition)}</>;
+  return <>{renderChildViews(views, nodeKeys)}</>;
 };

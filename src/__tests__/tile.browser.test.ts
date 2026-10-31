@@ -1,7 +1,7 @@
 // R1's "done when": React's tree draws the same DOM as Wordgard's own renderer
 // and answers the tile queries the same way.
 import { Node as DocNode, Elt, Leaf, Mark, Plot } from "wordgard/doc";
-import { Wordgard } from "wordgard/editor";
+import { Decoration, Wordgard } from "wordgard/editor";
 import {
   alignment,
   blockDoc,
@@ -116,6 +116,70 @@ const Marker = Leaf.define("Marker", {
   parseRules: [{ selector: "span.marker", precedence: 10 }],
 });
 
+// Decorations of every kind but widgets, each in a document of its own.
+const pointAt = (...decos: [Decoration.Point, number][]) =>
+  Decoration.Point.source.of(() => Decoration.Point.set(decos));
+const rangeOver = (...decos: [Decoration.Range, number, number][]) =>
+  Decoration.Range.source.of(() => Decoration.Range.set(decos));
+const decorated: Record<string, [string, GardState.Extension]> = {
+  "tag attributes and wrappers": [
+    "<p>one</p><h2>two</h2><p>three</p>",
+    [
+      Decoration.Tag.attribute(Paragraph, "data-p", "x"),
+      Decoration.Tag.wrapper(Paragraph, Elt.mk("div", { class: "pwrap" }, [0])),
+    ],
+  ],
+  "tag shapes": [
+    `<p>a<img src="${img}">b</p>`,
+    Decoration.Tag.shape(Image, Elt.mk("span", { class: "img" }, [Elt.mk("i", ["!"])])),
+  ],
+  "mark shape overrides": [
+    "<p>a<strong>bc</strong>d</p>",
+    Decoration.Mark.shape(Strong, { element: "b" }),
+  ],
+  "point decorations": [
+    `<p>one</p><p>two<img src="${img}"></p><p>three</p>`,
+    pointAt(
+      [Decoration.Point.attributes({ class: "hl" }), 0],
+      [Decoration.Point.wrapper(Elt.mk("section", [0])), 5],
+      [Decoration.Point.shape(Elt.mk("span", { class: "shaped" })), 9]
+    ),
+  ],
+  // A set whose second layer holds overlapping ranges (docs/wordgard-upstream-bugs.md).
+  "overlapping ranges": [
+    "<p>one</p><p>two</p><p>three</p><p>four</p>",
+    rangeOver(
+      [Decoration.Range.attribute("data-a", "1"), 1, 3],
+      [Decoration.Range.wrapper("mark", {}), 2, 20],
+      [Decoration.Range.attribute("data-b", "1"), 6, 8],
+      [Decoration.Range.attribute("data-c", "1"), 12, 14],
+      [Decoration.Range.attribute("data-d", "1"), 13, 15]
+    ),
+  ],
+  "range decorations": [
+    "<p>one two three</p><p>four</p>",
+    rangeOver(
+      [Decoration.Range.wrapper("mark", { attributes: { class: "r" } }), 2, 8],
+      [Decoration.Range.attribute("data-r", "1", { scope: "all" }), 7, 16]
+    ),
+  ],
+};
+
+const cases: [string, string, GardState.Extension][] = [
+  ...Object.entries(docs).map(([name, doc]): [string, string, GardState.Extension] => [
+    name,
+    doc,
+    [],
+  ]),
+  ...Object.entries(decorated).map(
+    ([name, [doc, extra]]): [string, string, GardState.Extension] => [
+      `${name} (decorated)`,
+      doc,
+      extra,
+    ]
+  ),
+];
+
 // Schema parts only: their extensions can add decorations (image resizing,
 // table cell selection), which React doesn't draw yet.
 const config = [
@@ -153,11 +217,11 @@ const imageSize = document.createElement("style");
 imageSize.textContent = "img[src] { width: 20px; height: 20px; }";
 document.head.appendChild(imageSize);
 
-const mount = (create: Create, doc: string) => {
+const mount = (create: Create, doc: Wordgard.Spec["doc"], extra: GardState.Extension = []) => {
   const parent = document.createElement("div");
   parent.style.cssText = "position: absolute; left: 0; top: 0; width: 300px;";
   document.body.appendChild(parent);
-  const wg = create({ doc, config, parent });
+  const wg = create({ doc, config: [config, extra], parent });
   wg.flush();
   return wg;
 };
@@ -227,16 +291,21 @@ describe("ReactDocTile", () => {
     editors = [];
   });
 
-  const both = (doc: string) => {
-    const wordgard = mount(Wordgard.create, doc);
-    const react = mount(ReactWordgard.create, doc);
+  const both = (doc: Wordgard.Spec["doc"], extra: GardState.Extension = []) => {
+    const wordgard = mount(Wordgard.create, doc, extra);
+    const react = mount(ReactWordgard.create, doc, extra);
     editors.push(wordgard, react);
     return { wordgard, react };
   };
 
   // posAtCoords hit-tests the page, so each editor is measured on its own.
-  const alone = <T>(create: Create, doc: string, f: (wg: Wordgard) => T) => {
-    const wg = mount(create, doc);
+  const alone = <T>(
+    create: Create,
+    doc: string,
+    f: (wg: Wordgard) => T,
+    extra: GardState.Extension = []
+  ) => {
+    const wg = mount(create, doc, extra);
     try {
       return f(wg);
     } finally {
@@ -244,15 +313,15 @@ describe("ReactDocTile", () => {
     }
   };
 
-  for (const [name, doc] of Object.entries(docs)) {
+  for (const [name, doc, extra] of cases) {
     describe(`on ${name}`, () => {
       it("renders through React", () => {
-        const { react } = both(doc);
+        const { react } = both(doc, extra);
         expect(react.contentDOM.wgTile).toBeInstanceOf(ReactDocTile);
       });
 
       it("draws the same DOM and tile tree", () => {
-        const { wordgard, react } = both(doc);
+        const { wordgard, react } = both(doc, extra);
         expect(react.contentDOM.innerHTML).toBe(wordgard.contentDOM.innerHTML);
         expect(describeTile(docTileOf(react), react.contentDOM)).toEqual(
           describeTile(docTileOf(wordgard), wordgard.contentDOM)
@@ -260,7 +329,7 @@ describe("ReactDocTile", () => {
       });
 
       it("resolves positions and finds node tiles the same way", () => {
-        const { wordgard, react } = both(doc);
+        const { wordgard, react } = both(doc, extra);
         const answers = (wg: Wordgard) => {
           const tile = docTileOf(wg);
           const result = [];
@@ -278,7 +347,7 @@ describe("ReactDocTile", () => {
       });
 
       it("maps DOM positions the same way", () => {
-        const { wordgard, react } = both(doc);
+        const { wordgard, react } = both(doc, extra);
         const answers = (wg: Wordgard) =>
           allDOMPoints(wg.contentDOM).flatMap(({ path, offset }) =>
             ([-1, 1] as const).map((bias) =>
@@ -299,12 +368,63 @@ describe("ReactDocTile", () => {
             for (const side of [-1, 1] as const) result.push(wg.coordsAtPos(pos, side).toJSON());
           return result;
         };
-        expect(alone(ReactWordgard.create, doc, answers)).toEqual(
-          alone(Wordgard.create, doc, answers)
+        expect(alone(ReactWordgard.create, doc, answers, extra)).toEqual(
+          alone(Wordgard.create, doc, answers, extra)
         );
       });
     });
   }
+
+  it("draws the decorations it's given", () => {
+    const html = (name: string) => {
+      const found = decorated[name];
+      if (!found) throw new Error(`No document ${name}`);
+      return both(...found).react.contentDOM.innerHTML;
+    };
+    expect(html("tag attributes and wrappers")).toContain('<div class="pwrap" data-p="x"><p>');
+    expect(html("tag shapes")).toContain('<span class="img" contenteditable="false"><i>!</i>');
+    expect(html("mark shape overrides")).toContain("<b>bc</b>");
+    const points = html("point decorations");
+    for (const part of ['<p class="hl">', "<section><p>", 'class="shaped"'])
+      expect(points).toContain(part);
+    const ranges = html("range decorations");
+    for (const part of ['<mark class="r">', 'data-r="1"']) expect(ranges).toContain(part);
+  });
+
+  // A plot object can appear more than once; each copy is laid out where it is.
+  it("lays out each copy of a shared plot on its own", () => {
+    const shared = Paragraph.create([Leaf.text("one")]);
+    const { wordgard, react } = both((schema) =>
+      schema.doc([shared, Paragraph.create([Leaf.text("two")]), shared])
+    );
+    for (const wg of [wordgard, react]) {
+      wg.dispatch({
+        effects: GardState.appendConfig.of(rangeOver([Decoration.Range.wrapper("mark", {}), 1, 3])),
+      });
+      wg.flush();
+    }
+    expect(react.contentDOM.innerHTML).toBe("<p><mark>on</mark>e</p><p>two</p><p>one</p>");
+    expect(react.contentDOM.innerHTML).toBe(wordgard.contentDOM.innerHTML);
+  });
+
+  it("redraws when only the decorations change", () => {
+    const { wordgard, react } = both("<p>one two</p><p>three</p>");
+    const before = react.contentDOM.innerHTML;
+    for (const wg of [wordgard, react]) {
+      wg.dispatch({
+        effects: GardState.appendConfig.of([
+          rangeOver([Decoration.Range.wrapper("mark", {}), 2, 6]),
+          pointAt([Decoration.Point.attributes({ class: "hl" }), 9]),
+        ]),
+      });
+      wg.flush();
+    }
+    expect(react.contentDOM.innerHTML).not.toBe(before);
+    expect(react.contentDOM.innerHTML).toBe(wordgard.contentDOM.innerHTML);
+    expect(describeTile(docTileOf(react), react.contentDOM)).toEqual(
+      describeTile(docTileOf(wordgard), wordgard.contentDOM)
+    );
+  });
 
   it("keeps matching Wordgard's DOM through edits", () => {
     const { wordgard, react } = both(docs["several paragraphs"]);

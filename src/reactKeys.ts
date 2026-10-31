@@ -94,13 +94,9 @@ export const mapKeys = (
 // node while its start changes. A composition, and the wrappers around it,
 // keep the keys of the nodes React committed there, and nothing else in their
 // list may take those.
-export const childViewKeys = (
-  views: readonly ChildView[],
-  nodeKeys: readonly string[],
-  compositionKey: string
-) => {
+export const childViewKeys = (views: readonly ChildView[], nodeKeys: readonly string[]) => {
   const fixed = (view: ChildView) =>
-    view.type == "composition" ? compositionKey : view.type == "wrapper" ? view.key : undefined;
+    view.type == "composition" || view.type == "wrapper" ? view.key : undefined;
   const taken = new Set(views.map(fixed));
   let previous = "";
   return views.map((view) => {

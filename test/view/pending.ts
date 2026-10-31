@@ -3,57 +3,30 @@
 // Remove entries as support lands.
 // Names as Vitest prints them: file > describe > it.
 export const pendingWordgardTests = {
-  // Decorations: tag, point and range decorations, widgets and shape overrides
-  // (R4).
-  decorations: [
-    "webtest-content.ts > DocTile > decoration > can add attributes to a specific node",
-    "webtest-content.ts > DocTile > decoration > can add attributes to tags",
-    "webtest-content.ts > DocTile > decoration > can add wrapping structure to a specific node",
-    "webtest-content.ts > DocTile > decoration > can change the shape of attribute marks",
-    "webtest-content.ts > DocTile > decoration > can change the shape of element marks",
-    "webtest-content.ts > DocTile > decoration > can decorate tags",
+  // Widgets, Wordgard's own and from decorations (R4's next slice).
+  widgets: [
     "webtest-content.ts > DocTile > decoration > can draw widgets around nodes",
     "webtest-content.ts > DocTile > decoration > can draw widgets from a point set",
-    "webtest-content.ts > DocTile > decoration > can dynamically redraw a plot as an atom",
-    "webtest-content.ts > DocTile > decoration > can give a plot with atomic shape",
-    "webtest-content.ts > DocTile > decoration > can handle a change modifying the depth of a plot's wrapper",
-    "webtest-content.ts > DocTile > decoration > can handle changes covering parts of atomic plots",
-    "webtest-content.ts > DocTile > decoration > can handle changes covering parts of wrapped atomic plots",
-    "webtest-content.ts > DocTile > decoration > can handle changes covering the start of atomic plots",
     "webtest-content.ts > DocTile > decoration > can handle changes from range and point decorations in a single transactions",
-    "webtest-content.ts > DocTile > decoration > can handle changes inside atomic plots",
-    "webtest-content.ts > DocTile > decoration > can handle deletion inside an atomic plot",
-    "webtest-content.ts > DocTile > decoration > can override a specific leaf node's shape",
-    "webtest-content.ts > DocTile > decoration > can override a specific non-leaf node's shape",
-    "webtest-content.ts > DocTile > decoration > can override shapes by tag",
     "webtest-content.ts > DocTile > decoration > can redraw widgets at the end of the document",
-    "webtest-content.ts > DocTile > decoration > can replace the shape of a node type",
     "webtest-content.ts > DocTile > decoration > can reuse widgets when replacing next to them",
     "webtest-content.ts > DocTile > decoration > can reuse widgets when updating across them",
-    "webtest-content.ts > DocTile > decoration > can take attributes from spans",
-    "webtest-content.ts > DocTile > decoration > can take wrappers from spans",
     "webtest-content.ts > DocTile > decoration > can update widgets from a point set",
     "webtest-content.ts > DocTile > decoration > can update widgets in place",
-    "webtest-content.ts > DocTile > decoration > doesn't drop point decorations directly after a change",
+    "webtest-content.ts > DocTile > decoration > doesn't break spanning wrappers on widgets",
     "webtest-content.ts > DocTile > decoration > doesn't duplicate widgets on section boundaries",
-    "webtest-content.ts > DocTile > decoration > makes by-point shapes override by-tag ones",
-    "webtest-content.ts > DocTile > decoration > notices changes to spans that start before a preserved section",
     "webtest-content.ts > DocTile > decoration > orders widgets by side",
-    "webtest-content.ts > DocTile > decoration > preserves DOM nodes when adding attributes",
-    "webtest-content.ts > DocTile > decoration > properly handles insertions at the start and end of wrapping structure",
-    "webtest-content.ts > DocTile > decoration > properly updates when positional shapes change",
-    "webtest-content.ts > DocTile > decoration > properly updates when tag shapes change",
-    "webtest-content.ts > DocTile > decoration > supports dynamic shapes",
-    "webtest-content.ts > DocTile > decoration > supports selectors for wrapper decorations",
     "webtest-content.ts > DocTile > decoration > updates tag widgets at the end of a changed plot",
-    "webtest-content.ts > DocTile > decoration > updates wrappers when they change",
     "webtest-editor.ts > Wordgard > calls connect/disconnect on widgets",
-    "webtest-resolve-dom.ts > DocTile.posFromDOM > works in nodes with multiple wrappers",
     "webtest-resolve-dom.ts > DocTile.resolve > picks the right side of widgets on wrapper boundaries",
     "webtest-resolve-dom.ts > DocTile.resolve > resolves properly between widgets",
   ],
   // DOM nodes Wordgard moves into a new parent and React recreates: when a
-  // wrapper's element changes (<strong> to <em>), React remounts what it
-  // holds. Keys can't help; react-prosemirror has the same limit.
-  reparent: ["webtest-content.ts > DocTile > preserves DOM nodes with changed wrappers marks"],
+  // wrapper's element changes (<strong> to <em>) or a node gets a wrapper,
+  // React remounts what it holds. Keys can't help; react-prosemirror has the
+  // same limit.
+  reparent: [
+    "webtest-content.ts > DocTile > decoration > can reuse DOM structure when adding a shape wrapper",
+    "webtest-content.ts > DocTile > preserves DOM nodes with changed wrappers marks",
+  ],
 };

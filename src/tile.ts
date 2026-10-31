@@ -12,24 +12,22 @@ import type { GardState } from "wordgard/state";
 import { attrsToRecord } from "./helpers/index.js";
 import { DocNodeView } from "./components/nodes/DocNodeView.js";
 import { type RenderStore, RenderStoreContext } from "./contexts/RenderStoreContext.js";
+import { DecoIterator, getDecoSet } from "./decorations/DecoIterator.js";
 import {
   type ChildView,
+  type Layout,
+  type NodeView,
   iterDeco,
-  iterDecoComposing,
-  nodeShape,
+  sameNodeView,
   uneditable,
 } from "./decorations/iterDeco.js";
-import {
-  type CompositionView,
-  type Rendered,
-  browserElt,
-  compositionKey,
-  compositionView,
-} from "./composition.js";
+import { type CompositionView, type Rendered, browserElt, compositionView } from "./composition.js";
 import { type ReactKeys, addFreshKeys, childViewKeys, mapKeys } from "./reactKeys.js";
 import {
   type CompositeTile,
   type CompositionInfo,
+  type DecoElt,
+  type DecoSet,
   DocTile,
   type Tile,
   TileFlag,
@@ -39,13 +37,15 @@ import {
 // One root and render store per content element. Wordgard's tests also render
 // into elements of their own, without an editor.
 // `rendered` records what React committed into text nodes and wrapper
-// elements, and `composition` the last render's composition.
+// elements, `layouts` each plot's content as last laid out, and `composition`
+// the last render's composition.
 const roots = new WeakMap<
   Element,
   {
     root: Root;
     store: RenderStore;
     rendered: Rendered;
+    layouts: WeakMap<Plot, Layout>;
     composition: CompositionView | null;
   }
 >();
@@ -56,8 +56,9 @@ const rootOf = (dom: Element) => {
   return found;
 };
 
-// The node each node tile was built for, so an unchanged node keeps its tiles.
-const tileNodes = new WeakMap<Tile, DocNode>();
+// The layout each node tile was built for, so a node React skipped keeps its
+// tiles.
+const tileViews = new WeakMap<Tile, NodeView>();
 
 // Throws for what React can't render yet, rather than drawing it wrong.
 const checkRenderable = (plot: Plot) => {
@@ -107,12 +108,7 @@ type BuildContext = {
   keys: ReactKeys;
   rendered: Rendered;
   composition: CompositionView | null;
-  // Plots React re-rendered although they kept their identity.
-  rerendered: ReadonlySet<Plot>;
 };
-
-const contentViews = (plot: Plot, composition: CompositionView | null) =>
-  composition?.plot == plot ? iterDecoComposing(plot, composition.layout) : iterDeco(plot);
 
 // Mirrors what Wordgard's ContentUpdate builds for the same content, over the
 // DOM React committed for it.
@@ -126,7 +122,7 @@ const addChildTiles = (
   const { EltTile, TextTile, WidgetTile } = getTileClasses();
   const nodeKeys = context.keys.get(plot);
   if (!nodeKeys) throw new Error(`No keys for ${plot.name}`);
-  for (const { view, key } of childViewKeys(views, nodeKeys, compositionKey(context.composition))) {
+  for (const { view, key } of childViewKeys(views, nodeKeys)) {
     if (view.type == "composition" && !context.composition?.node) continue;
     const dom = cursor.next();
     if (view.type == "text") {
@@ -138,26 +134,27 @@ const addChildTiles = (
         throw new Error("Expected the composition's node");
       parent.addChild(compositionTile(dom, context.composition));
     } else if (view.type == "node") {
-      const { node } = view;
-      // React skipped a node that kept its identity (DefaultNodeView's memo),
+      const { node, shape, children } = view;
+      // React skipped a node whose layout is the same (DefaultNodeView's memo),
       // and `restore` already undid any edit the browser made in it, so its DOM,
       // and the tiles over it, are as they were.
       const old = dom.wgTile;
-      if (old && tileNodes.get(old) === node && !(node.isPlot && context.rerendered.has(node))) {
+      const oldView = old && tileViews.get(old);
+      if (old && oldView && sameNodeView(oldView, view)) {
         parent.addChild(old);
         continue;
       }
+      if (!(shape instanceof Elt)) throw new Error("react-wordgard can't render widgets yet");
       const tag = node.isPlot ? node.tag : node;
       const fill = (tile: CompositeTile, content: ChildCursor) => {
-        if (node.isPlot)
-          addChildTiles(tile, node, contentViews(node, context.composition), content, context);
+        if (node.isPlot && children) addChildTiles(tile, node, children, content, context);
       };
-      const tile = shapeTile(nodeShape(node), tag, node.length, elementOf(dom, node.name), {
+      const tile = shapeTile(shape, tag, node.length, elementOf(dom, node.name), {
         inEditable: true,
         afterContent: 0,
         fill,
       });
-      tileNodes.set(tile, node);
+      tileViews.set(tile, view);
       parent.addChild(tile);
     } else if (view.type == "wrapper") {
       const flags = TileFlag.Wrapper | (view.spanning ? TileFlag.Spanning : 0);
@@ -217,7 +214,7 @@ type ShapeContext = {
 // Wordgard's buildNodeShape: the node's own tile (with `tag`) or a tile for
 // structure inside its shape (`tag` null).
 const shapeTile = (
-  shape: Elt,
+  shape: DecoElt,
   tag: DocNode.Tag | null,
   length: number,
   dom: Element,
@@ -243,9 +240,11 @@ const shapeTile = (
       if (!(text instanceof Text)) throw new Error("Expected a text node in a shape");
       const flags = TileFlag.Point | TileFlag.NodeInner | after;
       tile.addChild(synced(new WidgetTile(Widget.text.of(child), null, flags, text)));
-    } else {
+    } else if (child instanceof Elt) {
       const context = { inEditable: inner, afterContent: after, fill };
       tile.addChild(shapeTile(child, null, 0, elementOf(cursor.next(), child.tagName), context));
+    } else {
+      throw new Error("react-wordgard can't render widgets yet");
     }
   }
   cursor.done();
@@ -322,6 +321,34 @@ const keepsAll = (changes: readonly number[]) => {
   return true;
 };
 
+type Entry = NonNullable<ReturnType<typeof roots.get>>;
+
+// Lays out the document from Wordgard's decorations, keeping the layout of
+// plots outside the ranges `changes` redraws (all, without changes).
+const layout = (
+  state: GardState,
+  decoSet: DecoSet,
+  changes: readonly number[] | null,
+  entry: Entry,
+  composition: CompositionView | null
+) => {
+  const previous = entry.composition;
+  const composing = new Set<Plot>();
+  for (const view of [previous, composition])
+    if (view) for (const plot of [state.doc, view.plot, ...view.path]) composing.add(plot);
+  return iterDeco(
+    {
+      deco: new DecoIterator(state, decoSet),
+      changes,
+      layouts: entry.layouts,
+      composition,
+      composing,
+    },
+    state.doc,
+    0
+  );
+};
+
 export class ReactDocTile extends DocTile {
   static create = (state: GardState, dom: Element, _wg: Wordgard) => {
     if (!roots.has(dom)) {
@@ -331,53 +358,65 @@ export class ReactDocTile extends DocTile {
         root: createRoot(dom),
         store: { keys: new WeakMap() },
         rendered: { texts: new WeakMap(), wrappers: new WeakMap() },
+        layouts: new WeakMap(),
         composition: null,
       });
     }
     checkRenderable(state.doc);
-    addFreshKeys(rootOf(dom).store.keys, state.doc);
-    return ReactDocTile.render(state, dom, null);
+    const entry = rootOf(dom);
+    addFreshKeys(entry.store.keys, state.doc);
+    const decoSet = getDecoSet(state);
+    const views = layout(state, decoSet, null, entry, null);
+    return ReactDocTile.render(state, dom, decoSet, views, null);
   };
 
   // Runs inside Wordgard's flush, where its DOM observer ignores mutations, so
   // React commits synchronously here.
-  private static render = (state: GardState, dom: Element, composition: CompositionView | null) => {
+  private static render = (
+    state: GardState,
+    dom: Element,
+    decoSet: DecoSet,
+    views: readonly ChildView[],
+    composition: CompositionView | null
+  ) => {
     const entry = rootOf(dom);
-    const previous = entry.composition;
     entry.composition = composition;
     flushSync(() =>
       entry.root.render(
         createElement(
           RenderStoreContext.Provider,
           { value: entry.store },
-          createElement(DocNodeView, { doc: state.doc, composition: composition ?? undefined })
+          createElement(DocNodeView, { doc: state.doc, views })
         )
       )
     );
-    const tile = new ReactDocTile(state, dom, composition?.wrapCursor ?? null, null);
+    const tile = new ReactDocTile(state, dom, composition?.wrapCursor ?? null, decoSet);
     const cursor = childCursor(dom);
-    addChildTiles(tile, state.doc, contentViews(state.doc, composition), cursor, {
+    addChildTiles(tile, state.doc, views, cursor, {
       keys: entry.store.keys,
       rendered: entry.rendered,
       composition,
-      rerendered: new Set([...(previous?.path ?? []), ...(composition?.path ?? [])]),
     });
     cursor.done();
     tile.length = state.doc.length;
     return synced(tile);
   };
 
-  update(
+  // Wordgard's own `update` diffs the decorations and calls this with the
+  // ranges to redraw, decoration changes included.
+  updateRanges(
     state: GardState,
+    decoSet: DecoSet,
     changes: readonly number[],
     _wg: Wordgard,
     info?: CompositionInfo | null
   ) {
     const entry = rootOf(this.dom);
     const previous = entry.composition;
-    if (state.doc == this.state.doc && keepsAll(changes) && !info && !previous) return this;
+    if (keepsAll(changes) && !info && !previous) return this;
     checkRenderable(state.doc);
     const composition = info ? compositionView(state.doc, info, changes, entry.rendered) : null;
+    const views = layout(state, decoSet, changes, entry, composition);
     const node = composition?.node ?? null;
     restore(this, node);
     // A composition that's over: React's node gets back what React committed
@@ -387,6 +426,6 @@ export class ReactDocTile extends DocTile {
       else previous.node.remove();
     }
     mapKeys(entry.store.keys, this.state.doc, state.doc, changes);
-    return ReactDocTile.render(state, this.dom, composition);
+    return ReactDocTile.render(state, this.dom, decoSet, views, composition);
   }
 }

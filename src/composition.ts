@@ -136,7 +136,3 @@ export const browserElt = (dom: Element) =>
     ),
     [0]
   );
-
-// The composition's React key: the key of React's node it's in, if any.
-export const compositionKey = (composition: CompositionView | null | undefined) =>
-  composition?.rendered?.key ?? "composition";

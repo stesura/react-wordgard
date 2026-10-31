@@ -3,22 +3,36 @@
 // repo, at the pinned version). The declarations below are trusted, not
 // checked: re-read them against Wordgard's source after `npm run
 // update-wordgard`.
-import type { Attributes, Node as DocNode, Elt, Mark } from "wordgard/doc";
-import { Widget, Wordgard } from "wordgard/editor";
+import { type Attributes, type Node as DocNode, Elt, type Mark } from "wordgard/doc";
+import { Decoration, Widget, Wordgard } from "wordgard/editor";
 import { basicSchema } from "wordgard/schema";
-import type { GardState } from "wordgard/state";
+import { GardState } from "wordgard/state";
+import { Emphasis, Image, Paragraph } from "wordgard/types";
 
 // Declared in Wordgard's typings for `Node.wgTile`, but not exported.
 export type Tile = NonNullable<Node["wgTile"]>;
 export type CompositeTile = NonNullable<Tile["parent"]>;
 
+// Wordgard's DecoSet: the sets each point and range decoration source gave.
+export type DecoSet = {
+  readonly points: Map<(state: GardState) => Decoration.Point.Set, Decoration.Point.Set>;
+  readonly ranges: Map<(state: GardState) => Decoration.Range.Set, Decoration.Range.Set>;
+};
+
 export interface DocTile extends CompositeTile {
   readonly state: GardState;
   readonly cursorWrapper: Mark.Set | null;
-  // Wordgard's DecoSet and CompositionInfo; we only pass them through.
-  readonly decoSet: unknown;
+  readonly decoSet: DecoSet;
+  // Diffs the decorations, then calls `updateRanges` with the ranges to redraw.
   update(
     state: GardState,
+    changes: readonly number[],
+    wg: Wordgard,
+    composition?: CompositionInfo | null
+  ): DocTile;
+  updateRanges(
+    state: GardState,
+    decoSet: DecoSet,
     changes: readonly number[],
     wg: Wordgard,
     composition?: CompositionInfo | null
@@ -45,18 +59,18 @@ export interface DOMObserver {
 }
 
 interface DocTileClass {
-  new (state: GardState, dom: Element, cursorWrapper: Mark.Set | null, decoSet: unknown): DocTile;
+  new (state: GardState, dom: Element, cursorWrapper: Mark.Set | null, decoSet: DecoSet): DocTile;
   create(state: GardState, dom: Element, wg: Wordgard): DocTile;
 }
 
 export interface EltTile extends CompositeTile {
-  readonly elt: Elt;
+  readonly elt: DecoElt;
 }
 
 interface EltTileClass {
-  new (elt: Elt, tag: DocNode.Tag | null, flags: number, length: number, dom: Element): EltTile;
+  new (elt: DecoElt, tag: DocNode.Tag | null, flags: number, length: number, dom: Element): EltTile;
   of(
-    elt: Elt,
+    elt: DecoElt,
     tag: DocNode.Tag | null,
     flags: number,
     length: number,
@@ -142,12 +156,26 @@ declare module "wordgard/doc" {
   interface Elt<T = string> {
     // Merges onto the element `target` matches, or else onto this one.
     addAttrs(attrs: Attributes, target?: EltSelector): Elt<T>;
+    // Puts `wrapper` around the element `target` matches, or else this one.
+    wrap(wrapper: Elt<T>, target?: EltSelector): Elt<T>;
+    // A copy with `content` in the hole.
+    fill(content: readonly (0 | T | Elt<T>)[]): Elt<T>;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace Attributes {
+    // Adds an attribute to a sorted set, joining `class` and `style` values.
+    function push(attrs: string[], name: string, value: string): void;
   }
 }
 
 // Makes `Wordgard.DocTile` and `Widget.br` visible to anything that loads
 // these types; the instance's `docTile` is declared on ReactWordgard only.
 declare module "wordgard/editor" {
+  interface Widget<Param = unknown> {
+    // Always false: a widget is a shape without content.
+    readonly hasContent: boolean;
+    render(wg: Wordgard): Element | Text;
+  }
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Wordgard {
     const DocTile: DocTileClass;
@@ -160,6 +188,17 @@ declare module "wordgard/editor" {
     const img: Widget<null>;
     // Text inside a node's shape.
     const text: Widget.Type<string>;
+    // A text node's own shape.
+    const editableText: Widget.Type<string>;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace Decoration {
+    interface Range {
+      readonly query: DocNode.Query | null;
+      // DecorationScope and Inc, const enums.
+      readonly scope: number;
+      readonly inc: number;
+    }
   }
 }
 
@@ -185,4 +224,104 @@ export const getTileClasses = () => {
     WidgetTile: classOf(empty?.firstChild),
   };
   return tileClasses;
+};
+
+// What decorations look like inside Wordgard: classes and facets its
+// typings don't declare.
+export type DecoElt = Elt<Widget | string>;
+
+export interface WidgetDecoration extends Decoration.Point {
+  readonly widget: Widget;
+}
+export interface ShapeDecoration extends Decoration.Point {
+  readonly shape: Decoration.Shape;
+}
+export interface AttributeDecoration extends Decoration.Point {
+  readonly attrs: Attributes;
+  readonly selector: EltSelector | null;
+}
+export interface WrapperDecoration extends Decoration.Point {
+  readonly elt: DecoElt;
+  readonly selector: EltSelector | null;
+}
+export interface WrapperRangeDecoration extends Decoration.Range {
+  readonly elt: DecoElt;
+  readonly rank: number;
+  readonly spanning: boolean;
+}
+export interface AttributeRangeDecoration extends Decoration.Range {
+  readonly attribute: string;
+  readonly value: string;
+}
+
+export type TagShape = {
+  readonly type: DocNode.Type;
+  readonly shape: (tag: DocNode.Tag) => Decoration.Shape;
+};
+export type TagWidget = {
+  readonly type: DocNode.Type;
+  // WidgetPlace: before 0, after 1, start 2, end 3.
+  readonly place: number;
+  readonly widget: Widget | ((tag: DocNode.Tag) => Widget | null);
+};
+export type TagWrapper = {
+  readonly type: DocNode.Type;
+  readonly elt: DecoElt;
+  readonly target: EltSelector | null;
+};
+export type TagAttribute = {
+  readonly type: DocNode.Type;
+  readonly attr: string;
+  readonly value: (tag: DocNode.Tag) => string;
+  readonly target: EltSelector | null;
+};
+
+type Class<T> = new (...args: never[]) => T;
+
+let decorationInternals: {
+  WidgetDecoration: Class<WidgetDecoration>;
+  ShapeDecoration: Class<ShapeDecoration>;
+  AttributeDecoration: Class<AttributeDecoration>;
+  WrapperDecoration: Class<WrapperDecoration>;
+  WrapperRangeDecoration: Class<WrapperRangeDecoration>;
+  AttributeRangeDecoration: Class<AttributeRangeDecoration>;
+  tagShape: GardState.Facet<TagShape, Map<DocNode.Type, (tag: DocNode.Tag) => Decoration.Shape>>;
+  tagWidget: GardState.Facet<TagWidget, readonly TagWidget[]>;
+  tagWrapper: GardState.Facet<TagWrapper, readonly TagWrapper[]>;
+  tagAttribute: GardState.Facet<TagAttribute, readonly TagAttribute[]>;
+  markShape: GardState.Facet<unknown, Map<Mark.Type, Mark.Type>>;
+};
+
+// The facet a provider (what `Facet.of` returns) is for.
+const facetOf = (extension: GardState.Extension) => {
+  if (
+    typeof extension == "object" &&
+    extension &&
+    "facet" in extension &&
+    extension.facet instanceof GardState.Facet
+  )
+    return extension.facet;
+  throw new Error("Wordgard's decoration facets have an unexpected shape");
+};
+
+// Wordgard's decoration classes and facets, taken from what its public
+// factories return, once. Typed through `any` (`getPrototypeOf`, `instanceof`
+// on a generic class): unchecked, like the declarations above.
+export const getDecorationInternals = () => {
+  if (decorationInternals) return decorationInternals;
+  const classOf = (value: object) => Object.getPrototypeOf(value).constructor;
+  decorationInternals = {
+    WidgetDecoration: classOf(Decoration.Point.widget(Widget.br)),
+    ShapeDecoration: classOf(Decoration.Point.shape(Elt.mk("span"))),
+    AttributeDecoration: classOf(Decoration.Point.attributes({})),
+    WrapperDecoration: classOf(Decoration.Point.wrapper(Elt.mk("span", [0]))),
+    WrapperRangeDecoration: classOf(Decoration.Range.wrapper("span", {})),
+    AttributeRangeDecoration: classOf(Decoration.Range.attribute("data-x", "")),
+    tagShape: facetOf(Decoration.Tag.shape(Image, Elt.mk("img"))),
+    tagWidget: facetOf(Decoration.Tag.widget(Paragraph, "before", Widget.br)),
+    tagWrapper: facetOf(Decoration.Tag.wrapper(Paragraph, Elt.mk("div", [0]))),
+    tagAttribute: facetOf(Decoration.Tag.attribute(Paragraph, "data-x", "")),
+    markShape: facetOf(Decoration.Mark.shape(Emphasis, { element: "i" })),
+  };
+  return decorationInternals;
 };

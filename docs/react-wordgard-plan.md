@@ -1,9 +1,9 @@
 # react-wordgard: a React view for Wordgard (plan, 2026-10-30)
 
-**Status:** R1 done; R2 mostly done; R3 done for what can be tested here (2026-10-31, see
-Progress): React renders every node and mark Wordgard's schemas define, without decorations, with
-stable keys and kept tiles, and keeps the IME's text node through Wordgard's flush. R4
-(decorations, widgets, node views) is next. The skeleton (a standalone copy of our react-prosemirror fork, Tiptap
+**Status:** R1 done; R2 mostly done; R3 done for what can be tested here; R4 in progress
+(2026-10-31, see Progress): React renders every node and mark Wordgard's schemas define, and
+every decoration but widgets, with stable keys and kept tiles, and keeps the IME's text node
+through Wordgard's flush. Widgets, then React widgets and node views, are next. The skeleton (a standalone copy of our react-prosemirror fork, Tiptap
 removed, `wordgard` installed, ProseMirror still in place) is done.
 
 Related: `docs/wordgard-feasibility.md` (why Wordgard, and what a migration would mean),
@@ -202,6 +202,8 @@ Wordgard's point, range and tag decorations; widgets; React node views as compon
 with a `getPos` read from tiles.
 - **Done when:** a React node view shares the editor's contexts (no React root of its own), and
   widgets and decorations render and map through edits.
+- **Status:** in progress (2026-10-31). Slices 1 to 3 of six done: decorations other than widgets
+  render and redraw on their own. Next: native widgets, React widgets, React node views.
 
 ### R5: hooks
 
@@ -449,6 +451,55 @@ Stable inline partitions for Wordgard's mark shapes, memoised children from chan
   - Accepted: when a composition is cut short by an edit inside it, React's node gets React's
     committed value back and then the new one, two writes where Wordgard makes one; both inside
     the flush, selection restored by Wordgard.
+- **2026-10-31, R4 slices 1–3 (decorations but widgets), done:** reviewed with Fable before
+  starting (the approach compared with a render into a hidden copy and with public sources only).
+  - `ReactDocTile` overrides `updateRanges` instead of `update`: Wordgard's own `update` diffs the
+    decorations (`getDecoSet`, `findChangedRanges`) and hands over sections that include
+    decoration changes, which fixes "decoration-only changes never render". The tile keeps its
+    `decoSet` (passed `null` before).
+  - `src/decorations/DecoIterator.ts`: Wordgard 0.6.2's `DecoIterator`, `SpanIterator`,
+    `getDecoSet` and shape helpers, copied (MIT; Wordgard doesn't export them, and nothing keeps a
+    reference to the iterator). Changes: `walker.enter` says whether to descend, and when it
+    doesn't, the walk goes past the plot as a whole (spans are stretched past it, points inside it
+    dropped) and emits its `after` widgets once past; the walker gets positions; walks can start
+    before the last ended; sets come from the DecoSet. Its internal classes and facets come from
+    `src/wordgardInternals.ts`: the facets from the providers the public `Decoration.Tag.*` and
+    `Decoration.Mark.shape` return (`.facet`), the classes from instances the public factories
+    make, as the tile classes are taken.
+  - Layout (`iterDeco`): one plot's content at a time, walking the copied iterator without
+    descending. Node views carry their `shape` (decorations included) and their laid-out
+    `children`; a plot that kept its identity and whose content lies in kept sections keeps its
+    previous layout (`layouts`, per root). `DefaultNodeView` skips a view drawing the same thing
+    (`sameNodeView`: same node, same children, equal shape), and so does tile reuse. The layout
+    holds the composition view (its key and React's text), so the `composition` props are gone.
+    `iterDeco`'s own marks and shapes code went: the iterator gives shapes and wrappers, and the
+    inline atom buffer (Wordgard bug 1) now comes from it rather than from a mirror.
+  - Slice 3 came with the walker: tag attributes, wrappers and shapes, mark shape overrides,
+    point attributes, shapes and wrappers, range attributes and wrappers all render. Six
+    decorated documents added to `tile.browser.test.ts` (with all the queries), a decoration-only
+    update, and pinned markup: 156 tests.
+  - `view` project: of the 46 tests under decorations, 31 pass; the 15 left need widgets (the
+    group is now `widgets`); "can reuse DOM structure when adding a shape wrapper" moved to
+    `reparent` (a node given a wrapper is remounted). "Doesn't break spanning wrappers on widgets"
+    passed before only because the widget was ignored; it's under `widgets` now. 549 passed, 17
+    skipped overall.
+  - Measured (same harness as R2, dev build): 2,500 paragraphs 12 ms per keystroke, as in R2;
+    15,000 paragraphs about 85–95 ms (R2: 62 ms; Wordgard 15–22 ms this run). Per keystroke at
+    15,000: React's reconciliation of the doc's children 52 ms, the layout 8 ms (new: the doc's
+    children are walked again), tiles 8 ms, keys 4 ms. All linear in the doc's top-level children:
+    R6 (walking only the changed sections of a re-laid plot, partitions for React).
+  - Audit (Fable) fixes: Wordgard range sets whose second layer holds overlapping ranges can't
+    be sought into (bug 5 in `docs/wordgard-upstream-bugs.md`), and React's per-plot walks seek,
+    so a later plot lost a range wrapper on the first render; `DecoIterator` now splits range sets
+    into layers that don't overlap. A plot object appearing twice shared one cached layout; a
+    layout is now kept only where it was made (its start, mapped through the changes).
+    `pastPlotAt` copied the rest of the children on each call (quadratic with many decorated
+    plots); `nodeWrappers` returns a shared empty array again. Two regression tests (162 tile
+    tests). The audit's own timing of the 15,000-paragraph keystroke was 51–68 ms, closer to R2's
+    62 than the 85–95 measured here: the harness is noisy at this size.
+  - Open: a plot whose type is atomic but whose decorated shape has a content hole would make its
+    content walk find an atom parent and throw ("can't render part of"); Wordgard only meets this
+    on an update starting inside such a plot. Not reproduced.
 - **Open from R1's first slice:**
   - Composition: restoring the old tree undid the browser's composed text. Done in R3 (above),
     for Chromium; Safari, Firefox and real IMEs still to check.
@@ -458,13 +509,9 @@ Stable inline partitions for Wordgard's mark shapes, memoised children from chan
   - Every update re-renders from the root and rebuilt the whole tile tree (O(document)). Since R2,
     unchanged plots keep their tiles and are skipped by React; what remains is linear in the doc's
     top-level children (see R2's measurements).
-  - Decoration-only changes: `update` returns early when the doc is unchanged and every section
-    is kept, but decoration changes don't show in the sections it receives (Wordgard's
-    `findChangedRanges` runs inside its own `DocTile.update`), so they won't redraw. R4.
-  - Tag decorations (`Decoration.Tag.*`) and mark shape overrides (`Decoration.Mark.shape`) live
-    in internal facets, so `checkRenderable` can't see them: a paragraph with a tag decoration, or
-    a mark whose shape is overridden, renders with its default shape instead of throwing. Point
-    and range decorations aren't seen either.
+  - Decoration-only changes: done in R4 (`updateRanges`).
+  - Decorations render since R4, but for widgets, which throw ("can't render widgets yet"),
+    including widget shapes and widgets inside shapes.
   - React writes attributes in prop order, Wordgard in sorted order: the DOM is equivalent but
     `innerHTML` differs once a shape has several attributes.
   - `flushSync` inside a React render or effect doesn't flush synchronously: an editor created

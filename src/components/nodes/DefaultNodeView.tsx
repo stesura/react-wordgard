@@ -1,24 +1,21 @@
 // Named after react-prosemirror's DefaultNodeView, rewritten for Wordgard: a
-// node renders as its type's shape (Wordgard's buildNodeShape), its marks'
-// attributes included, with the plot's content in the hole. In Wordgard every
-// node type has a shape, so there's no missing `toDOM` to check for.
+// node renders as the shape Wordgard's decorations give it (its
+// buildNodeShape), with the plot's content in the hole. In Wordgard every node
+// type has a shape, so there's no missing `toDOM` to check for.
 import React, { type ReactElement, type ReactNode, createElement, memo } from "react";
-import type { Elt, Node } from "wordgard/doc";
+import { Elt } from "wordgard/doc";
 
-import type { CompositionView } from "../../composition.js";
-import { nodeShape, uneditable } from "../../decorations/iterDeco.js";
+import { type NodeView, sameNodeView, uneditable } from "../../decorations/iterDeco.js";
 import { attrsToRecord, htmlAttrsToReactProps } from "../../helpers/index.js";
+import type { DecoElt } from "../../wordgardInternals.js";
 import { ChildNodeViews } from "../ChildNodeViews.js";
 
 type Props = {
-  node: Node;
-  // Set on the plots down to an ongoing composition, so they re-render when it
-  // changes.
-  composition?: CompositionView;
+  view: NodeView;
 };
 
 const renderShape = (
-  shape: Elt,
+  shape: DecoElt,
   inEditable: boolean,
   content: ReactNode,
   key?: number
@@ -32,22 +29,26 @@ const renderShape = (
   return createElement(
     elt.tagName,
     props,
-    ...elt.children.map((child, i) =>
-      child === 0
-        ? content
-        : typeof child == "string"
-          ? child
-          : renderShape(child, inner, content, i)
-    )
+    ...elt.children.map((child, i) => {
+      if (child === 0) return content;
+      if (typeof child == "string") return child;
+      if (child instanceof Elt) return renderShape(child, inner, content, i);
+      throw new Error("react-wordgard can't render widgets yet");
+    })
   );
 };
 
-// Wordgard's documents share unchanged nodes between states, so a node that
-// keeps its identity doesn't re-render.
-export const DefaultNodeView = memo(({ node, composition }: Props) =>
-  renderShape(
-    nodeShape(node),
-    true,
-    node.isPlot ? <ChildNodeViews node={node} composition={composition} /> : null
-  )
+// Skips nodes whose layout is the same: Wordgard's documents share unchanged
+// nodes between states, and their layouts are kept outside redrawn ranges.
+export const DefaultNodeView = memo(
+  ({ view }: Props) => {
+    const { node, shape, children } = view;
+    if (!(shape instanceof Elt)) throw new Error("react-wordgard can't render widgets yet");
+    return renderShape(
+      shape,
+      true,
+      node.isPlot && children ? <ChildNodeViews node={node} views={children} /> : null
+    );
+  },
+  (a, b) => sameNodeView(a.view, b.view)
 );
