@@ -2,14 +2,17 @@
 // node renders as the shape Wordgard's decorations give it (its
 // buildNodeShape), with the plot's content in the hole. In Wordgard every node
 // type has a shape, so there's no missing `toDOM` to check for. Widgets, as a
-// node's shape or inside it, draw nothing: ReactDocTile puts their DOM in place.
+// node's shape or inside it, are drawn by their component when they're React
+// widgets, else draw nothing: ReactDocTile puts their DOM in place.
 import React, { type ReactElement, type ReactNode, createElement, memo } from "react";
 import { Elt } from "wordgard/doc";
 
+import { isReactWidget } from "../../decorations/ReactWidgetType.js";
 import { type NodeView, sameNodeView, uneditable } from "../../decorations/iterDeco.js";
 import { attrsToRecord, htmlAttrsToReactProps } from "../../helpers/index.js";
 import type { DecoElt } from "../../wordgardInternals.js";
 import { ChildNodeViews } from "../ChildNodeViews.js";
+import { WidgetView } from "../WidgetView.js";
 
 type Props = {
   view: NodeView;
@@ -34,7 +37,7 @@ const renderShape = (
       if (child === 0) return content;
       if (typeof child == "string") return child;
       if (child instanceof Elt) return renderShape(child, inner, content, i);
-      return null;
+      return isReactWidget(child) ? <WidgetView key={i} widget={child} /> : null;
     })
   );
 };
@@ -44,7 +47,7 @@ const renderShape = (
 export const DefaultNodeView = memo(
   ({ view }: Props) => {
     const { node, shape, children } = view;
-    if (!(shape instanceof Elt)) return null;
+    if (!(shape instanceof Elt)) return isReactWidget(shape) ? <WidgetView widget={shape} /> : null;
     return renderShape(
       shape,
       true,

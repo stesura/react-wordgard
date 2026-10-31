@@ -40,6 +40,7 @@ export interface DocTile extends CompositeTile {
   // The queries Wordgard's input, selection and coordinates code use.
   resolve(pos: number, side?: -1 | 1): { tile: Tile; offset: number; pos: number };
   nodeTile(pos: number): Tile | null;
+  nearest(dom: Node): Tile | null;
   posFromDOM(dom: Node, offset: number, bias?: -1 | 1): number;
 }
 

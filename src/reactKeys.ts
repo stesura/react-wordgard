@@ -3,6 +3,7 @@
 // plot, by child index, so rendering needs no positions and a plot that
 // keeps its identity keeps its keys without any work.
 import type { Node, Plot } from "wordgard/doc";
+import type { Widget } from "wordgard/editor";
 
 import type { ChildView } from "./decorations/iterDeco.js";
 
@@ -51,15 +52,18 @@ const mapNodePos = (changes: readonly number[], pos: number) => {
 // Carries keys from `oldDoc` to `newDoc` through `changes` (the sections
 // DocTile.update receives), as react-prosemirror maps them through a
 // transaction's steps: a node whose start survives keeps its key, others get
-// fresh ones. Only plots that changed identity are visited.
+// fresh ones. Only plots that changed identity are visited. Returns, for each
+// of those, the plot it replaces.
 export const mapKeys = (
   keys: ReactKeys,
   oldDoc: Plot,
   newDoc: Plot,
   changes: readonly number[]
 ) => {
+  const replaced = new WeakMap<Plot, Plot>();
   const mapChildren = (oldPlot: Plot, oldStart: number, newPlot: Plot, newStart: number) => {
     if (keys.has(newPlot)) return;
+    replaced.set(newPlot, oldPlot);
     const oldKeys = keys.get(oldPlot) ?? [];
     const found = new Map<number, { key: string; node: Node; start: number; retagged: boolean }>();
     let pos = oldStart;
@@ -86,13 +90,27 @@ export const mapKeys = (
     keys.set(newPlot, newKeys);
   };
   mapChildren(oldDoc, 0, newDoc, 0);
+  return replaced;
+};
+
+const typeIds = new WeakMap<Widget.Type<unknown>, number>();
+let lastTypeId = 0;
+
+const typeId = (type: Widget.Type<unknown>) => {
+  let id = typeIds.get(type);
+  if (id === undefined) typeIds.set(type, (id = ++lastTypeId));
+  return id;
 };
 
 // The keys of a list of sibling views (ChildNodeViews renders them, ReactDocTile
 // records them), paired with them. A node's key comes from ReactKeys; other
 // views are keyed after their previous sibling, so a text run keeps its text
-// node while its start changes. Widgets, which React draws nothing for, don't
-// count as that sibling: one coming or going leaves the next text node alone.
+// node while its start changes. Widgets don't count as that sibling: one
+// coming or going leaves the next text node alone. React point widgets come
+// with keys (iterDeco); other widgets are keyed after the sibling on their
+// side (the next one for a positive side, as a `before` widget sticks to its
+// node) and their type, so a React tag widget keeps its instance while its
+// node does.
 // A composition, and the wrappers around it, keep the keys of the nodes React
 // committed there, and nothing else in their list may take those.
 export const childViewKeys = (views: readonly ChildView[], nodeKeys: readonly string[]) => {
@@ -100,7 +118,14 @@ export const childViewKeys = (views: readonly ChildView[], nodeKeys: readonly st
     view.type == "composition" || view.type == "wrapper" ? view.key : undefined;
   const taken = new Set(views.map(fixed));
   let previous = "";
-  return views.map((view) => {
+  let widgets = false;
+  // Widgets first get the key before them, and their own key below.
+  const keyed = views.map((view) => {
+    if (view.type == "widget") {
+      if (view.key !== undefined) return { view, key: view.key };
+      widgets = true;
+      return { view, key: previous };
+    }
     let key = fixed(view);
     if (key === undefined) {
       key =
@@ -110,7 +135,26 @@ export const childViewKeys = (views: readonly ChildView[], nodeKeys: readonly st
       if (key === undefined) throw new Error("No key for a node");
       while (taken.has(key)) key += "+";
     }
-    if (view.type != "widget") previous = key;
+    previous = key;
     return { view, key };
   });
+  if (!widgets) return keyed;
+  let next = "";
+  const used = new Set<string>();
+  for (let i = keyed.length - 1; i >= 0; i--) {
+    const entry = keyed[i];
+    if (!entry) continue;
+    const { view } = entry;
+    if (view.type != "widget") {
+      next = entry.key;
+      continue;
+    }
+    if (view.key !== undefined) continue;
+    const id = typeId(view.widget.type);
+    let key = view.side > 0 ? `${next}<w${id}` : `${entry.key}>w${id}`;
+    while (used.has(key)) key += "+";
+    used.add(key);
+    entry.key = key;
+  }
+  return keyed;
 };

@@ -8,6 +8,7 @@ import { Attributes, Elt, Leaf, type Mark, type Node, type Plot } from "wordgard
 import { type Decoration, Widget } from "wordgard/editor";
 
 import type { CompositionView } from "../composition.js";
+import { createNodeKey } from "../reactKeys.js";
 import type { DecoElt } from "../wordgardInternals.js";
 import {
   type DecoIterator,
@@ -17,6 +18,7 @@ import {
   renderWrapper,
   spanningOf,
 } from "./DecoIterator.js";
+import { isReactWidget } from "./ReactWidgetType.js";
 
 export type NodeView = {
   type: "node";
@@ -38,15 +40,24 @@ type WrapperChildView = {
   key?: string;
 };
 
+// A point widget. React draws a React widget, and nothing for the others:
+// ReactDocTile renders or reuses their DOM. A React point widget has a key that
+// follows its position, `offset` in the plot's content.
+type WidgetChildView = {
+  type: "widget";
+  widget: Widget;
+  side: number;
+  key?: string;
+  offset?: number;
+};
+
 export type ChildView =
   | NodeView
   | { type: "text"; text: string }
   | WrapperChildView
   // The `<img class="wg-buffer">` at the start (-1) or end (1) of an inline plot.
   | { type: "buffer"; side: -1 | 1 }
-  // A point widget. React draws nothing for it: ReactDocTile renders or reuses
-  // its DOM.
-  | { type: "widget"; widget: Widget; side: number }
+  | WidgetChildView
   // The browser's text node during a composition (ContentUpdate.composition):
   // React keeps `rendered` there, what it last committed, or draws nothing.
   | { type: "composition"; key: string; rendered: string | null }
@@ -167,9 +178,17 @@ export type LayoutContext = {
   composition: CompositionView | null;
   // Plots down to the composition, now or in the last layout: laid out again.
   composing: ReadonlySet<Plot>;
+  // The plot each plot that changed identity replaces (mapKeys).
+  replaced: WeakMap<Plot, Plot>;
 };
 
-export type Layout = { readonly start: number; readonly views: readonly ChildView[] };
+// `offset` is where the plot's content starts in its parent's content (the
+// doc's is 0), so the layouts inside a kept one stay right as it moves.
+export type Layout = { offset: number; readonly views: readonly ChildView[] };
+
+// Where a plot's parent's content starts, now and in the old document (null
+// when the parent is new).
+type ParentStart = { readonly start: number; readonly oldStart: number | null };
 
 // Where `pos` in the old document went, or null when it was replaced.
 const mapKept = (changes: readonly number[], pos: number) => {
@@ -197,6 +216,73 @@ const isKept = (changes: readonly number[] | null, from: number, to: number) => 
   return true;
 };
 
+// Where old positions, taken in ascending order, are in the new document, for
+// Wordgard's update to look for old widgets there (TilePointer.matchingWidget):
+// along kept and redrawn ranges, and at both edges of a replaced one, which
+// meet in the old document when it's an insertion. Nowhere inside one.
+export const pointMapper = (changes: readonly number[]) => {
+  let i = 0;
+  let posA = 0;
+  let posB = 0;
+  return (pos: number) => {
+    for (; i < changes.length; i += 2) {
+      const len = changes[i] ?? 0;
+      const ins = changes[i + 1] ?? 0;
+      if (posA + len >= pos) break;
+      posA += len;
+      posB += ins < 0 ? len : ins;
+    }
+    const found: number[] = [];
+    for (let j = i, a = posA, b = posB; j < changes.length && a <= pos; j += 2) {
+      const len = changes[j] ?? 0;
+      const ins = changes[j + 1] ?? 0;
+      if (ins < 0) found.push(b + pos - a);
+      else {
+        if (pos == a) found.push(b);
+        if (pos == a + len) found.push(b + ins);
+      }
+      a += len;
+      b += ins < 0 ? len : ins;
+    }
+    return found;
+  };
+};
+
+// The keys of a plot's React point widgets, by position. Each keeps the key of
+// an old one its position maps to, as Wordgard keeps an old widget there
+// (TilePointer.matchingWidget): an equal one on the same side, else one of the
+// same type, which React re-renders in place.
+const pointKeys = (context: LayoutContext, old: Layout | undefined, oldStart: number | null) => {
+  const byPos = new Map<number, WidgetChildView[]>();
+  if (old && oldStart !== null && context.changes) {
+    const map = pointMapper(context.changes);
+    const collect = (views: readonly ChildView[]) => {
+      for (const view of views) {
+        if (view.type == "wrapper") collect(view.children);
+        else if (view.type == "widget" && view.offset !== undefined)
+          for (const pos of map(oldStart + view.offset)) {
+            const found = byPos.get(pos);
+            if (found) found.push(view);
+            else byPos.set(pos, [view]);
+          }
+      }
+    };
+    collect(old.views);
+  }
+  const used = new Set<string>();
+  return (pos: number, widget: Widget, side: number) => {
+    const candidates = (byPos.get(pos) ?? []).filter(
+      (view) => Math.sign(view.side) == Math.sign(side) && view.key && !used.has(view.key)
+    );
+    const found =
+      candidates.find((view) => view.widget.eq(widget)) ??
+      candidates.find((view) => view.widget.type == widget.type);
+    const key = found?.key ?? createNodeKey();
+    used.add(key);
+    return key;
+  };
+};
+
 const sources = (wrappers: readonly WrapperSource[]): WrapperView[] =>
   wrappers.map((src) => ({ elt: renderWrapper(src), spanning: spanningOf(src) }));
 
@@ -204,21 +290,34 @@ const sources = (wrappers: readonly WrapperSource[]): WrapperView[] =>
 export const iterDeco = (
   context: LayoutContext,
   plot: Plot,
-  start: number
+  start: number,
+  parent: ParentStart = { start: 0, oldStart: 0 }
 ): readonly ChildView[] => {
   const end = start + plot.contentLength;
+  const oldStartOf = (layout: Layout | undefined) =>
+    layout && parent.oldStart !== null ? parent.oldStart + layout.offset : null;
   // Kept only from the same place: a plot object can appear more than once.
   const previous = context.layouts.get(plot);
+  const previousStart = oldStartOf(previous);
   if (
     previous &&
     context.changes &&
-    mapKept(context.changes, previous.start) == start &&
+    previousStart !== null &&
+    mapKept(context.changes, previousStart) == start &&
     !context.composing.has(plot) &&
     isKept(context.changes, start, end)
-  )
+  ) {
+    previous.offset = start - parent.start;
     return previous.views;
+  }
+  // The layout this plot replaces, and where it started.
+  const old = context.layouts.get(context.replaced.get(plot) ?? plot);
+  const oldStart = oldStartOf(old);
   const views: ChildView[] = [];
   const plots: { view: NodeView; plot: Plot; pos: number }[] = [];
+  // Where the walk is, for point widgets.
+  let at = start;
+  let keyAt: ReturnType<typeof pointKeys> | null = null;
   const indexAt = new Map<number, number>();
   let offset = start;
   for (const [index, child] of plot.content.entries()) {
@@ -244,12 +343,14 @@ export const iterDeco = (
       const view = nodeView(node, shape, pos);
       wrapped(sources(wrappers)).push(view);
       plots.push({ view, plot: node, pos });
+      at = pos + node.length;
       return false;
     },
     leave: () => {},
     node: (node, shape, wrappers, partial, pos) => {
       if (partial !== undefined)
         throw new Error(`react-wordgard can't render part of ${node.name}`);
+      at = pos + node.length;
       // Wordgard 0.6.2 can leave empty text leaves; React draws nothing for them
       // (docs/wordgard-upstream-bugs.md).
       if (node.is(Leaf.Text) && !node.param) return;
@@ -271,12 +372,18 @@ export const iterDeco = (
     nodePart: (node) => {
       throw new Error(`react-wordgard can't render part of ${node.name}`);
     },
-    widget: (widget, side) => {
-      views.push(
-        widget == Widget.img
-          ? { type: "buffer", side: side < 0 ? -1 : 1 }
-          : { type: "widget", widget, side }
-      );
+    widget: (widget, side, point) => {
+      if (widget == Widget.img) views.push({ type: "buffer", side: side < 0 ? -1 : 1 });
+      else if (point && isReactWidget(widget)) {
+        keyAt ??= pointKeys(context, old, oldStart);
+        views.push({
+          type: "widget",
+          widget,
+          side,
+          key: keyAt(at, widget, side),
+          offset: at - start,
+        });
+      } else views.push({ type: "widget", widget, side });
     },
   };
   const { composition } = context;
@@ -291,13 +398,15 @@ export const iterDeco = (
         key: composition.rendered?.key ?? "composition",
         rendered: composition.rendered?.text ?? null,
       });
+    at = start + composition.layout.to;
     context.deco.walk(start + composition.layout.to, false, end, walker);
   } else {
     context.deco.walk(start, true, end, walker);
   }
-  for (const { view, plot, pos } of plots) view.children = iterDeco(context, plot, pos + 1);
+  for (const { view, plot, pos } of plots)
+    view.children = iterDeco(context, plot, pos + 1, { start, oldStart });
   if ((plot.isTextblock || plot.isInline) && needsTrailingHack(views) !== false)
     views.push({ type: "trailingHack" });
-  context.layouts.set(plot, { start, views });
+  context.layouts.set(plot, { offset: start - parent.start, views });
   return views;
 };

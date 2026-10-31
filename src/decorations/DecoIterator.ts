@@ -3,7 +3,8 @@
 // Changes, so React can lay out one plot at a time:
 // - `walker.enter` says whether to descend. When it doesn't, the walk goes
 //   past the plot as a whole, emitting its `after` widgets once past.
-// - The walker gets each node's position.
+// - The walker gets each node's position, and is told which widgets come from
+//   point decorations.
 // - A walk can start before the previous one ended.
 // - Decoration sets come from the DecoSet, not from calling sources again, and
 //   range sets are split into layers a cursor can seek into.
@@ -55,7 +56,7 @@ export interface DecoWalker {
     pos: number
   ): void;
   nodePart(node: Node, length: number, done: boolean): void;
-  widget(widget: Widget, side: number): void;
+  widget(widget: Widget, side: number, point: boolean): void;
 }
 
 export const getDecoSet = (state: GardState): DecoSet => {
@@ -274,15 +275,19 @@ export class DecoIterator {
   }
 
   widgets(tag: Node.Tag, place: WidgetPlace, walker: DecoWalker) {
-    if (place == WidgetPlace.Start && tag.type.isInline) walker.widget(Widget.img, -1);
+    if (place == WidgetPlace.Start && tag.type.isInline) walker.widget(Widget.img, -1, false);
     for (const src of this.globalWidgets) {
       if (src.place == place && tag.type == src.type) {
         const widget = typeof src.widget == "function" ? src.widget(tag) : src.widget;
         if (widget)
-          walker.widget(widget, place == WidgetPlace.Before || place == WidgetPlace.End ? 1 : -1);
+          walker.widget(
+            widget,
+            place == WidgetPlace.Before || place == WidgetPlace.End ? 1 : -1,
+            false
+          );
       }
     }
-    if (place == WidgetPlace.End && tag.type.isInline) walker.widget(Widget.img, 1);
+    if (place == WidgetPlace.End && tag.type.isInline) walker.widget(Widget.img, 1, false);
   }
 
   // Enumerate all wrapper elements for a given node. Spanning wrappers
@@ -405,7 +410,7 @@ export class DecoIterator {
         flushSkipped();
         const value = iter.point;
         if (value instanceof WidgetDecoration) {
-          walker.widget(value.widget, value.side);
+          walker.widget(value.widget, value.side, true);
         } else {
           if (pendingPos < pos.pos) {
             pendingDeco.length = 0;

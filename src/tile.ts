@@ -1,9 +1,10 @@
 // Takes the role of Wordgard's own DocTile (src/editor/tile.ts in its repo):
 // React draws the document and the tiles are built over React's DOM, as
 // react-prosemirror's view descriptions are built over the DOM its components
-// render. Widgets aren't React's: their DOM is rendered, reused, connected and
-// placed here, following Wordgard's ContentUpdate; `setUneditable` is copied
-// from it.
+// render. Native widgets aren't React's: their DOM is rendered, reused,
+// connected and placed here, following Wordgard's ContentUpdate;
+// `setUneditable` is copied from it. React widgets are drawn by React, and
+// connected here.
 import { createElement } from "react";
 import { flushSync } from "react-dom";
 import { type Root, createRoot } from "react-dom/client";
@@ -14,12 +15,15 @@ import type { GardState } from "wordgard/state";
 import { attrsToRecord } from "./helpers/index.js";
 import { DocNodeView } from "./components/nodes/DocNodeView.js";
 import { type RenderStore, RenderStoreContext } from "./contexts/RenderStoreContext.js";
+import { widgetRoots } from "./contexts/WidgetContext.js";
+import { isReactWidget } from "./decorations/ReactWidgetType.js";
 import { DecoIterator, getDecoSet } from "./decorations/DecoIterator.js";
 import {
   type ChildView,
   type Layout,
   type NodeView,
   iterDeco,
+  pointMapper,
   sameNodeView,
   uneditable,
 } from "./decorations/iterDeco.js";
@@ -164,38 +168,6 @@ type BuildContext = {
   dirty: ReadonlySet<Node>;
 };
 
-// Where old positions, taken in ascending order, are in the new document, for
-// Wordgard's update to look for old widgets there (TilePointer.matchingWidget):
-// along kept and redrawn ranges, and at both edges of a replaced one, which
-// meet in the old document when it's an insertion. Nowhere inside one.
-const pointMapper = (changes: readonly number[]) => {
-  let i = 0;
-  let posA = 0;
-  let posB = 0;
-  return (pos: number) => {
-    for (; i < changes.length; i += 2) {
-      const len = changes[i] ?? 0;
-      const ins = changes[i + 1] ?? 0;
-      if (posA + len >= pos) break;
-      posA += len;
-      posB += ins < 0 ? len : ins;
-    }
-    const found: number[] = [];
-    for (let j = i, a = posA, b = posB; j < changes.length && a <= pos; j += 2) {
-      const len = changes[j] ?? 0;
-      const ins = changes[j + 1] ?? 0;
-      if (ins < 0) found.push(b + pos - a);
-      else {
-        if (pos == a) found.push(b);
-        if (pos == a + len) found.push(b + ins);
-      }
-      a += len;
-      b += ins < 0 ? len : ins;
-    }
-    return found;
-  };
-};
-
 // Whether the token at `pos` in the new document is in a range the update
 // redraws: Wordgard rebuilds a node starting there (buildNodeShape), so the
 // widgets of its shape are reused for their DOM and connected anew.
@@ -281,6 +253,31 @@ const setUneditable = (dom: Element | Text) => {
 const pointSide = (side: number) =>
   side < 0 ? TileFlag.PointBefore : side > 0 ? TileFlag.PointAfter : 0;
 
+// A React widget's tile, over the root element its component forwarded its ref
+// to. The tile there before is kept whole where `keep` says Wordgard would keep
+// it; otherwise it's disconnected and the new one connected, over the same DOM
+// when React re-rendered the component in place.
+const reactWidgetTile = (
+  dom: ChildNode,
+  context: BuildContext,
+  keep: (old: WidgetTile) => boolean,
+  create: (dom: Element) => WidgetTile
+): Tile => {
+  if (!(dom instanceof Element) || !widgetRoots.has(dom))
+    throw new Error("A React widget's component must forward its ref to its root element");
+  const { WidgetTile } = getTileClasses();
+  const old = dom.wgTile;
+  context.taken.add(dom);
+  if (old instanceof WidgetTile && keep(old)) {
+    context.reused.set(old, Reused.Full);
+    return old;
+  }
+  if (old) context.reused.set(old, Reused.DOM);
+  const tile = create(dom);
+  context.toConnect.push(tile);
+  return synced(tile);
+};
+
 // Mirrors what Wordgard's ContentUpdate builds for the same content, from
 // position `start`, over the DOM React committed for it, and puts widget DOM,
 // which React doesn't draw, in place.
@@ -305,26 +302,33 @@ const addChildTiles = (
     if (view.type == "composition" && !context.composition?.node) continue;
     if (view.type == "widget") {
       // TilePointer.matchingWidget: an equal point widget on the same side,
-      // unchanged in the DOM, is kept whole.
+      // unchanged in the DOM, is kept whole. A React widget's old tile is the
+      // one over the element React kept.
+      const { widget } = view;
       const side = pointSide(view.side);
-      const old = findWidget(
-        widgetsAt(pool, context, pos),
-        context,
-        (tile) =>
-          !tile.tag &&
-          !tile.isNodeInner &&
-          (tile.flags & (TileFlag.PointBefore | TileFlag.PointAfter)) == side &&
-          !context.dirty.has(tile.dom) &&
-          tile.widget.eq(view.widget)
-      );
+      const matching = (tile: WidgetTile) =>
+        !tile.tag &&
+        !tile.isNodeInner &&
+        (tile.flags & (TileFlag.PointBefore | TileFlag.PointAfter)) == side &&
+        !context.dirty.has(tile.dom) &&
+        tile.widget.eq(widget);
+      if (isReactWidget(widget)) {
+        const tile = reactWidgetTile(cursor.next(), context, matching, (dom) => {
+          if (!widget.type.editable) setUneditable(dom);
+          return new WidgetTile(widget, null, TileFlag.Point | side, dom);
+        });
+        add(tile);
+        continue;
+      }
+      const old = findWidget(widgetsAt(pool, context, pos), context, matching);
       if (old) {
         context.reused.set(old, Reused.Full);
         add(placeWidget(old, cursor, context, false));
         continue;
       }
-      const dom = view.widget.render(context.wg);
-      if (!view.widget.type.editable) setUneditable(dom);
-      const tile = new WidgetTile(view.widget, null, TileFlag.Point | side, dom);
+      const dom = widget.render(context.wg);
+      if (!widget.type.editable) setUneditable(dom);
+      const tile = new WidgetTile(widget, null, TileFlag.Point | side, dom);
       add(placeWidget(tile, cursor, context, true));
       continue;
     }
@@ -332,6 +336,20 @@ const addChildTiles = (
       // A node drawn as a widget (buildNodeShape): kept whole where React would
       // skip it, else drawn with an equal widget's DOM and connected anew.
       const { node, shape } = view;
+      const tag = node.isPlot ? node.tag : node;
+      if (isReactWidget(shape)) {
+        const keep = (old: WidgetTile) => {
+          const oldView = tileViews.get(old);
+          return !!oldView && sameNodeView(oldView, view) && !redrawn(context.changes, pos);
+        };
+        const tile = reactWidgetTile(cursor.next(), context, keep, (dom) => {
+          if (!shape.type.editable) setUneditable(dom);
+          return new WidgetTile(shape, tag, TileFlag.Atom, dom, node.length);
+        });
+        tileViews.set(tile, view);
+        add(tile);
+        continue;
+      }
       const old = findWidget(
         widgetsAt(pool, context, pos),
         context,
@@ -346,7 +364,6 @@ const addChildTiles = (
       if (old) context.reused.set(old, Reused.DOM);
       const dom = old ? old.dom : shape.render(context.wg);
       if (!shape.type.editable) setUneditable(dom);
-      const tag = node.isPlot ? node.tag : node;
       const tile = new WidgetTile(shape, tag, TileFlag.Atom, dom, node.length);
       tileViews.set(tile, view);
       add(placeWidget(tile, cursor, context, true));
@@ -495,6 +512,14 @@ const shapeTile = (
     } else if (child instanceof Elt) {
       const inside = { inEditable: inner, afterContent: after, keepShape, fill, context };
       tile.addChild(shapeTile(child, null, 0, elementOf(cursor.next(), child.tagName), inside));
+    } else if (isReactWidget(child)) {
+      const flags = TileFlag.Point | TileFlag.NodeInner | after;
+      const keep = (old: WidgetTile) => keepShape && old.isNodeInner && old.widget.eq(child);
+      const widget = reactWidgetTile(cursor.next(), context, keep, (dom) => {
+        if (inner && !child.type.editable) setUneditable(dom);
+        return new WidgetTile(child, null, flags, dom);
+      });
+      tile.addChild(widget);
     } else {
       // A widget in the shape: kept whole in a kept shape, else an equal one's
       // DOM is used again (findReusableTile) and connected anew.
@@ -604,7 +629,8 @@ const layout = (
   decoSet: DecoSet,
   changes: readonly number[] | null,
   entry: Entry,
-  composition: CompositionView | null
+  composition: CompositionView | null,
+  replaced: WeakMap<Plot, Plot>
 ) => {
   const previous = entry.composition;
   const composing = new Set<Plot>();
@@ -617,6 +643,7 @@ const layout = (
       layouts: entry.layouts,
       composition,
       composing,
+      replaced,
     },
     state.doc,
     0
@@ -634,7 +661,7 @@ export class ReactDocTile extends DocTile {
       dom.replaceChildren();
       roots.set(dom, {
         root: createRoot(dom),
-        store: { keys: new WeakMap() },
+        store: { keys: new WeakMap(), wg },
         rendered: { texts: new WeakMap(), wrappers: new WeakMap() },
         layouts: new WeakMap(),
         composition: null,
@@ -644,7 +671,7 @@ export class ReactDocTile extends DocTile {
     const entry = rootOf(dom);
     addFreshKeys(entry.store.keys, state.doc);
     const decoSet = getDecoSet(state);
-    const views = layout(state, decoSet, null, entry, null);
+    const views = layout(state, decoSet, null, entry, null, new WeakMap());
     return ReactDocTile.render(state, dom, decoSet, views, {
       wg,
       old: null,
@@ -728,7 +755,8 @@ export class ReactDocTile extends DocTile {
     if (keepsAll(changes) && !info && !previous) return this;
     checkRenderable(state.doc);
     const composition = info ? compositionView(state.doc, info, changes, entry.rendered) : null;
-    const views = layout(state, decoSet, changes, entry, composition);
+    const replaced = mapKeys(entry.store.keys, this.state.doc, state.doc, changes);
+    const views = layout(state, decoSet, changes, entry, composition, replaced);
     const node = composition?.node ?? null;
     const dirty = restore(this, node);
     // A composition that's over: React's node gets back what React committed
@@ -737,7 +765,6 @@ export class ReactDocTile extends DocTile {
       if (previous.rendered) previous.node.nodeValue = previous.rendered.text;
       else previous.node.remove();
     }
-    mapKeys(entry.store.keys, this.state.doc, state.doc, changes);
     return ReactDocTile.render(state, this.dom, decoSet, views, {
       wg,
       old: this,

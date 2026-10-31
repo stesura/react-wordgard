@@ -1,5 +1,7 @@
 // R1's "done when": React's tree draws the same DOM as Wordgard's own renderer
 // and answers the tile queries the same way.
+import { createElement, forwardRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { Node as DocNode, Elt, Leaf, Mark, Plot } from "wordgard/doc";
 import { Decoration, Widget, Wordgard } from "wordgard/editor";
 import {
@@ -35,6 +37,9 @@ import {
 } from "wordgard/types";
 
 import { ReactWordgard } from "../ReactWordgard.js";
+import { reactWidget } from "../decorations/ReactWidgetType.js";
+import { useWidgetPos } from "../hooks/useWidgetPos.js";
+import { useWordgard } from "../hooks/useWordgard.js";
 import { ReactDocTile } from "../tile.js";
 import { DocTile, type Tile, TileFlag } from "../wordgardInternals.js";
 
@@ -125,6 +130,15 @@ const Label = Widget.define<string>({ render: label });
 const EditableLabel = Widget.define<string>({ render: label, editable: true });
 const Aside = Widget.define<string>({ render: label, inFlow: false });
 const TextWidget = Widget.define<string>({ render: (text) => document.createTextNode(text) });
+
+// React widgets drawing what `label` draws, which plain Wordgard draws from
+// their `render`: the two views should match.
+const LabelView = forwardRef<HTMLSpanElement, { value: string }>(({ value }, ref) =>
+  createElement("span", { ref, className: "w" }, value)
+);
+const ReactLabel = reactWidget({ render: label, component: LabelView });
+const EditableReactLabel = reactWidget({ render: label, component: LabelView, editable: true });
+const ReactAside = reactWidget({ render: label, component: LabelView, inFlow: false });
 
 // Decorations of every kind, each in a document of its own.
 const pointAt = (...decos: [Decoration.Point, number][]) =>
@@ -225,6 +239,38 @@ const decorated: Record<string, [string, GardState.Extension]> = {
       Decoration.Tag.shape(
         Blockquote,
         Elt.mk<Widget>("blockquote", [Label.of("quote"), Elt.mk("div", [0])])
+      ),
+    ],
+  ],
+  "React tag and point widgets": [
+    "<p>abcd</p><h2>two</h2><p></p><p>ef</p>",
+    [
+      Decoration.Tag.widget(Paragraph, "before", ReactLabel.of("b")),
+      Decoration.Tag.widget(Paragraph, "after", EditableReactLabel.of("a")),
+      Decoration.Tag.widget(Paragraph, "start", ReactLabel.of("s")),
+      Decoration.Tag.widget(Paragraph, "end", ReactLabel.of("e")),
+      pointAt(
+        [Decoration.Point.widget(ReactLabel.of("A"), { side: -1 }), 3],
+        [Decoration.Point.widget(ReactLabel.of("B"), { side: 0 }), 3],
+        [Decoration.Point.widget(Label.of("C"), { side: 1 }), 3],
+        [Decoration.Point.widget(ReactAside.of("D")), 13]
+      ),
+    ],
+  ],
+  "React widget shapes": [
+    `<p>a<img src="${img}">b</p><hr>`,
+    [
+      Decoration.Tag.shape(Image, (tag) => ReactLabel.of(tag.param.slice(-4))),
+      Decoration.Tag.shape(HorizontalRule, EditableReactLabel.of("rule")),
+    ],
+  ],
+  "React widgets inside shapes": [
+    `<p>a<img src="${img}">b</p><blockquote><p>q</p></blockquote>`,
+    [
+      Decoration.Tag.shape(Image, Elt.mk<Widget>("span", { class: "img" }, [ReactLabel.of("i")])),
+      Decoration.Tag.shape(
+        Blockquote,
+        Elt.mk<Widget>("blockquote", [ReactLabel.of("quote"), Elt.mk("div", [0]), Label.of("end")])
       ),
     ],
   ],
@@ -555,6 +601,25 @@ describe("ReactDocTile", () => {
       expect(blockIn(react.contentDOM, 0).wgTile).not.toBe(touched);
       expect(kept?.parent).toBe(docTileOf(react));
     });
+
+    // A kept layout follows its plot, so the next edit keeps it too.
+    it("keeps them edit after edit", () => {
+      const { react } = both("<p>a</p><p>b</p><p>c</p>");
+      const kept = blockIn(react.contentDOM, 2).wgTile;
+      edit(react, { from: 1, insert: [Leaf.text("x")] });
+      edit(react, { from: 1, insert: [Leaf.text("y")] });
+      expect(blockIn(react.contentDOM, 2).wgTile).toBe(kept);
+    });
+
+    // Inside a plot that moved while kept.
+    it("keeps them edit after edit in nested plots", () => {
+      const { react } = both("<p>a</p><blockquote><p>b</p><p>c</p></blockquote>");
+      const kept = blockIn(react.contentDOM, 1).children[0]?.wgTile;
+      edit(react, { from: 1, insert: [Leaf.text("x")] });
+      edit(react, { from: 10, insert: [Leaf.text("y")] });
+      expect(blockIn(react.contentDOM, 1).textContent).toBe("bcy");
+      expect(blockIn(react.contentDOM, 1).children[0]?.wgTile).toBe(kept);
+    });
   });
 
   // Emulates an IME, adapted from Wordgard's `compose` test helper
@@ -565,7 +630,12 @@ describe("ReactDocTile", () => {
     { from: number; to: number; text: string } | { run: (wg: Wordgard) => void };
   const compositions: Record<
     string,
-    { doc: string; steps: CompositionStep[]; start?: (content: HTMLElement) => Text }
+    {
+      doc: string;
+      steps: CompositionStep[];
+      start?: (content: HTMLElement) => Text;
+      extra?: GardState.Extension;
+    }
   > = {
     "inside text": {
       doc: "<p>ab</p>",
@@ -618,9 +688,26 @@ describe("ReactDocTile", () => {
         { from: 5, to: 5, text: "?" },
       ],
     },
+    // In a shape with a React header, beside a React widget.
+    "beside React widgets": {
+      doc: "<blockquote><p>ab</p></blockquote>",
+      extra: [
+        Decoration.Tag.shape(
+          Blockquote,
+          Elt.mk<Widget>("blockquote", [ReactLabel.of("quote"), Elt.mk("div", [0])])
+        ),
+        Decoration.Tag.widget(Paragraph, "start", ReactLabel.of("|")),
+        pointAt([Decoration.Point.widget(ReactLabel.of("x")), 4]),
+      ],
+      steps: [
+        { from: 3, to: 3, text: "-" },
+        { from: 3, to: 4, text: "*" },
+        { from: 4, to: 4, text: "$" },
+      ],
+    },
   };
 
-  for (const [name, { doc, steps, start }] of Object.entries(compositions)) {
+  for (const [name, { doc, steps, start, extra }] of Object.entries(compositions)) {
     it(`keeps the composition's node and matches Wordgard: ${name}`, () => {
       const run = (wg: Wordgard) => {
         wg.focus();
@@ -683,11 +770,11 @@ describe("ReactDocTile", () => {
         states.push({ doc: String(wg.state.doc), html: wg.contentDOM.innerHTML, tiles: settled });
         return states;
       };
-      const expected = alone(Wordgard.create, doc, run);
+      const expected = alone(Wordgard.create, doc, run, extra);
       expect(JSON.stringify(expected)).toContain(
         `"flags":${TileFlag.Composition | TileFlag.Synced}`
       );
-      expect(alone(ReactWordgard.create, doc, run)).toEqual(expected);
+      expect(alone(ReactWordgard.create, doc, run, extra)).toEqual(expected);
     });
   }
 
@@ -936,6 +1023,337 @@ describe("ReactDocTile", () => {
         return log;
       };
       expect(run(ReactWordgard.create)).toEqual(run(Wordgard.create));
+    });
+  });
+
+  describe("with React widgets", () => {
+    const edit = (wg: Wordgard, spec: Transaction.Spec) => {
+      wg.dispatch(spec);
+      wg.flush();
+    };
+    const flip = Transaction.Effect.define<null>();
+    const points = GardState.Field.define({
+      create: () =>
+        Decoration.Point.set([
+          [Decoration.Point.widget(ReactLabel.of("x")), 2],
+          [Decoration.Point.widget(EditableReactLabel.of("y"), { side: -1 }), 7],
+        ]),
+      update: (set: Decoration.Point.Set, tr: Transaction) =>
+        tr.effects.some((effect) => effect.is(flip))
+          ? Decoration.Point.set([[Decoration.Point.widget(ReactLabel.of("z")), 2]])
+          : set.map(tr.changes),
+      provide: (field) => Decoration.Point.source.of((state) => state.field(field)),
+    });
+    const widgets = [
+      points,
+      Decoration.Tag.widget(Image, "before", ReactLabel.of("<")),
+      Decoration.Tag.widget(Image, "after", ReactLabel.of(">")),
+      Decoration.Tag.widget(Paragraph, "start", ReactLabel.of("|")),
+    ];
+    const doc = `<p>ab<img src="${img}">cd</p><p>ef</p>`;
+    const steps: Transaction.Spec[] = [
+      { changes: { from: 1, insert: [Leaf.text("x")] } },
+      { changes: { from: 0, insert: [Paragraph.create([Leaf.text("new")])] } },
+      { changes: { from: 9, to: 10, insert: [Image.of(`${img}#2`)] } },
+      { changes: { from: 6, to: 8, add: Strong } },
+      { changes: { from: 6, to: 8, remove: Strong, add: Emphasis } },
+      { effects: flip.of(null) },
+      { changes: { from: 16, insert: [Leaf.text("g")] } },
+      { changes: { from: 0, to: 5 } },
+      { changes: { from: 2, to: 6 } },
+    ];
+
+    it("keeps matching Wordgard's DOM, and reuses the same widget nodes", () => {
+      const { wordgard, react } = both(doc, widgets);
+      for (const spec of steps) {
+        const reuse = (wg: Wordgard) => {
+          const before = [...wg.contentDOM.querySelectorAll(".w")];
+          edit(wg, spec);
+          return [...wg.contentDOM.querySelectorAll(".w")].map((w) => before.includes(w));
+        };
+        expect(reuse(react)).toEqual(reuse(wordgard));
+        expect(react.contentDOM.innerHTML).toBe(wordgard.contentDOM.innerHTML);
+        expect(describeTile(docTileOf(react), react.contentDOM)).toEqual(
+          describeTile(docTileOf(wordgard), wordgard.contentDOM)
+        );
+      }
+    });
+
+    // Inside a plot that moved while kept, as in Wordgard.
+    it("keeps a React point widget's node in a nested plot edit after edit", () => {
+      const mapped = GardState.Field.define({
+        create: () => Decoration.Point.set([[Decoration.Point.widget(ReactLabel.of("x")), 6]]),
+        update: (set: Decoration.Point.Set, tr: Transaction) => set.map(tr.changes),
+        provide: (field) => Decoration.Point.source.of((state) => state.field(field)),
+      });
+      const { wordgard, react } = both("<p>a</p><blockquote><p>bc</p></blockquote>", mapped);
+      for (const spec of [
+        { changes: { from: 1, insert: [Leaf.text("x")] } },
+        { changes: { from: 6, insert: [Leaf.text("y")] } },
+      ]) {
+        const reuse = (wg: Wordgard) => {
+          const before = [...wg.contentDOM.querySelectorAll(".w")];
+          edit(wg, spec);
+          return [...wg.contentDOM.querySelectorAll(".w")].map((w) => before.includes(w));
+        };
+        expect(reuse(react)).toEqual(reuse(wordgard));
+        expect(react.contentDOM.innerHTML).toBe(wordgard.contentDOM.innerHTML);
+      }
+      expect(react.contentDOM.querySelector(".w")?.parentElement?.textContent).toBe("ybxc");
+    });
+
+    // Shows the value it was mounted with and the current one: a remount resets
+    // the first.
+    const Mounted = forwardRef<HTMLSpanElement, { value: string }>(({ value }, ref) => {
+      const [first] = useState(value);
+      return createElement("span", { ref, className: "m" }, `${first}:${value}`);
+    });
+    const ReactMounted = reactWidget({ render: label, component: Mounted });
+    const setPoint = Transaction.Effect.define<string>();
+    // A React point widget whose value changes on `setPoint`, where it is.
+    const point = GardState.Field.define({
+      create: () => ({ value: "p", pos: 2 }),
+      update: ({ value, pos }: { value: string; pos: number }, tr: Transaction) => ({
+        value: tr.effects.find((effect) => effect.is(setPoint))?.value ?? value,
+        pos: tr.changes.mapPos(pos),
+      }),
+      provide: (field) =>
+        Decoration.Point.source.of((state) => {
+          const { value, pos } = state.field(field);
+          return Decoration.Point.set([[Decoration.Point.widget(ReactMounted.of(value)), pos]]);
+        }),
+    });
+    const everywhere = [
+      point,
+      Decoration.Tag.widget(Paragraph, "start", ReactMounted.of("t")),
+      Decoration.Tag.shape(Image, (tag) => ReactMounted.of(tag.param.slice(-2))),
+      Decoration.Tag.shape(
+        Blockquote,
+        Elt.mk<Widget>("blockquote", [ReactMounted.of("q"), Elt.mk("div", [0])])
+      ),
+    ];
+    const placed = `<p>ab<img src="${img}#1">cd</p><blockquote><p>q</p></blockquote>`;
+
+    it("keeps a React widget's instance while it's equal, and re-renders it in place", () => {
+      const { react } = both(placed, everywhere);
+      const drawn = () => [...react.contentDOM.querySelectorAll(".m")];
+      const texts = () => drawn().map((m) => m.textContent);
+      const first = drawn();
+      expect(texts()).toEqual(["t:t", "p:p", "#1:#1", "q:q", "t:t"]);
+      edit(react, { changes: { from: 1, insert: [Leaf.text("x")] } });
+      edit(react, { changes: { from: 5, insert: [Leaf.text("y")] } });
+      expect(drawn()).toEqual(first);
+      edit(react, { effects: setPoint.of("v") });
+      edit(react, { changes: { from: 4, to: 5, insert: [Image.of(`${img}#2`)] } });
+      expect(drawn()).toEqual(first);
+      expect(texts()).toEqual(["t:t", "p:v", "#1:#2", "q:q", "t:t"]);
+      // A new paragraph gets its own.
+      edit(react, { changes: { from: 0, insert: [Paragraph.create([Leaf.text("new")])] } });
+      expect(drawn().slice(1)).toEqual(first);
+    });
+
+    it("gives React widgets the editor and their position", () => {
+      const seen: [Wordgard, () => number][] = [];
+      const Probe = forwardRef<HTMLSpanElement, { value: string }>(({ value }, ref) => {
+        const wg = useWordgard();
+        const pos = useWidgetPos();
+        return createElement(
+          "span",
+          { ref, className: "w", onClick: () => seen.push([wg, pos]) },
+          value
+        );
+      });
+      const ReactProbe = reactWidget({ render: label, component: Probe });
+      const { react } = both(`<p>ab<img src="${img}">c</p><blockquote><p>q</p></blockquote>`, [
+        pointAt([Decoration.Point.widget(ReactProbe.of("p")), 2]),
+        Decoration.Tag.widget(Paragraph, "start", ReactProbe.of("t")),
+        Decoration.Tag.shape(Image, ReactProbe.of("i")),
+        Decoration.Tag.shape(
+          Blockquote,
+          Elt.mk<Widget>("blockquote", [ReactProbe.of("q"), Elt.mk("div", [0])])
+        ),
+      ]);
+      const click = () => {
+        seen.length = 0;
+        react.contentDOM.querySelectorAll<HTMLElement>(".w").forEach((w) => w.click());
+        return seen.map(([wg, pos]) => [wg == react, pos()]);
+      };
+      // In document order: the paragraph's start, the point, the image, the
+      // blockquote's header (inside it), the inner paragraph's start.
+      expect(click()).toEqual([
+        [true, 1],
+        [true, 2],
+        [true, 3],
+        [true, 7],
+        [true, 8],
+      ]);
+      edit(react, { changes: { from: 1, insert: [Leaf.text("x")] } });
+      expect(click().map(([, pos]) => pos)).toEqual([1, 2, 4, 8, 9]);
+      const [, image] = seen[2] ?? [];
+      edit(react, { changes: { from: 3, to: 5 } });
+      expect(() => image?.()).toThrow(/isn't drawn/);
+    });
+
+    it("lets a React widget update itself outside the flush without a redraw", () => {
+      const Clicks = forwardRef<HTMLSpanElement, { value: string }>(({ value }, ref) => {
+        const [clicks, setClicks] = useState(0);
+        return createElement(
+          "span",
+          { ref, className: "w", onClick: () => setClicks(clicks + 1) },
+          `${value}${clicks}`
+        );
+      });
+      const ReactClicks = reactWidget({ render: label, component: Clicks });
+      const { react } = both(`<p>ab<img src="${img}"></p><blockquote><p>q</p></blockquote>`, [
+        pointAt([Decoration.Point.widget(ReactClicks.of("p")), 2]),
+        Decoration.Tag.widget(Paragraph, "end", ReactClicks.of("e")),
+        Decoration.Tag.shape(Image, ReactClicks.of("i")),
+        Decoration.Tag.shape(
+          Blockquote,
+          Elt.mk<Widget>("blockquote", [ReactClicks.of("q"), Elt.mk("div", [0])])
+        ),
+      ]);
+      const tile = docTileOf(react);
+      const dirty = (tile: Tile): boolean =>
+        !!(tile.flags & TileFlag.Dirty) || tile.children.some(dirty);
+      const drawn = [...react.contentDOM.querySelectorAll<HTMLElement>(".w")];
+      for (const w of drawn) flushSync(() => w.click());
+      expect(drawn.map((w) => w.textContent)).toEqual(["p1", "i1", "e1", "q1", "e1"]);
+      react.flush();
+      expect(dirty(tile)).toBe(false);
+      expect(docTileOf(react)).toBe(tile);
+      expect([...react.contentDOM.querySelectorAll(".w")]).toEqual(drawn);
+    });
+
+    it("connects and disconnects React widgets as Wordgard does", () => {
+      const run = (create: Create) => {
+        const log: string[] = [];
+        const Tracked = reactWidget({
+          render: label,
+          component: LabelView,
+          connect: (value) => log.push(`connect ${value}`),
+          disconnect: (value) => log.push(`disconnect ${value}`),
+        });
+        const flipPoint = Transaction.Effect.define<null>();
+        const tracked = GardState.Field.define({
+          create: () => ({ value: "p", pos: 1 }),
+          update: ({ value, pos }: { value: string; pos: number }, tr: Transaction) => ({
+            value: tr.effects.some((effect) => effect.is(flipPoint)) ? `${value}!` : value,
+            pos: tr.changes.mapPos(pos),
+          }),
+          provide: (field) =>
+            Decoration.Point.source.of((state) => {
+              const { value, pos } = state.field(field);
+              return Decoration.Point.set([[Decoration.Point.widget(Tracked.of(value)), pos]]);
+            }),
+        });
+        const wg = mount(create, `<p>a<img src="${img}">b</p>`, [
+          tracked,
+          Decoration.Tag.shape(Image, (tag) => Tracked.of(tag.param.slice(-2))),
+          Decoration.Tag.widget(Paragraph, "end", Tracked.of("end")),
+          Decoration.Tag.shape(
+            Blockquote,
+            Elt.mk<Widget>("blockquote", [Tracked.of("quote"), Elt.mk("div", [0])])
+          ),
+        ]);
+        // ReactWordgard's constructor draws the document twice.
+        log.length = 0;
+        const step = (spec: Transaction.Spec) => {
+          edit(wg, spec);
+          log.push("|");
+        };
+        step({ changes: { from: 2, to: 3, insert: [Image.of(`${img}#2`)] } });
+        step({ changes: { from: 1, insert: [Leaf.text("x")] } });
+        step({ effects: flipPoint.of(null) });
+        const quote = Blockquote.create([Paragraph.create([Leaf.text("q"), Image.of(`${img}#3`)])]);
+        step({ changes: { from: wg.state.doc.length, insert: [quote] } });
+        step({ changes: { from: wg.state.doc.length - 2, insert: [Leaf.text("r")] } });
+        // Redrawn without changing: a range wrapper, then a new tag widget (all redrawn).
+        const mark = rangeOver([Decoration.Range.wrapper("mark", {}), 1, 6]);
+        step({ effects: GardState.appendConfig.of(mark) });
+        const start = Decoration.Tag.widget(Paragraph, "start", Tracked.of("s"));
+        step({ effects: GardState.appendConfig.of(start) });
+        step({ changes: { from: 0, to: wg.state.doc.length, insert: [HorizontalRule] } });
+        wg.dom.parentElement?.remove();
+        return log;
+      };
+      expect(run(ReactWordgard.create)).toEqual(run(Wordgard.create));
+    });
+
+    it("leaves a React widget's events to its propagateEvent", () => {
+      const Stopping = reactWidget({ render: label, component: LabelView, propagateEvent: false });
+      const { react } = both("<p>ab</p>", [
+        pointAt(
+          [Decoration.Point.widget(ReactLabel.of("a")), 1],
+          [Decoration.Point.widget(Stopping.of("s")), 2]
+        ),
+      ]);
+      const ignored = [...react.contentDOM.querySelectorAll(".w")].map((w) =>
+        docTileOf(react).nearest(w)?.ignoreEvent(new MouseEvent("mousedown"))
+      );
+      expect(ignored).toEqual([false, true]);
+    });
+
+    it("needs a React widget's component to forward its ref", () => {
+      const NoRef = reactWidget({
+        render: label,
+        component: ({ value }: { value: string }) => createElement("span", null, value),
+      });
+      expect(() =>
+        mount(ReactWordgard.create, "<p>a</p>", [
+          Decoration.Tag.widget(Paragraph, "start", NoRef.of("x")),
+        ])
+      ).toThrow(/forward its ref/);
+    });
+
+    // An image drawn by a React component with its own hover state, which
+    // replaces its node on a double click.
+    it("draws an image as a React widget with state of its own", async () => {
+      const ImageView = forwardRef<HTMLImageElement, { value: string }>(({ value }, ref) => {
+        const wg = useWordgard();
+        const pos = useWidgetPos();
+        const [hover, setHover] = useState(false);
+        const grow = () =>
+          wg.dispatch({
+            changes: { from: pos(), to: pos() + 1, insert: [Image.of(`${value}#big`)] },
+          });
+        return createElement("img", {
+          ref,
+          src: value,
+          className: hover ? "hover" : undefined,
+          onMouseOver: () => setHover(true),
+          onMouseOut: () => setHover(false),
+          onDoubleClick: grow,
+        });
+      });
+      const ReactImage = reactWidget({
+        render: (src) => Object.assign(document.createElement("img"), { src }),
+        component: ImageView,
+      });
+      const { wordgard, react } = both(`<p>a<img src="${img}">b</p>`, [
+        Decoration.Tag.shape(Image, (tag) => ReactImage.of(tag.param)),
+      ]);
+      expect(react.contentDOM.innerHTML).toBe(wordgard.contentDOM.innerHTML);
+      expect(describeTile(docTileOf(react), react.contentDOM)).toEqual(
+        describeTile(docTileOf(wordgard), wordgard.contentDOM)
+      );
+      const image = react.contentDOM.querySelector("img");
+      if (!image) throw new Error("No image");
+      const tile = docTileOf(react);
+      // React commits a hover later, outside Wordgard's flush.
+      image.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+      await vi.waitFor(() => expect(image.className).toBe("hover"));
+      react.flush();
+      expect(docTileOf(react)).toBe(tile);
+      edit(react, { changes: { from: 1, insert: [Leaf.text("x")] } });
+      image.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+      react.flush();
+      expect(react.contentDOM.querySelector("img")).toBe(image);
+      expect(image.className).toBe("hover");
+      expect(image.getAttribute("src")).toBe(`${img}#big`);
+      const found = docTileOf(react).nodeTile(3);
+      expect(found?.dom).toBe(image);
+      expect(found?.tag?.param).toBe(`${img}#big`);
     });
   });
 

@@ -1,9 +1,10 @@
 # react-wordgard: a React view for Wordgard (plan, 2026-10-30)
 
-**Status:** R1 done; R2 mostly done; R3 done for what can be tested here; R4 in progress
-(2026-10-31, see Progress): React renders every node and mark Wordgard's schemas define, and
-every decoration, Wordgard's native widgets included, with stable keys and kept tiles, and keeps
-the IME's text node through Wordgard's flush. React widgets are next (R4 slice 5). The skeleton
+**Status:** R1 done; R2 mostly done; R3 done for what can be tested here; R4 done apart from its
+open slice 6 (2026-10-31, see Progress): React renders every node and mark Wordgard's schemas
+define, and every decoration, Wordgard's native widgets included, with stable keys and kept tiles,
+keeps the IME's text node through Wordgard's flush, and draws React widgets in the editor's own
+React tree. Next: R5 (hooks) and R6 (performance). The skeleton
 (a standalone copy of our react-prosemirror fork, Tiptap removed, `wordgard` installed, ProseMirror
 still in place) is done. The public API follows Wordgard's, not react-prosemirror's (see "Follow
 Wordgard's API").
@@ -240,8 +241,8 @@ composition tiles, as react-prosemirror pauses its own.
   boundary and in a node whose shape has React widgets around its content.
 - **Status:** done in Chromium, where all 15 of Wordgard's composition tests pass on the React view,
   mark boundaries included. Open: Safari and Firefox (the `browser` and `view` projects run
-  Chromium only), a real IME (the tests emulate one, as Wordgard's do), and composing next to React
-  widgets (R4 slice 5; widgets aren't editable, so a composition is only ever around them). Not done
+  Chromium only) and a real IME (the tests emulate one, as Wordgard's do). Composing next to React
+  widgets, in a shape with a React header, is compared with Wordgard since R4 slice 5. Not done
   as planned: no pause, see Progress.
 
 ### R4: decorations, widgets and React widgets
@@ -253,10 +254,11 @@ widget (a tag or point shape, a tag or point widget, inside an `Elt` shape). Re-
 - **Done when:** a React widget used as a node's shape and next to nodes shares the editor's
   contexts (no React root of its own), keeps its component instance while its value is `eq`, and
   maps through edits; decorations and native widgets render and map through edits.
-- **Status:** in progress (2026-10-31). Slices 1 to 4 done: decorations and Wordgard's native
-  widgets render, redraw on their own and keep their DOM through edits. Next: React widgets
-  (slice 5).
-- **Slice 5, React widgets:** a widget type defined like `Widget.define` (the same spec fields:
+- **Status:** done (2026-10-31), slices 1 to 5: decorations and Wordgard's native widgets
+  render, redraw on their own and keep their DOM through edits; React widgets render wherever
+  Wordgard takes a widget, keep their instance while `eq` and re-render in place when not. Slice
+  6 stays an open question.
+- **Slice 5, React widgets (done, see Progress):** a widget type defined like `Widget.define` (the same spec fields:
   `eq`, `connect`/`disconnect`, `propagateEvent`, `editable`, `inFlow`), with a component in place
   of `render`, and still a real `Widget.Type` (with a plain `render` fallback, so it works in
   plain Wordgard). Hooks for what `render` gets (the editor) and what actions need (the widget's
@@ -277,9 +279,14 @@ The public API, designed from Wordgard's (its state, `Wordgard.Plugin` with `upd
 effects, event callbacks, a React widget's position, selection state. react-prosemirror's hook
 list is a checklist of needs, not the API: its names are kept only where the concept is the same
 (stop-event is the widget spec's `propagateEvent`). Plus a layout hook running in the flush's read
-and write phases, for pagination and anything else that measures.
-- **Done when:** each hook has tests, and a measure-then-write hook lands its write on the same
-  paint as the document update.
+and write phases, for pagination and anything else that measures. Where a react-prosemirror hook
+meets a real need, offer the Wordgard equivalent.
+- **README:** a "Migrating from react-prosemirror" section, written once the public API exists:
+  how each react-prosemirror concept maps (node views to tag decorations and React widgets,
+  `getPos` to `useWidgetPos`, hooks to their equivalents, `stopEvent` to `propagateEvent`), using
+  the table in "From ProseMirror to Wordgard".
+- **Done when:** each hook has tests, a measure-then-write hook lands its write on the same paint
+  as the document update, and the README has the migration section.
 
 ### R6: performance
 
@@ -616,6 +623,64 @@ Stable inline partitions for Wordgard's mark shapes, memoised children from chan
     be redrawn rather than reused (`keepComposing` puts the composed text in the old tree, so old
     positions after it are off). Widgets inside spanning wrappers only arise through Wordgard bug
     2, so the comparison sequences keep marks off widgets.
+- **2026-10-31, R4 slice 5 (React widgets), done:** a React widget is a real Wordgard widget type
+  whose component React draws in the editor's own tree.
+  - API: `reactWidget(spec)` (`src/decorations/ReactWidgetType.ts`, react-prosemirror's file
+    name) takes `Widget.define`'s spec plus `component`, calls `Widget.define` (its `render` is the
+    fallback plain Wordgard draws) and registers the component in a `WeakMap` by type. The
+    component gets `{value}` and, as in react-prosemirror, forwards its ref to its root element,
+    which becomes the widget's DOM (a component that doesn't makes the flush throw). Hooks:
+    `useWordgard()` (the editor, from the render store) and `useWidgetPos()` (a stable getter
+    reading the tile's `posBefore`; throws once the widget is gone). Nothing is exported from
+    `src/index.ts` yet.
+  - Rendering: `WidgetView` (react-prosemirror's name), memoised on `widget.eq`, draws it for a
+    point or tag widget (`ChildNodeViews`), a node drawn as a widget and a widget inside a shape
+    (`DefaultNodeView`). The tile builder makes a `WidgetTile` over the root with the native
+    widget's flags, sets it uneditable as Wordgard does, keeps the old tile whole where Wordgard
+    would keep the widget, else disconnects it and connects the new one (over the same DOM when
+    React re-rendered in place).
+  - Instance identity comes from keys: a node drawn as a widget has its node's key; widgets in a
+    shape their index in it; tag widgets are keyed after the sibling on their side (the next one
+    for a positive side) and their type; React point widgets by mapped position, as Wordgard
+    reuses native ones (`pointKeys` in `iterDeco`: an old one mapping there, equal and on the same
+    side, else of the same type, else a fresh key). For that, the copied `DecoIterator` tells the
+    walker which widgets come from point decorations, and `mapKeys` (now run before the layout)
+    returns the plot each changed plot replaces. Widget-free lists cost what they did.
+  - Bug fixed from slices 1–3: a kept layout's `start` was never updated, so after one edit every
+    later one re-laid, re-rendered and rebuilt the tiles of every plot after the edit point.
+    Layouts now record their offset in the parent's content, so those nested in a kept plot stay
+    right too (the first fix covered top-level plots only; the audit found it). Measured (median of
+    30 consecutive mid-document keystrokes, `basicSchema`, dev build, a throwaway harness): 15,000
+    paragraphs 67 ms, was 277 ms (Wordgard 18 ms); with a native start widget per paragraph 65 ms,
+    was 574 ms (Wordgard 23 ms); with a React one 70 ms; 2,500 paragraphs 8 ms, was 31 ms. Slice
+    4's 150–170 ms came from another harness, which hit this less.
+  - How it differs from the handoff: the value is the component's prop rather than a hook (it's
+    what `render` gets; a re-render brings the new one); the position hook has a per-widget context
+    (a handle that lasts as long as the component), since the render store is per editor;
+    `contenteditable` is set by the bridge, as Wordgard's `setUneditable` does, not by a prop the
+    component must spread; `render` stays required. One unchecked type guard
+    (`widget is Widget<Param>` in `ReactWidgetType.ts`): a widget of a type was made by its `of`.
+  - Tests (`tile.browser.test.ts`, 222): three React widget documents in the compared table (tag
+    and point widgets, widget shapes, widgets inside shapes, mixed with native ones): DOM, tile
+    tree and every query match plain Wordgard drawing the fallback. Also: an edit sequence matching
+    Wordgard's DOM, tiles and which widget nodes survive; instance identity (kept while `eq`,
+    re-rendered in place when the value changes); the hooks; a component's own update outside the
+    flush (no `Dirty`, no redraw); connect/disconnect logs matching Wordgard; `propagateEvent`;
+    the ref requirement; composing beside React widgets in a shape with a React header; an image
+    drawn by a React component with hover state, kept through typing, that replaces its node on a
+    double click and keeps its element and state. Sabotage: never keeping old React widget tiles,
+    disabling position keys, or making the self-updating widget editable each fail a test.
+  - Audit (Fable) fixes: layouts nested in a kept plot kept a stale start (above), which also
+    remounted React point widgets there; `useWidgetPos` returned a stale position after removal.
+    Documented, not fixed: a component may change anything inside its root but not swap the root
+    (the parent's tile puts the old one back and React keeps the new, detached one, as with a
+    native widget swapping its DOM); an `editable: true` React widget the user edits keeps the
+    edit, where Wordgard redraws it from `render`.
+  - Open: a React widget's root must be an element (no text root); two same-type tag widgets on
+    the same side of the same sibling are told apart by order; a React widget moving in or out of
+    a wrapper remounts (React can't reparent); with a React widget in the document every update
+    walks the old tree to disconnect, as with native widgets. Slice 4's open items (a widget whose
+    DOM is a `<br>`, reuse next to a composition) are still open.
 - **Open from R1's first slice:**
   - Composition: restoring the old tree undid the browser's composed text. Done in R3 (above),
     for Chromium; Safari, Firefox and real IMEs still to check.
