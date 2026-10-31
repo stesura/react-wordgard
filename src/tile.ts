@@ -25,10 +25,10 @@ import {
   type Layout,
   type NodeView,
   iterDeco,
-  pointMapper,
   sameNodeView,
   uneditable,
 } from "./decorations/iterDeco.js";
+import { pointMapper, redrawn } from "./changes.js";
 import { type CompositionView, type Rendered, browserElt, compositionView } from "./composition.js";
 import { type ReactKeys, addFreshKeys, childViewKeys, mapKeys } from "./reactKeys.js";
 import {
@@ -202,21 +202,6 @@ type BuildContext = {
   taken: Set<Node>;
   strays: ChildNode[];
   dirty: ReadonlySet<Node>;
-};
-
-// Whether the token at `pos` in the new document is in a range the update
-// redraws: Wordgard rebuilds a node starting there (buildNodeShape), so the
-// widgets of its shape are reused for their DOM and connected anew.
-const redrawn = (changes: readonly number[] | null, pos: number) => {
-  if (!changes) return false;
-  for (let i = 0, posB = 0; i < changes.length; i += 2) {
-    const len = changes[i] ?? 0;
-    const ins = changes[i + 1] ?? 0;
-    const end = posB + (ins < 0 ? len : ins);
-    if (pos < end) return ins != -1;
-    posB = end;
-  }
-  return false;
 };
 
 // The widget tiles a plot's content had, under `old`, the tile that held it,

@@ -1,6 +1,6 @@
-// Where load's and a keystroke's time go: Chromium's CPU profiler around
-// mounting and typing in each editor of editors.ts (cpuProfile.ts), by
-// function and by script file.
+// Where the time to load, to type a keystroke and to format the whole document
+// goes: Chromium's CPU profiler around each, in the editors of editors.ts
+// (cpuProfile.ts), by function and by script file.
 // `npm run bench:profile` (React's production build), `npm run
 // bench:profile-dev`; `--mode profile-smoke` for small documents.
 import React from "react";
@@ -9,6 +9,7 @@ import { commands } from "vitest/browser";
 import {
   type Mount,
   editors,
+  heap,
   mountPoint,
   paragraphs,
   reactBuild,
@@ -27,6 +28,10 @@ declare module "vitest/browser" {
 
 const keystrokes = smoke ? 5 : 30;
 const warmup = smoke ? 1 : 5;
+const formats = smoke ? 2 : 4;
+// As in the timing benchmark: formatting all of an editor holding more than
+// this many MB would crash the page (react-prosemirror at 15,000 paragraphs).
+const formatLimit = 1000;
 // The functions listed, by time with their callees.
 const top = 25;
 // Not work: the profiler waiting, and its root.
@@ -40,9 +45,11 @@ const ours = (name: string) =>
 // test's loop would hold the last editor while the next is measured.
 const measure = async (mount: Mount, html: string, n: number) => {
   const parent = mountPoint();
+  const before = heap();
   await commands.profileStart();
   const editor = await mount(html, n, parent);
   const load = await commands.profileStop();
+  const held = heap() - before;
   for (let i = 0; i < warmup; i++) editor.type(i);
   await commands.profileStart();
   for (let i = warmup; i < warmup + keystrokes; i++) {
@@ -52,13 +59,22 @@ const measure = async (mount: Mount, html: string, n: number) => {
     parent.getBoundingClientRect();
   }
   const typing = await commands.profileStop();
+  let formatting: CpuProfile | null = null;
+  if (held < formatLimit) {
+    await commands.profileStart();
+    for (let i = 0; i < formats; i++) {
+      editor.format(i % 2 == 0);
+      parent.getBoundingClientRect();
+    }
+    formatting = await commands.profileStop();
+  }
   expect(parent.querySelectorAll("p")[Math.floor(n / 2)]?.textContent).toContain(
     "x".repeat(warmup + keystrokes)
   );
   editor.destroy();
   parent.remove();
   await settle();
-  return { load, typing };
+  return { load, typing, formatting };
 };
 
 // A profile's times, in ms per one of `count` runs.
@@ -93,7 +109,7 @@ const table = (title: string, profile: CpuProfile, count: number, what: string) 
   ].join("\n");
 };
 
-it("profiles load and a keystroke", async () => {
+it("profiles load, a keystroke and formatting the whole document", async () => {
   const build = reactBuild();
   // A first mount compiles each editor's code: done here, so it isn't counted.
   for (const html of Object.values(paragraphs))
@@ -103,10 +119,13 @@ it("profiles load and a keystroke", async () => {
     for (const n of sizes)
       for (const [name, mount] of editors) {
         const title = `${docName}, ${n} paragraphs, ${name}`;
-        const { load, typing } = await measure(mount, html, n);
+        const { load, typing, formatting } = await measure(mount, html, n);
         const output = [
           table(title, load, 1, "to load"),
           table(title, typing, keystrokes, "per keystroke"),
+          formatting
+            ? table(title, formatting, formats, "per whole-document format change")
+            : `${title}: formatting skipped (> ${formatLimit} MB held)`,
         ].join("\n\n");
         tables.push(output);
         // As it goes, so a crash keeps the tables before it.
@@ -118,7 +137,7 @@ it("profiles load and a keystroke", async () => {
   console.log(
     [
       `React ${React.version}, ${build} build, ${navigator.userAgent}`,
-      `CPU profiles of mounting, then of ${keystrokes} keystrokes after ${warmup} unprofiled, per keystroke. "With callees" counts a recursive function's outermost call only.`,
+      `CPU profiles of mounting, then of ${keystrokes} keystrokes after ${warmup} unprofiled, per keystroke, then of ${formats} whole-document format changes (bold on, off), per change. "With callees" counts a recursive function's outermost call only.`,
       "",
       ...tables.flatMap((output) => [output, ""]),
     ].join("\n")

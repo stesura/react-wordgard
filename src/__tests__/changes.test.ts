@@ -3,7 +3,7 @@ import { basicSchema } from "wordgard/schema";
 import { GardState, type Transaction } from "wordgard/state";
 import { Paragraph } from "wordgard/types";
 
-import { unchangedEnds } from "../changes.js";
+import { isKept, mapKept, mapNodePos, pointMapper, redrawn, unchangedEnds } from "../changes.js";
 
 // Four paragraphs of two characters: each takes 4 positions, the second starts
 // at 4.
@@ -40,5 +40,77 @@ describe("unchangedEnds", () => {
 
   it("takes in no child when the change covers them all", () => {
     expect(ends({}, [16, -2])).toEqual({ head: 0, tail: 0 });
+  });
+});
+
+// The helpers as they were, walking the sections, to check the index against.
+const walk = (changes: readonly number[]) => {
+  const sections: { a: number; endA: number; b: number; endB: number; ins: number }[] = [];
+  for (let i = 0, a = 0, b = 0; i < changes.length; i += 2) {
+    const len = changes[i] ?? 0;
+    const ins = changes[i + 1] ?? 0;
+    const endB = b + (ins < 0 ? len : ins);
+    sections.push({ a, endA: a + len, b, endB, ins });
+    a += len;
+    b = endB;
+  }
+  return sections;
+};
+
+const reference = {
+  mapNodePos: (changes: readonly number[], pos: number) => {
+    const sections = walk(changes);
+    const s = sections.find((s) => s.endA > pos);
+    const last = sections.at(-1);
+    if (!s) return { pos: (last?.endB ?? 0) + pos - (last?.endA ?? 0), retagged: false };
+    if (s.ins < 0) return { pos: s.b + pos - s.a, retagged: false };
+    return s.a == pos && s.endA - s.a == 1 && s.ins == 1 ? { pos: s.b, retagged: true } : null;
+  },
+  mapKept: (changes: readonly number[], pos: number) => {
+    const s = walk(changes).find((s) => s.endA > pos);
+    return s && s.ins < 0 ? s.b + pos - s.a : null;
+  },
+  redrawn: (changes: readonly number[], pos: number) => {
+    const s = walk(changes).find((s) => s.endB > pos);
+    return !!s && s.ins != -1;
+  },
+  isKept: (changes: readonly number[], from: number, to: number) =>
+    !walk(changes).some(
+      (s) =>
+        s.b <= to &&
+        s.ins != -1 &&
+        (s.endB == s.b ? s.b >= from && s.b <= to : s.b < to && s.endB > from)
+    ),
+  pointMapper: (changes: readonly number[], pos: number) =>
+    walk(changes)
+      .filter((s) => s.endA >= pos && s.a <= pos)
+      .flatMap((s) =>
+        s.ins < 0
+          ? [s.b + pos - s.a]
+          : [...(pos == s.a ? [s.b] : []), ...(pos == s.endA ? [s.b + s.ins] : [])]
+      ),
+};
+
+describe("change section helpers", () => {
+  it("answer as walking the sections does", () => {
+    let seed = 1;
+    const random = (n: number) => {
+      seed = (seed * 16807) % 2147483647;
+      return seed % n;
+    };
+    for (let run = 0; run < 300; run++) {
+      const changes: number[] = [];
+      for (let i = random(8); i >= 0; i--)
+        changes.push(random(5), [-1, -2, 0, 1, 2, 3][random(6)] ?? -1);
+      const size = changes.reduce((sum, n, i) => (i % 2 ? sum : sum + n), 0);
+      for (let pos = 0; pos <= size + 1; pos++) {
+        expect(mapNodePos(changes, pos)).toEqual(reference.mapNodePos(changes, pos));
+        expect(mapKept(changes, pos)).toEqual(reference.mapKept(changes, pos));
+        expect(redrawn(changes, pos)).toBe(reference.redrawn(changes, pos));
+        expect(pointMapper(changes)(pos)).toEqual(reference.pointMapper(changes, pos));
+        for (let to = pos; to <= size + 1; to++)
+          expect(isKept(changes, pos, to)).toBe(reference.isKept(changes, pos, to));
+      }
+    }
   });
 });

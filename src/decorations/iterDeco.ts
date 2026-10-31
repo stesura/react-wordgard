@@ -7,7 +7,7 @@
 import { Attributes, Elt, Leaf, type Mark, type Node, type Plot } from "wordgard/doc";
 import { type Decoration, Widget } from "wordgard/editor";
 
-import { unchangedEnds } from "../changes.js";
+import { isKept, mapKept, pointMapper, unchangedEnds } from "../changes.js";
 import type { CompositionView } from "../composition.js";
 import { type ReactKeys, createNodeKey } from "../reactKeys.js";
 import type { DecoElt } from "../wordgardInternals.js";
@@ -205,64 +205,6 @@ const isFlat = (plot: Plot, views: readonly ChildView[], head: number, tail: num
 // Where a plot's parent's content starts, now and in the old document (null
 // when the parent is new).
 type ParentStart = { readonly start: number; readonly oldStart: number | null };
-
-// Where `pos` in the old document went, or null when it was replaced.
-const mapKept = (changes: readonly number[], pos: number) => {
-  for (let i = 0, posA = 0, posB = 0; i < changes.length; i += 2) {
-    const len = changes[i] ?? 0;
-    const ins = changes[i + 1] ?? 0;
-    if (pos < posA + len) return ins < 0 ? posB + pos - posA : null;
-    posA += len;
-    posB += ins < 0 ? len : ins;
-  }
-  return null;
-};
-
-// Whether [from, to] in the new document lies in kept sections only.
-const isKept = (changes: readonly number[] | null, from: number, to: number) => {
-  if (!changes) return false;
-  for (let i = 0, posB = 0; i < changes.length && posB <= to; i += 2) {
-    const len = changes[i] ?? 0;
-    const ins = changes[i + 1] ?? 0;
-    const end = posB + (ins < 0 ? len : ins);
-    if (ins != -1 && (end == posB ? posB >= from && posB <= to : posB < to && end > from))
-      return false;
-    posB = end;
-  }
-  return true;
-};
-
-// Where old positions, taken in ascending order, are in the new document, for
-// Wordgard's update to look for old widgets there (TilePointer.matchingWidget):
-// along kept and redrawn ranges, and at both edges of a replaced one, which
-// meet in the old document when it's an insertion. Nowhere inside one.
-export const pointMapper = (changes: readonly number[]) => {
-  let i = 0;
-  let posA = 0;
-  let posB = 0;
-  return (pos: number) => {
-    for (; i < changes.length; i += 2) {
-      const len = changes[i] ?? 0;
-      const ins = changes[i + 1] ?? 0;
-      if (posA + len >= pos) break;
-      posA += len;
-      posB += ins < 0 ? len : ins;
-    }
-    const found: number[] = [];
-    for (let j = i, a = posA, b = posB; j < changes.length && a <= pos; j += 2) {
-      const len = changes[j] ?? 0;
-      const ins = changes[j + 1] ?? 0;
-      if (ins < 0) found.push(b + pos - a);
-      else {
-        if (pos == a) found.push(b);
-        if (pos == a + len) found.push(b + ins);
-      }
-      a += len;
-      b += ins < 0 ? len : ins;
-    }
-    return found;
-  };
-};
 
 // The keys of a plot's React point widgets, by position. Each keeps the key of
 // an old one its position maps to, as Wordgard keeps an old widget there

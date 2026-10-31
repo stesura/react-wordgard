@@ -370,11 +370,24 @@ Starts only once the API (R5) is settled and stable (decided 2026-10-31).
     with marks, 128 instead of 135 with inline nodes). The ask to Wordgard's author now only
     removes the swap (`docs/wordgard-upstream-asks.md`, 8).
   - Group the doc's children into memoised chunks, so React compares far fewer than one element
-    per top-level child. Not started.
+    per top-level child. Parked (decided 2026-10-31): not for v0. After the two above, a
+    keystroke at 15,000 paragraphs takes 13–15 ms against plain Wordgard's 9–10; chunking React
+    would save about 3 of that, and nothing at load or when formatting the whole document.
 - **Done when:** measured on a 2,500-paragraph and a 15,000-paragraph document: keystroke, load, and
   a Ctrl+A formatting change, against react-prosemirror on the same documents.
 - **Status:** partly done (2026-10-31): the baseline, changed sections only, and Wordgard's first
-  draw. Next: chunking, then the user's timing run (`npm run bench`) on an idle machine.
+  draw; chunking parked. `npm run bench` then, at 15,000 paragraphs with inline nodes:
+  keystroke 14.6 ms (Wordgard 9.6, react-prosemirror 98.6), load 965 ms (504), formatting the
+  whole document 2,831 ms (1,124), on this machine, not confirmed idle.
+- **Formatting the whole document (done 2026-10-31):** its profile (`npm run bench:profile` now
+  profiles it too) showed the cost wasn't React's: such an update has a change section per run
+  of text, and five helpers walked the sections from the start once per node, quadratic in the
+  document (`unchangedEnds`, `mapNodePos`, `redrawn` and, less, `mapKept`, `isKept`,
+  `pointMapper`). They're in `src/changes.ts` now, over an index of the sections built once per
+  update and searched by bisection; a unit test checks them against walking the sections on
+  random ones. At 15,000 paragraphs, per change: 1,637 ms to 693 with marks (Wordgard 488), 3,283
+  to 1,973 with inline nodes (Wordgard 1,464). What's left is React drawing every paragraph
+  again (about 240 ms with marks), the tile build (110) and the layout (40).
 - **Open from the audit (performance only; the output matches Wordgard):**
   - `unchangedEnds` takes the first and last change in the whole document, so a transaction
     with two edits re-walks every plot between them, and a nested plot holding one of them is

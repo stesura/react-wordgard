@@ -5,7 +5,7 @@
 import type { Node, Plot } from "wordgard/doc";
 import type { Widget } from "wordgard/editor";
 
-import { unchangedEnds } from "./changes.js";
+import { mapNodePos, unchangedEnds } from "./changes.js";
 import type { ChildView } from "./decorations/iterDeco.js";
 
 // The React keys of each plot's children, by index in its content. Text
@@ -22,32 +22,6 @@ export const addFreshKeys = (keys: ReactKeys, plot: Plot) => {
     plot.content.map((child) => (child.isText ? "" : createNodeKey()))
   );
   for (const child of plot.content) if (child.isPlot) addFreshKeys(keys, child);
-};
-
-// Wordgard's ChangeSet.mapPos with assoc 1 and track "after", over a sections
-// array: where the node starting at `pos` went, or null when its first token
-// was replaced. `retagged` marks a replacement of that token alone, by one
-// token (a tag or parameter change), which keeps the key when the node type
-// stays the same. A copy, since `update` gets bare sections and Wordgard can't
-// map over those (docs/wordgard-upstream-bugs.md, "Requests").
-const mapNodePos = (changes: readonly number[], pos: number) => {
-  let posA = 0;
-  let posB = 0;
-  for (let i = 0; i < changes.length; i += 2) {
-    const len = changes[i] ?? 0;
-    const ins = changes[i + 1] ?? 0;
-    const endA = posA + len;
-    if (ins < 0) {
-      if (endA > pos) return { pos: posB + pos - posA, retagged: false };
-      posB += len;
-    } else {
-      if (endA > pos)
-        return posA == pos && len == 1 && ins == 1 ? { pos: posB, retagged: true } : null;
-      posB += ins;
-    }
-    posA = endA;
-  }
-  return { pos: posB + pos - posA, retagged: false };
 };
 
 // Carries keys from `oldDoc` to `newDoc` through `changes` (the sections
