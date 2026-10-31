@@ -14,7 +14,7 @@ import {
   orderedList,
   paragraph,
 } from "wordgard/schema";
-import { GardState } from "wordgard/state";
+import { GardState, type Transaction } from "wordgard/state";
 import {
   CaptionedFigure,
   Cell,
@@ -25,6 +25,7 @@ import {
   HeaderCell,
   Image,
   LineBreak,
+  Paragraph,
   RowSpan,
   Strong,
   Table,
@@ -331,6 +332,44 @@ describe("ReactDocTile", () => {
         describeTile(docTileOf(wordgard), wordgard.contentDOM)
       );
     }
+  });
+
+  describe("through edits", () => {
+    const edit = (wg: Wordgard, changes: Transaction.Spec["changes"]) => {
+      wg.dispatch({ changes });
+      wg.flush();
+    };
+
+    it("keeps a paragraph's element and text node when typing in it", () => {
+      const { react } = both("<p>abc</p><p>def</p>");
+      const p = blockIn(react.contentDOM, 0);
+      const text = textIn(react.contentDOM, 0);
+      edit(react, { from: 1, insert: [Leaf.text("x")] });
+      edit(react, { from: 3, insert: [Leaf.text("y")] });
+      expect(blockIn(react.contentDOM, 0)).toBe(p);
+      expect(textIn(react.contentDOM, 0)).toBe(text);
+      expect(text.nodeValue).toBe("xaybc");
+    });
+
+    it("keeps the other paragraphs' elements when one is inserted or deleted", () => {
+      const { react } = both("<p>a</p><p>b</p><p>c</p>");
+      const [a, b, c] = react.contentDOM.children;
+      edit(react, { from: 0, insert: [Paragraph.create([Leaf.text("new")])] });
+      expect([...react.contentDOM.children].slice(1)).toEqual([a, b, c]);
+      edit(react, { from: 8, to: 11 });
+      expect([...react.contentDOM.children].slice(1)).toEqual([a, c]);
+      expect(a?.textContent).toBe("a");
+    });
+
+    it("keeps the tiles of nodes an edit didn't touch", () => {
+      const { react } = both(`<p>a</p><p>b<img src="${img}"></p>`);
+      const kept = blockIn(react.contentDOM, 1).wgTile;
+      const touched = blockIn(react.contentDOM, 0).wgTile;
+      edit(react, { from: 1, insert: [Leaf.text("x")] });
+      expect(blockIn(react.contentDOM, 1).wgTile).toBe(kept);
+      expect(blockIn(react.contentDOM, 0).wgTile).not.toBe(touched);
+      expect(kept?.parent).toBe(docTileOf(react));
+    });
   });
 
   // Wordgard lets the browser do these edits and records them; the flush then

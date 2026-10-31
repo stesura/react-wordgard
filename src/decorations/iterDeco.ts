@@ -6,7 +6,8 @@
 import { Attributes, Elt, Leaf, type Mark, type Node, type Plot } from "wordgard/doc";
 
 export type ChildView =
-  | { type: "node"; node: Node }
+  // `index` is the node's index in its parent plot's content.
+  | { type: "node"; node: Node; index: number }
   | { type: "text"; text: string }
   | { type: "wrapper"; elt: Elt; spanning: boolean; children: ChildView[] }
   // The `<img class="wg-buffer">` at the start (-1) or end (1) of an inline plot.
@@ -137,14 +138,14 @@ const needsTrailingHack = (views: readonly ChildView[]): boolean | undefined => 
 export const iterDeco = memo((plot: Plot): readonly ChildView[] => {
   const views: ChildView[] = [];
   if (plot.isInline) views.push({ type: "buffer", side: -1 });
-  for (const node of plot.content) {
+  for (const [index, node] of plot.content.entries()) {
     // Wordgard 0.6.2 can leave empty text leaves; React draws nothing for them
     // (docs/wordgard-upstream-bugs.md).
     if (node.is(Leaf.Text) && !node.param) continue;
     let target = views;
     for (const { elt, spanning } of nodeWrappers(node)) target = openWrapper(target, elt, spanning);
     if (node.is(Leaf.Text)) addText(target, node.param);
-    else target.push({ type: "node", node });
+    else target.push({ type: "node", node, index });
     // Wordgard bug: an inline plot drawn as an atom still gets the buffer an
     // inline plot starts with, after it and outside its wrappers
     // (docs/wordgard-upstream-bugs.md).

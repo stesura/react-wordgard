@@ -70,7 +70,8 @@ export const pendingWordgardTests = {
     "webtest-composition.ts > composition > supports composition inside existing text",
     "webtest-composition.ts > composition > supports composition on an empty line",
   ],
-  // DOM nodes Wordgard keeps through an update and React replaces, here when
-  // a wrapper changes around them (R2's keys).
-  reuse: ["webtest-content.ts > DocTile > preserves DOM nodes with changed wrappers marks"],
+  // DOM nodes Wordgard moves into a new parent and React recreates: when a
+  // wrapper's element changes (<strong> to <em>), React remounts what it
+  // holds. Keys can't help; react-prosemirror has the same limit.
+  reparent: ["webtest-content.ts > DocTile > preserves DOM nodes with changed wrappers marks"],
 };

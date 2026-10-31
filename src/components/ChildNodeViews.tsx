@@ -3,6 +3,7 @@
 import React from "react";
 import type { Plot } from "wordgard/doc";
 
+import { useRenderStore } from "../contexts/RenderStoreContext.js";
 import { type ChildView, iterDeco } from "../decorations/iterDeco.js";
 import { SeparatorHackView } from "./SeparatorHackView.js";
 import { TextNodeView } from "./TextNodeView.js";
@@ -14,8 +15,22 @@ type Props = {
   node: Plot;
 };
 
-// Keys are indices until R2 derives them from change sets.
-const renderChildView = (view: ChildView, key: number) => {
+// A node's key comes from ReactKeys. Other views are keyed after their previous
+// sibling, so a text run keeps its text node while its start changes.
+const renderChildViews = (views: readonly ChildView[], nodeKeys: readonly string[]) => {
+  let previous = "";
+  return views.map((view) => {
+    const key =
+      view.type == "node"
+        ? nodeKeys[view.index]
+        : `${previous}>${view.type == "buffer" ? `buffer${view.side}` : view.type}`;
+    if (!key) throw new Error(`No key for ${view.type == "node" ? view.node.name : view.type}`);
+    previous = key;
+    return renderChildView(view, key, nodeKeys);
+  });
+};
+
+const renderChildView = (view: ChildView, key: string, nodeKeys: readonly string[]) => {
   switch (view.type) {
     case "node":
       return <DefaultNodeView key={key} node={view.node} />;
@@ -24,7 +39,7 @@ const renderChildView = (view: ChildView, key: number) => {
     case "wrapper":
       return (
         <MarkView key={key} elt={view.elt}>
-          {view.children.map(renderChildView)}
+          {renderChildViews(view.children, nodeKeys)}
         </MarkView>
       );
     case "buffer":
@@ -34,4 +49,8 @@ const renderChildView = (view: ChildView, key: number) => {
   }
 };
 
-export const ChildNodeViews = ({ node }: Props) => <>{iterDeco(node).map(renderChildView)}</>;
+export const ChildNodeViews = ({ node }: Props) => {
+  const nodeKeys = useRenderStore().keys.get(node);
+  if (!nodeKeys) throw new Error(`No keys for ${node.name}`);
+  return <>{renderChildViews(iterDeco(node), nodeKeys)}</>;
+};

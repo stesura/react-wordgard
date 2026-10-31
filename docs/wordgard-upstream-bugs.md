@@ -1,7 +1,8 @@
 # Wordgard bugs found while building react-wordgard (2026-10-31)
 
-Bugs in Wordgard's own view that react-wordgard's comparison tests ran into. Each says what we do
-about it now and what to do once Wordgard fixes it. Checked against `wordgard` 0.6.2 (installed)
+Bugs in Wordgard's own view that react-wordgard's comparison tests ran into, and, at the end,
+requests: Wordgard logic we copy because it isn't reachable. Each says what we do about it now and
+what to do once Wordgard changes. Checked against `wordgard` 0.6.2 (installed)
 and Wordgard's `main` at `08804c9`, where all but the last are still present. None reported
 upstream yet.
 
@@ -69,3 +70,19 @@ Code that depends on one of these points here: `grep -rn wordgard-upstream-bugs 
   only an empty text leaf as an empty one" builds its document with `Leaf.text("")` and will
   throw; rebuild it with `Leaf.Text.of("")` or drop it. Keep the guard in `iterDeco` while
   `Leaf.Text.of("")` can still produce empty leaves.
+
+## Requests
+
+### Mapping a position over bare sections
+
+- **What we copy:** `ChangeSet.mapPos(pos, 1, "after")` (`src/doc/change.ts`), as `mapNodePos` in
+  `src/reactKeys.ts` (about 15 lines, plus a `retagged` flag of our own), to carry React keys
+  through an update.
+- **Why:** `DocTile.update` receives the change sections, not a `ChangeSet` (Wordgard's own tests
+  call it with `tr.changes.sections`), and a `ChangeSet` can't be rebuilt from sections: its
+  constructor is private, and `ChangeSet.create` takes a change description. Calling
+  `ChangeSet.prototype.mapPos` on a stand-in object would work at runtime, but needs a cast and
+  leans on internals.
+- **Ask:** a public way to map over sections (an exported `mapPos(sections, pos, assoc, track)`,
+  or a public constructor from sections).
+- **Once available:** `mapNodePos` becomes a call to it, keeping only the `retagged` check.

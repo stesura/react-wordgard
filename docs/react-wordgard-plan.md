@@ -1,7 +1,8 @@
 # react-wordgard: a React view for Wordgard (plan, 2026-10-30)
 
-**Status:** R1 done (2026-10-31, see Progress): React renders every node and mark Wordgard's
-schemas define, without decorations; R2 is next. The skeleton (a standalone copy of our react-prosemirror fork, Tiptap
+**Status:** R1 done; R2 mostly done (2026-10-31, see Progress): stable keys from change sets, kept
+tiles, a render store. React renders every node and mark Wordgard's schemas define, without
+decorations; R3 (composition) is next. The skeleton (a standalone copy of our react-prosemirror fork, Tiptap
 removed, `wordgard` installed, ProseMirror still in place) is done.
 
 Related: `docs/wordgard-feasibility.md` (why Wordgard, and what a migration would mean),
@@ -177,6 +178,11 @@ and re-renders from change sets, store-based state with stable contexts, view-de
 by binary search.
 - **Done when:** Wordgard's editing tests pass against the React view. Port the ones covering input,
   selection and coordinates first (the author's lesson: the view's test suite is the safety net).
+- **Status:** mostly done (2026-10-31). Keys from change sets, kept tiles and a minimal render
+  store are in; Wordgard's editing, input and selection tests already pass on the React view. Not
+  done: view-description placement by binary search (not needed: tiles are built in one pass, not
+  registered by components), and the store's subscriptions and selector hooks (deferred until a
+  consumer exists, R4 or R5).
 
 ### R3: composition
 
@@ -350,13 +356,55 @@ Stable inline partitions for Wordgard's mark shapes, memoised children from chan
   - `view` project: 124 pass (was 99), 61 skipped. Of the 41 under nodes, 25 pass; 15 moved to
     decorations (widgets, tag and point shapes, range wrappers and attributes) and 1 to a new
     `reuse` category ("preserves DOM nodes with changed wrappers marks": Wordgard keeps the
-    `<img>` when its wrapper changes, React replaces it; R2's keys). The `nodes` category is gone.
+    `<img>` when its wrapper changes, React replaces it; R2 found keys can't fix it, now under
+    `reparent`). The `nodes` category is gone.
   - Demo: `/wordgard.html` now has line breaks, images, a rule, a table and a captioned figure.
   - Audit fixes: the trailing-`<br>` rule skipped a plot whose content sits deeper in its shape
     (Wordgard's scan skips `NodeInner` structure), and React rendered some shape attributes unlike
     Wordgard's `setAttribute` (`draggable="false"` became `"true"`, `hidden=""` was dropped,
     `colspan`/`rowspan` warned); `src/helpers/props.ts` is now adapted rather than verbatim. Both
     covered by new documents (114 tile tests).
+- **2026-10-31, R2 keys, store and kept tiles, done:** reviewed with Fable before starting (keys in
+  the view, own store, improvements now rather than porting react-prosemirror's structure first).
+  - Keys (`src/reactKeys.ts`, named after react-prosemirror's `reactKeys`; not a plugin): per
+    parent plot, the keys of its children by index (`WeakMap<Plot, string[]>`), so a plot that
+    keeps its identity keeps its keys with no work and rendering needs no positions. `update`
+    maps them from the old doc through the change sections, as `reactKeys` maps positions through
+    steps (`mapNodePos`: a copy of Wordgard's `mapPos` with assoc 1 and track "after", since
+    Wordgard can't map over the bare sections `update` gets; see the requests in
+    `docs/wordgard-upstream-bugs.md`), visiting only plots
+    that changed identity: typing keeps a paragraph's key, a split keeps the first half's, a join
+    the first paragraph's, a deleted node's key goes. Unlike `reactKeys`, replacing a node's
+    first token by one token of the same type (a parameter change, e.g. a heading's level) keeps
+    the key, and only plots and non-text leaves have mapped keys: text runs, wrappers and hack
+    nodes are keyed after their previous sibling (`ChildNodeViews`), so a run keeps its text node
+    when typing at its start (Wordgard's "reuses text nodes when changing their start"). Moves
+    get new keys; keeping them (`reactKeys`' `overrides`) would need a transaction effect.
+  - Render store (`src/contexts/RenderStoreContext.ts`, after the fork's): one object per content
+    element, provided once, holding the keys; written inside the flush before React renders. No
+    subscriptions yet, nothing re-renders without its props changing.
+  - Kept tiles: a node that kept its identity was skipped by React (`DefaultNodeView`'s memo), and
+    `restore` already undid browser edits in it, so `addChildTiles` reuses its old tile subtree
+    instead of rebuilding it.
+  - Audit (Fable, after the work): no blocking findings. A random comparison with Wordgard (500
+    edits, then undo and redo all of them) matched on doc, DOM, tiles and queries, apart from
+    attribute order (below). Fixed: a dead `Dirty` check on tile reuse (`restore`'s `sync()`
+    clears it), and a unit test that didn't observe `mapKeys`.
+  - Verified: `src/__tests__/reactKeys.test.ts` (9 unit tests: typing, insertion, deletion, split,
+    join, parameter vs type change, nested plots, identity); three DOM and tile identity tests in
+    `tile.browser.test.ts`, which fail with index keys or without tile reuse; the whole comparison
+    suite and the `view` project unchanged.
+  - Measured in Vitest's browser mode (React's development build, so slower than production; the
+    throwaway harness isn't committed), median keystroke after load, Chromium, paragraphs with a
+    mark: 2,500 paragraphs
+    12 ms (23 ms before tile reuse; Wordgard 3 ms), 15,000 paragraphs 62 ms (123 ms before;
+    Wordgard 18 ms). Load 0.4 s and 1.6 s (Wordgard 0.14 s and 0.64 s). What's left is linear in
+    the doc's top-level children on each keystroke: React reconciling every one of them (memo
+    hits, but each still compared), `iterDeco` relaying out the new doc's children, `mapKeys` and
+    `addChildTiles` walking them. R6.
+  - The pending "preserves DOM nodes with changed wrappers marks" test can't be fixed by keys: a
+    wrapper changing element remounts what it holds in React, which never reparents. Moved to
+    `reparent` in `test/view/pending.ts`.
 - **Open from R1's first slice:**
   - Composition: restoring the old tree undoes the browser's composed text, so the IME's text node
     doesn't survive the flush. R3 has to keep it (Wordgard's `Composition` tile) while React's own
@@ -364,9 +412,12 @@ Stable inline partitions for Wordgard's mark shapes, memoised children from chan
   - Wordgard's constructor still draws the document once before `ReactDocTile.create` replaces it
     (its constructor calls the module's `DocTile.create`, not `Wordgard.DocTile`): double work at
     load, until the renderer interface.
-  - Every update re-renders from the root and rebuilds the whole tile tree (O(document)); R2's
-    change-set keys and kept tiles fix it. The layout is cached per plot since the marks slice, so
-    unchanged plots aren't laid out again, but their tiles are still rebuilt.
+  - Every update re-renders from the root and rebuilt the whole tile tree (O(document)). Since R2,
+    unchanged plots keep their tiles and are skipped by React; what remains is linear in the doc's
+    top-level children (see R2's measurements).
+  - Decoration-only changes: `update` returns early when the doc is unchanged and every section
+    is kept, but decoration changes don't show in the sections it receives (Wordgard's
+    `findChangedRanges` runs inside its own `DocTile.update`), so they won't redraw. R4.
   - Tag decorations (`Decoration.Tag.*`) and mark shape overrides (`Decoration.Mark.shape`) live
     in internal facets, so `checkRenderable` can't see them: a paragraph with a tag decoration, or
     a mark whose shape is overridden, renders with its default shape instead of throwing. Point
@@ -386,7 +437,9 @@ Stable inline partitions for Wordgard's mark shapes, memoised children from chan
     parent, `Attributes.compare` skipping attribute updates, empty text leaves): see
     `docs/wordgard-upstream-bugs.md`, with what to do once each is fixed. None reported yet.
   - Attribute order also differs after updates: React appends an added attribute (`style data-a`),
-    Wordgard's fresh render sorts them. Comparisons by `innerHTML` after edits are order-fragile.
+    Wordgard's fresh render sorts them, and Wordgard's own updates append too (an image given an
+    attribute mark: `src data-comment` there, `data-comment src` in React). Comparisons by
+    `innerHTML` after edits are order-fragile; none of the comparison documents hits it yet.
   - Shape attributes React still renders differently from `setAttribute` (none in Wordgard's
     schemas): `contenteditable=""` becomes `"true"`, `autofocus` and `checked` are handled as
     properties, `draggable` values other than `"true"`/`"false"` become `"true"`, and
