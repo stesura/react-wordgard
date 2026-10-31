@@ -1,7 +1,8 @@
 // Named after react-prosemirror's DefaultNodeView, rewritten for Wordgard: a
 // node renders as the shape Wordgard's decorations give it (its
 // buildNodeShape), with the plot's content in the hole. In Wordgard every node
-// type has a shape, so there's no missing `toDOM` to check for.
+// type has a shape, so there's no missing `toDOM` to check for. Widgets, as a
+// node's shape or inside it, draw nothing: ReactDocTile puts their DOM in place.
 import React, { type ReactElement, type ReactNode, createElement, memo } from "react";
 import { Elt } from "wordgard/doc";
 
@@ -33,7 +34,7 @@ const renderShape = (
       if (child === 0) return content;
       if (typeof child == "string") return child;
       if (child instanceof Elt) return renderShape(child, inner, content, i);
-      throw new Error("react-wordgard can't render widgets yet");
+      return null;
     })
   );
 };
@@ -43,7 +44,7 @@ const renderShape = (
 export const DefaultNodeView = memo(
   ({ view }: Props) => {
     const { node, shape, children } = view;
-    if (!(shape instanceof Elt)) throw new Error("react-wordgard can't render widgets yet");
+    if (!(shape instanceof Elt)) return null;
     return renderShape(
       shape,
       true,

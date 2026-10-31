@@ -91,9 +91,10 @@ export const mapKeys = (
 // The keys of a list of sibling views (ChildNodeViews renders them, ReactDocTile
 // records them), paired with them. A node's key comes from ReactKeys; other
 // views are keyed after their previous sibling, so a text run keeps its text
-// node while its start changes. A composition, and the wrappers around it,
-// keep the keys of the nodes React committed there, and nothing else in their
-// list may take those.
+// node while its start changes. Widgets, which React draws nothing for, don't
+// count as that sibling: one coming or going leaves the next text node alone.
+// A composition, and the wrappers around it, keep the keys of the nodes React
+// committed there, and nothing else in their list may take those.
 export const childViewKeys = (views: readonly ChildView[], nodeKeys: readonly string[]) => {
   const fixed = (view: ChildView) =>
     view.type == "composition" || view.type == "wrapper" ? view.key : undefined;
@@ -109,7 +110,7 @@ export const childViewKeys = (views: readonly ChildView[], nodeKeys: readonly st
       if (key === undefined) throw new Error("No key for a node");
       while (taken.has(key)) key += "+";
     }
-    previous = key;
+    if (view.type != "widget") previous = key;
     return { view, key };
   });
 };

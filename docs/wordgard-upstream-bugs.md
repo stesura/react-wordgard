@@ -99,6 +99,17 @@ Code that depends on one of these points here: `grep -rn wordgard-upstream-bugs 
   tests compare against Wordgard's fresh render, or against short edit sequences.
 - **Once fixed:** worth a random comparison suite (React against fresh Wordgard after each edit).
 
+## 7. A non-editable text widget is left editable
+
+- **Repro:** a widget type whose `render` returns a text node, without `editable: true`, e.g.
+  `Widget.define<string>({render: t => document.createTextNode(t)})` as a point or tag widget.
+- **Cause:** `setUneditable` (`src/editor/tile.ts`) wraps a text node in a `<span>` and sets
+  `contenteditable="false"` on it, but the tile keeps the text node, so the parent's
+  `syncChildren` moves the text back out and the span is dropped.
+- **What we do:** mirror it: `setUneditable` in `src/tile.ts` leaves text nodes alone, which
+  draws the same DOM. The "tag widgets" document in `tile.browser.test.ts` has one.
+- **Once fixed:** wrap the text widget as Wordgard then does (the tile likely holding the span).
+
 ## Requests
 
 ### Mapping a position over bare sections

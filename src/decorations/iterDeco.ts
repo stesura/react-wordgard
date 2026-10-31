@@ -44,6 +44,9 @@ export type ChildView =
   | WrapperChildView
   // The `<img class="wg-buffer">` at the start (-1) or end (1) of an inline plot.
   | { type: "buffer"; side: -1 | 1 }
+  // A point widget. React draws nothing for it: ReactDocTile renders or reuses
+  // its DOM.
+  | { type: "widget"; widget: Widget; side: number }
   // The browser's text node during a composition (ContentUpdate.composition):
   // React keeps `rendered` there, what it last committed, or draws nothing.
   | { type: "composition"; key: string; rendered: string | null }
@@ -96,12 +99,14 @@ export const uneditable = (shape: DecoElt, inEditable: boolean) => {
 export const sameNodeView = (a: NodeView, b: NodeView) =>
   a == b || (a.node == b.node && a.children == b.children && a.shape.eq(b.shape));
 
+const isPoint = (view: ChildView | undefined) => view?.type == "buffer" || view?.type == "widget";
+
 // A spanning wrapper continues the previous sibling when it draws the same
-// element, taking in the buffers between them (ContentUpdate.enterSpanning,
+// element, taking in the points between them (ContentUpdate.enterSpanning,
 // minus a Wordgard bug: docs/wordgard-upstream-bugs.md).
 const openWrapper = (views: ChildView[], elt: DecoElt, spanning: boolean) => {
   let i = views.length - 1;
-  while (views[i]?.type == "buffer") i--;
+  while (isPoint(views[i])) i--;
   const prev = views[i];
   if (spanning && prev?.type == "wrapper" && prev.spanning && prev.elt.eq(elt)) {
     prev.children.push(...views.splice(i + 1));
@@ -120,8 +125,9 @@ const addText = (views: ChildView[], text: string) => {
 };
 
 // ensureHackNode: a textblock or inline plot needs a trailing <br> when it ends,
-// looking inside wrappers, in nothing or in a <br>. Undefined when `views`
-// holds nothing to decide on.
+// looking inside wrappers and past widgets out of the flow, in nothing or in a
+// <br>. Undefined when `views` holds nothing to decide on. Unlike Wordgard, a
+// widget rendering a <br> counts as content: its DOM doesn't exist yet.
 const needsTrailingHack = (views: readonly ChildView[]): boolean | undefined => {
   for (let i = views.length - 1; i >= 0; i--) {
     const view = views[i];
@@ -129,10 +135,15 @@ const needsTrailingHack = (views: readonly ChildView[]): boolean | undefined => 
     if (view.type == "wrapper") {
       const found = needsTrailingHack(view.children);
       if (found !== undefined) return found;
+    } else if (view.type == "widget") {
+      if (view.widget.type.inFlow) return false;
     } else if (view.type == "node") {
       const { shape, children } = view;
-      if (!(shape instanceof Elt) || !children)
-        return shape instanceof Elt && shape.tagName.toLowerCase() == "br";
+      if (!(shape instanceof Elt)) {
+        if (shape.type.inFlow) return false;
+        continue;
+      }
+      if (!children) return shape.tagName.toLowerCase() == "br";
       // Structure around a plot's content is skipped, so the plot decides only
       // when the hole is a direct child (its content, an inline plot's, ends in
       // a buffer); otherwise the scan goes on before it.
@@ -261,8 +272,11 @@ export const iterDeco = (
       throw new Error(`react-wordgard can't render part of ${node.name}`);
     },
     widget: (widget, side) => {
-      if (widget != Widget.img) throw new Error("react-wordgard can't render widgets yet");
-      views.push({ type: "buffer", side: side < 0 ? -1 : 1 });
+      views.push(
+        widget == Widget.img
+          ? { type: "buffer", side: side < 0 ? -1 : 1 }
+          : { type: "widget", widget, side }
+      );
     },
   };
   const { composition } = context;

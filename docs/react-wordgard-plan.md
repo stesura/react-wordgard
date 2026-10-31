@@ -2,8 +2,8 @@
 
 **Status:** R1 done; R2 mostly done; R3 done for what can be tested here; R4 in progress
 (2026-10-31, see Progress): React renders every node and mark Wordgard's schemas define, and
-every decoration but widgets, with stable keys and kept tiles, and keeps the IME's text node
-through Wordgard's flush. Widgets, then React widgets and node views, are next. The skeleton (a standalone copy of our react-prosemirror fork, Tiptap
+every decoration, Wordgard's native widgets included, with stable keys and kept tiles, and keeps
+the IME's text node through Wordgard's flush. React widgets and node views are next. The skeleton (a standalone copy of our react-prosemirror fork, Tiptap
 removed, `wordgard` installed, ProseMirror still in place) is done.
 
 Related: `docs/wordgard-feasibility.md` (why Wordgard, and what a migration would mean),
@@ -202,8 +202,9 @@ Wordgard's point, range and tag decorations; widgets; React node views as compon
 with a `getPos` read from tiles.
 - **Done when:** a React node view shares the editor's contexts (no React root of its own), and
   widgets and decorations render and map through edits.
-- **Status:** in progress (2026-10-31). Slices 1 to 3 of six done: decorations other than widgets
-  render and redraw on their own. Next: native widgets, React widgets, React node views.
+- **Status:** in progress (2026-10-31). Slices 1 to 4 of six done: decorations and Wordgard's
+  native widgets render, redraw on their own and keep their DOM through edits. Next: React widgets
+  (slice 5), React node views (slice 6).
 
 ### R5: hooks
 
@@ -500,6 +501,52 @@ Stable inline partitions for Wordgard's mark shapes, memoised children from chan
   - Open: a plot whose type is atomic but whose decorated shape has a content hole would make its
     content walk find an atom parent and throw ("can't render part of"); Wordgard only meets this
     on an update starting inside such a plot. Not reproduced.
+- **2026-10-31, R4 slice 4 (native widgets), done:** tag widgets, point widgets, nodes drawn as
+  widgets and widgets inside shapes render as Wordgard draws them, with no wrapper element.
+  - React draws nothing for a widget (`ChildNodeViews`, `DefaultNodeView`); `ReactDocTile`'s tile
+    builder renders it (`widget.render(wg)`, `setUneditable` copied from Wordgard), or reuses its
+    DOM, and puts it in place after React's commit. The child cursor skips widget DOM; when an
+    element holds any, `placeWidgets` moves only widget DOM, and only where it's out of place
+    (React's own nodes are in the right order among themselves). Widget DOM an element no longer
+    holds is removed at the end of the build unless used elsewhere.
+  - Reuse is positional, as Wordgard's: the old content tile's widgets are indexed, on first need,
+    by their old position mapped through the update's sections (along kept and redrawn ranges, at
+    both edges of a replaced one). Point widgets equal on the same side, not changed in the DOM,
+    are kept whole; a node drawn as a widget is kept whole where React would skip it, else its
+    DOM is reused and it's connected anew; widgets inside a shape are kept whole while the node's
+    tag and shape are unchanged (Wordgard rebuilds a shape only when the node itself is redrawn).
+    `restore` reports the widgets the DOM observer saw changed, since its `sync()` clears `Dirty`.
+  - Connect and disconnect as Wordgard's `updateRanges` (`Reused.Full` / `Reused.DOM`). To keep
+    documents without widgets on the old path, kept nodes are only recorded once a tree has held
+    widgets (`ReactDocTile.widgets`). `ReactWordgard`'s constructor disconnects the tree Wordgard
+    drew when it's already connected: an editor created with a `parent` connects its widgets twice.
+  - Layout: widget views; spanning continuation skips them like buffers; the trailing `<br>` scan
+    skips widgets out of the flow. Widget views don't count as the previous sibling for keys, so a
+    widget coming or going doesn't remount the text after it.
+  - Deviations from the handoff: widget keys don't chain (above). Reuse is by mapped position
+    rather than by looking beside the cursor in the DOM: React appends new nodes after foreign
+    ones and remounts wrappers whose element changes, which the first version lost widgets to.
+  - Tests: the 15 pending `widgets` tests of Wordgard pass on ReactWordgard (`view`: 183 passed, 2
+    skipped). `tile.browser.test.ts`: 7 widget documents in the compared table, an edit sequence
+    comparing DOM, tile tree and which widget nodes survive each step with Wordgard, typing next
+    to widgets, connect/disconnect logs, and bug 2 pinned for widgets: 195 tests. 603 passed and 2
+    skipped overall.
+  - Measured (median of 30 mid-document keystrokes, `basicSchema`, dev build, a harness of its
+    own, not R2's): widget-free documents as before this slice (HEAD in a worktree, same harness):
+    about 28 ms at 2,500 paragraphs and 150–170 ms at 15,000, Wordgard 2.5 and 15 ms. With a tag
+    widget before each paragraph: 51 ms and 212 ms, Wordgard 8 and 39 ms.
+  - Audit (Fable) fix: in a redrawn (`-2`) range Wordgard rebuilds the nodes starting there, so
+    the widgets of their shapes (a node drawn as a widget, widgets inside a shape, an atom's) are
+    disconnected and connected anew; React kept them whole. Now mirrored (`redrawn` in
+    `src/tile.ts`), and the connect/disconnect test redraws through a range wrapper and a new tag
+    widget. Left as they are: the double connect at construction and the reuse miss after a
+    composition (both below), and the linear per-keystroke work on widget-heavy documents (R6).
+  - Wordgard bug 7 found and mirrored: a non-editable text widget is left editable.
+  - Open: a widget whose DOM is a `<br>` counts as content for the trailing `<br>` (Wordgard counts
+    it as a break: its DOM doesn't exist at layout time). A widget next to an IME composition may
+    be redrawn rather than reused (`keepComposing` puts the composed text in the old tree, so old
+    positions after it are off). Widgets inside spanning wrappers only arise through Wordgard bug
+    2, so the comparison sequences keep marks off widgets.
 - **Open from R1's first slice:**
   - Composition: restoring the old tree undid the browser's composed text. Done in R3 (above),
     for Chromium; Safari, Firefox and real IMEs still to check.
@@ -510,8 +557,7 @@ Stable inline partitions for Wordgard's mark shapes, memoised children from chan
     unchanged plots keep their tiles and are skipped by React; what remains is linear in the doc's
     top-level children (see R2's measurements).
   - Decoration-only changes: done in R4 (`updateRanges`).
-  - Decorations render since R4, but for widgets, which throw ("can't render widgets yet"),
-    including widget shapes and widgets inside shapes.
+  - Decorations render since R4, widgets since its slice 4.
   - React writes attributes in prop order, Wordgard in sorted order: the DOM is equivalent but
     `innerHTML` differs once a shape has several attributes.
   - `flushSync` inside a React render or effect doesn't flush synchronously: an editor created
@@ -534,7 +580,6 @@ Stable inline partitions for Wordgard's mark shapes, memoised children from chan
     schemas): `contenteditable=""` becomes `"true"`, `autofocus` and `checked` are handled as
     properties, `draggable` values other than `"true"`/`"false"` become `"true"`, and
     `hidden="until-found"` becomes `hidden=""`.
-  - For R4: `iterDeco`'s spanning continuation skips buffers only; point widgets will need the
-    same.
+  - For R4: `iterDeco`'s spanning continuation skips point widgets too since slice 4.
   - Wordgard has no `destroy()`, so the React root is never unmounted; it lives as long as the
     content element.

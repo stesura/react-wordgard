@@ -1,7 +1,7 @@
 // R1's "done when": React's tree draws the same DOM as Wordgard's own renderer
 // and answers the tile queries the same way.
 import { Node as DocNode, Elt, Leaf, Mark, Plot } from "wordgard/doc";
-import { Decoration, Wordgard } from "wordgard/editor";
+import { Decoration, Widget, Wordgard } from "wordgard/editor";
 import {
   alignment,
   blockDoc,
@@ -14,8 +14,9 @@ import {
   orderedList,
   paragraph,
 } from "wordgard/schema";
-import { GardState, type Transaction } from "wordgard/state";
+import { GardState, Transaction } from "wordgard/state";
 import {
+  Blockquote,
   CaptionedFigure,
   Cell,
   ColSpan,
@@ -23,6 +24,7 @@ import {
   Emphasis,
   Figure,
   HeaderCell,
+  HorizontalRule,
   Image,
   LineBreak,
   Paragraph,
@@ -116,7 +118,15 @@ const Marker = Leaf.define("Marker", {
   parseRules: [{ selector: "span.marker", precedence: 10 }],
 });
 
-// Decorations of every kind but widgets, each in a document of its own.
+// Widgets, drawn as spans (or a text node), editable, out of the flow or not.
+const label = (text: string) =>
+  Object.assign(document.createElement("span"), { className: "w", textContent: text });
+const Label = Widget.define<string>({ render: label });
+const EditableLabel = Widget.define<string>({ render: label, editable: true });
+const Aside = Widget.define<string>({ render: label, inFlow: false });
+const TextWidget = Widget.define<string>({ render: (text) => document.createTextNode(text) });
+
+// Decorations of every kind, each in a document of its own.
 const pointAt = (...decos: [Decoration.Point, number][]) =>
   Decoration.Point.source.of(() => Decoration.Point.set(decos));
 const rangeOver = (...decos: [Decoration.Range, number, number][]) =>
@@ -162,6 +172,61 @@ const decorated: Record<string, [string, GardState.Extension]> = {
       [Decoration.Range.wrapper("mark", { attributes: { class: "r" } }), 2, 8],
       [Decoration.Range.attribute("data-r", "1", { scope: "all" }), 7, 16]
     ),
+  ],
+  "tag widgets": [
+    "<p>one</p><h2>two</h2><p></p>",
+    [
+      Decoration.Tag.widget(Paragraph, "before", Label.of("b")),
+      Decoration.Tag.widget(Paragraph, "after", EditableLabel.of("a")),
+      Decoration.Tag.widget(Paragraph, "start", TextWidget.of("s")),
+      Decoration.Tag.widget(Paragraph, "end", Label.of("e")),
+    ],
+  ],
+  "point widgets": [
+    "<p>abcd</p><p>ef</p>",
+    pointAt(
+      [Decoration.Point.widget(Label.of("E")), 1],
+      [Decoration.Point.widget(Label.of("A"), { side: -1 }), 3],
+      [Decoration.Point.widget(Label.of("B"), { side: 0 }), 3],
+      [Decoration.Point.widget(Label.of("C"), { side: 1 }), 3],
+      [Decoration.Point.widget(Label.of("D")), 6],
+      [Decoration.Point.widget(Label.of("F")), 10]
+    ),
+  ],
+  // As in Wordgard's test "picks the right side of widgets on wrapper boundaries".
+  "widgets on wrapper boundaries": [
+    "<p><strong>a</strong>b<strong>c</strong>d</p>",
+    pointAt(
+      [Decoration.Point.widget(Label.of("A"), { side: -1 }), 1],
+      [Decoration.Point.widget(Label.of("B"), { side: 1 }), 2],
+      [Decoration.Point.widget(Label.of("C"), { side: 1 }), 3],
+      [Decoration.Point.widget(Label.of("D"), { side: -1 }), 4]
+    ),
+  ],
+  // The empty paragraph still gets its <br>; the other doesn't.
+  "widgets out of the flow": [
+    "<p>ab</p><p></p>",
+    pointAt(
+      [Decoration.Point.widget(Aside.of("x")), 3],
+      [Decoration.Point.widget(Aside.of("y")), 5]
+    ),
+  ],
+  "widget shapes": [
+    `<p>a<img src="${img}">b</p><hr>`,
+    [
+      Decoration.Tag.shape(Image, (tag) => Label.of(tag.param.slice(-4))),
+      Decoration.Tag.shape(HorizontalRule, EditableLabel.of("rule")),
+    ],
+  ],
+  "widgets inside shapes": [
+    `<p>a<img src="${img}">b</p><blockquote><p>q</p></blockquote>`,
+    [
+      Decoration.Tag.shape(Image, Elt.mk<Widget>("span", { class: "img" }, [Label.of("i")])),
+      Decoration.Tag.shape(
+        Blockquote,
+        Elt.mk<Widget>("blockquote", [Label.of("quote"), Elt.mk("div", [0])])
+      ),
+    ],
   ],
 };
 
@@ -755,6 +820,123 @@ describe("ReactDocTile", () => {
     );
     const buffer = react.contentDOM.querySelector("img.wg-buffer");
     expect(buffer?.wgTile?.parent?.dom).toBe(react.contentDOM.querySelector("mark"));
+    const widget = both(
+      "<p><strong>ab</strong></p>",
+      pointAt([Decoration.Point.widget(Label.of("w")), 2])
+    ).react.contentDOM;
+    expect(widget.innerHTML).toBe(
+      '<p><strong>a<span class="w" contenteditable="false">w</span>b</strong></p>'
+    );
+    expect(widget.querySelector(".w")?.wgTile?.parent?.dom).toBe(widget.querySelector("strong"));
+  });
+
+  describe("with widgets", () => {
+    const edit = (wg: Wordgard, changes: Transaction.Spec["changes"]) => {
+      wg.dispatch({ changes });
+      wg.flush();
+    };
+    const flip = Transaction.Effect.define<null>();
+    // Point widgets that follow the edits, and change on `flip`.
+    const points = GardState.Field.define({
+      create: () =>
+        Decoration.Point.set([
+          [Decoration.Point.widget(Label.of("x")), 2],
+          [Decoration.Point.widget(EditableLabel.of("y"), { side: -1 }), 7],
+        ]),
+      update: (set: Decoration.Point.Set, tr: Transaction) =>
+        tr.effects.some((effect) => effect.is(flip))
+          ? Decoration.Point.set([[Decoration.Point.widget(Label.of("z")), 2]])
+          : set.map(tr.changes),
+      provide: (field) => Decoration.Point.source.of((state) => state.field(field)),
+    });
+    const widgets = [
+      points,
+      Decoration.Tag.widget(Image, "before", Label.of("<")),
+      Decoration.Tag.widget(Image, "after", Label.of(">")),
+      Decoration.Tag.widget(Paragraph, "start", Label.of("|")),
+    ];
+    const doc = `<p>ab<img src="${img}">cd</p><p>ef</p>`;
+    const steps: Transaction.Spec[] = [
+      { changes: { from: 1, insert: [Leaf.text("x")] } },
+      { changes: { from: 0, insert: [Paragraph.create([Leaf.text("new")])] } },
+      { changes: { from: 9, to: 10, insert: [Image.of(`${img}#2`)] } },
+      // Marks next to widgets, not across them (Wordgard bug 2).
+      { changes: { from: 6, to: 8, add: Strong } },
+      { changes: { from: 6, to: 8, remove: Strong, add: Emphasis } },
+      { effects: flip.of(null) },
+      { changes: { from: 16, insert: [Leaf.text("g")] } },
+      { changes: { from: 0, to: 5 } },
+      { changes: { from: 2, to: 6 } },
+    ];
+
+    it("keeps matching Wordgard's DOM, and reuses the same widget nodes", () => {
+      const { wordgard, react } = both(doc, widgets);
+      for (const spec of steps) {
+        const reuse = (wg: Wordgard) => {
+          const before = [...wg.contentDOM.querySelectorAll(".w")];
+          wg.dispatch(spec);
+          wg.flush();
+          return [...wg.contentDOM.querySelectorAll(".w")].map((w) => before.includes(w));
+        };
+        expect(reuse(react)).toEqual(reuse(wordgard));
+        expect(react.contentDOM.innerHTML).toBe(wordgard.contentDOM.innerHTML);
+        expect(describeTile(docTileOf(react), react.contentDOM)).toEqual(
+          describeTile(docTileOf(wordgard), wordgard.contentDOM)
+        );
+      }
+    });
+
+    it("keeps a widget's node when typing next to it", () => {
+      const { react } = both(doc, widgets);
+      const [x] = react.contentDOM.querySelectorAll(".w");
+      edit(react, { from: 1, insert: [Leaf.text("x")] });
+      edit(react, { from: 4, insert: [Leaf.text("y")] });
+      expect(react.contentDOM.querySelectorAll(".w")[0]).toBe(x);
+      expect(x?.textContent).toBe("|");
+      const y = react.contentDOM.querySelectorAll(".w")[1];
+      edit(react, { from: 2, insert: [Leaf.text("z")] });
+      expect(react.contentDOM.querySelectorAll(".w")[1]).toBe(y);
+    });
+
+    it("connects and disconnects widgets as Wordgard does", () => {
+      const run = (create: Create) => {
+        const log: string[] = [];
+        const Tracked = Widget.define<string>({
+          render: label,
+          connect: (value) => log.push(`connect ${value}`),
+          disconnect: (value) => log.push(`disconnect ${value}`),
+        });
+        const wg = mount(create, `<p>a<img src="${img}">b</p>`, [
+          Decoration.Tag.shape(Image, (tag) => Tracked.of(tag.param.slice(-2))),
+          Decoration.Tag.widget(Paragraph, "end", Tracked.of("end")),
+          Decoration.Tag.shape(
+            Blockquote,
+            Elt.mk<Widget>("blockquote", [Tracked.of("quote"), Elt.mk("div", [0])])
+          ),
+        ]);
+        // ReactWordgard's constructor draws the document twice.
+        log.length = 0;
+        const step = (spec: Transaction.Spec) => {
+          wg.dispatch(spec);
+          wg.flush();
+          log.push("|");
+        };
+        step({ changes: { from: 2, to: 3, insert: [Image.of(`${img}#2`)] } });
+        step({ changes: { from: 1, insert: [Leaf.text("x")] } });
+        const quote = Blockquote.create([Paragraph.create([Leaf.text("q"), Image.of(`${img}#3`)])]);
+        step({ changes: { from: wg.state.doc.length, insert: [quote] } });
+        step({ changes: { from: wg.state.doc.length - 2, insert: [Leaf.text("r")] } });
+        // Redrawn without changing: a range wrapper, then a new tag widget (all redrawn).
+        const mark = rangeOver([Decoration.Range.wrapper("mark", {}), 1, 6]);
+        step({ effects: GardState.appendConfig.of(mark) });
+        const start = Decoration.Tag.widget(Paragraph, "start", Tracked.of("s"));
+        step({ effects: GardState.appendConfig.of(start) });
+        step({ changes: { from: 0, to: wg.state.doc.length, insert: [HorizontalRule] } });
+        wg.dom.parentElement?.remove();
+        return log;
+      };
+      expect(run(ReactWordgard.create)).toEqual(run(Wordgard.create));
+    });
   });
 
   it("refuses content it can't render yet", () => {

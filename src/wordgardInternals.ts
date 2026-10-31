@@ -117,6 +117,10 @@ export const TileFlag = {
   Dirty: 0x2000,
 } as const;
 
+// Wordgard's `Reused`, how a tile of the previous tree was used in the new one:
+// whole (`Full`, not disconnected), or for its DOM only.
+export const Reused = { Full: 1, DOM: 2 } as const;
+
 // Wordgard's NodeShape: the element a node type renders as.
 interface NodeShape<Param> {
   readonly atom: boolean;
@@ -182,6 +186,12 @@ declare module "wordgard/editor" {
   }
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Widget {
+    interface Type<Param> {
+      // Whether the widget takes up room in the text (`inFlow` in its spec).
+      readonly inFlow: boolean;
+      // Whether its DOM is left editable.
+      readonly editable: boolean;
+    }
     // The `<br>` Wordgard puts at the end of a textblock that needs one.
     const br: Widget<null>;
     // The `<img class="wg-buffer">` at the start and end of an inline plot.

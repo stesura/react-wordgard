@@ -1,5 +1,6 @@
 // Named after react-prosemirror's ChildNodeViews, rewritten for Wordgard: draws
 // what iterDeco lays out: nodes, text, mark wrappers and Wordgard's hack nodes.
+// Widgets aren't React's: ReactDocTile puts their DOM in place after the commit.
 import React from "react";
 import type { Plot } from "wordgard/doc";
 
@@ -38,6 +39,8 @@ const renderChildViews = (views: readonly ChildView[], nodeKeys: readonly string
         return view.rendered === null ? null : <TextNodeView key={key} text={view.rendered} />;
       case "trailingHack":
         return <TrailingHackView key={key} />;
+      case "widget":
+        return null;
     }
   });
 

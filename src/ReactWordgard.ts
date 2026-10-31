@@ -25,7 +25,9 @@ export class ReactWordgard
     super(spec);
     // Wordgard's constructor has already drawn the document once; there's no
     // way in before it. With a `parent` in the page, its DOM observer is
-    // already watching, so React's first commit mustn't count as an edit.
+    // already watching, so React's first commit mustn't count as an edit. Its
+    // widgets were connected there, and go as an update would drop them.
+    if (this.connected) this.docTile.disconnect();
     this.docTile = this.observer.ignore(() =>
       ReactDocTile.create(this.state, this.contentDOM, this)
     );
