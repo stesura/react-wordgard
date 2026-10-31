@@ -388,6 +388,12 @@ Starts only once the API (R5) is settled and stable (decided 2026-10-31).
   random ones. At 15,000 paragraphs, per change: 1,637 ms to 693 with marks (Wordgard 488), 3,283
   to 1,973 with inline nodes (Wordgard 1,464). What's left is React drawing every paragraph
   again (about 240 ms with marks), the tile build (110) and the layout (40).
+- **A node changing around unchanged content (done 2026-10-31):** setting a paragraph's alignment
+  (a mark on its tag; the update redraws only its opening token) made a new paragraph whose
+  content was laid out anew, so React re-rendered every text node and mark in it. A re-laid
+  plot whose content draws the same as before, from the same place, now keeps its old views
+  (`sameViews` in `iterDeco`), and `ChildNodeViews` is memoised on them: React redraws the
+  paragraph's element only.
 - **Open from the audit (performance only; the output matches Wordgard):**
   - `unchangedEnds` takes the first and last change in the whole document, so a transaction
     with two edits re-walks every plot between them, and a nested plot holding one of them is

@@ -93,6 +93,9 @@ const rootOf = (dom: Element) => {
 const tileViews = new WeakMap<Tile, NodeView>();
 const viewTiles = new WeakMap<NodeView, Tile>();
 
+// For tests: the layout a node's tile was built for.
+export const nodeViewOf = (tile: Tile) => tileViews.get(tile);
+
 // Plots already checked: they never change.
 const renderable = new WeakSet<Plot>();
 

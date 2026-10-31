@@ -53,6 +53,9 @@ Remove a point when it's done or dropped, and say so where its details are.
 - **Wordgard's `moveVertically` test fails in WebKit** on plain Wordgard too; skipped there
   (`test/skipInBrowser.ts`). Check it in Safari before reporting it (`docs/wordgard-upstream-bugs.md`, 8).
 - **A widget next to an IME composition** may be redrawn rather than reused (plan, R4 slice 4).
+- **A WebKit test can time out on a busy machine:** `tile.browser.test.ts`, "maps coordinates the
+  same way" (many `posAtCoords` calls) passes in about half the runs once the machine is loaded,
+  on the code before and after the alignment fix. Raise its timeout if it keeps happening.
 
 ## Features not offered yet
 

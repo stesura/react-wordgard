@@ -111,6 +111,46 @@ export const uneditable = (shape: DecoElt, inEditable: boolean) => {
 export const sameNodeView = (a: NodeView, b: NodeView) =>
   a == b || (a.node == b.node && a.children == b.children && a.shape.eq(b.shape));
 
+// Whether two layouts of a plot's content draw the same thing, so the old one,
+// and React's work for it, can be kept: a plot can change while its content
+// doesn't (a mark on a paragraph's tag, its alignment).
+const sameViews = (a: readonly ChildView[], b: readonly ChildView[]): boolean =>
+  a.length == b.length &&
+  a.every((view, i) => {
+    const other = b[i];
+    if (view == other) return true;
+    switch (view.type) {
+      case "node":
+        return other?.type == "node" && view.key == other.key && sameNodeView(view, other);
+      case "text":
+        return other?.type == "text" && view.text == other.text;
+      case "wrapper":
+        return (
+          other?.type == "wrapper" &&
+          view.key == other.key &&
+          view.spanning == other.spanning &&
+          view.elt.eq(other.elt) &&
+          sameViews(view.children, other.children)
+        );
+      case "buffer":
+        return other?.type == "buffer" && view.side == other.side;
+      case "widget":
+        return (
+          other?.type == "widget" &&
+          view.side == other.side &&
+          view.key == other.key &&
+          view.offset == other.offset &&
+          view.widget.eq(other.widget)
+        );
+      case "composition":
+        return (
+          other?.type == "composition" && view.key == other.key && view.rendered == other.rendered
+        );
+      case "trailingHack":
+        return other?.type == "trailingHack";
+    }
+  });
+
 const isPoint = (view: ChildView | undefined) => view?.type == "buffer" || view?.type == "widget";
 
 // A spanning wrapper continues the previous sibling when it draws the same
@@ -396,10 +436,14 @@ export const iterDeco = (
   }
   if ((plot.isTextblock || plot.isInline) && needsTrailingHack(views) !== false)
     views.push({ type: "trailingHack" });
+  // From this place only: two copies of a plot mustn't share view objects.
+  const fromHere =
+    old && oldStart !== null && context.changes && mapKept(context.changes, oldStart) == start;
+  const laid = old && fromHere && sameViews(old.views, views) ? old.views : views;
   context.layouts.set(plot, {
     offset: start - parent.start,
-    views,
-    flat: isFlat(plot, views, head, tail),
+    views: laid,
+    flat: isFlat(plot, laid, head, tail),
   });
-  return views;
+  return laid;
 };

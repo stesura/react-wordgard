@@ -18,6 +18,7 @@ import {
 } from "wordgard/schema";
 import { GardState, Transaction } from "wordgard/state";
 import {
+  Alignment,
   Blockquote,
   CaptionedFigure,
   Cell,
@@ -41,7 +42,7 @@ import { ReactWordgard } from "../ReactWordgard.js";
 import { reactWidget } from "../decorations/ReactWidgetType.js";
 import { useWidgetPos } from "../hooks/useWidgetPos.js";
 import { useWordgard } from "../hooks/useWordgard.js";
-import { ReactDocTile } from "../tile.js";
+import { ReactDocTile, nodeViewOf } from "../tile.js";
 import { describeTile, docTileOf, pathOf } from "../testing/tiles.js";
 import { type Tile, TileFlag } from "../wordgardInternals.js";
 
@@ -619,6 +620,25 @@ describe("ReactDocTile", () => {
           describeTile(docTileOf(wordgard), wordgard.contentDOM)
         );
       }
+    });
+
+    // A mark on the paragraph's tag changes the paragraph, not its content:
+    // React skips the content (ChildNodeViews' memo).
+    it("keeps the layout of a paragraph's content when its alignment changes", () => {
+      const { wordgard, react } = both("<p>a</p><p>b <strong>c</strong> d</p><p>e</p>");
+      const paragraph = () => blockIn(react.contentDOM, 1);
+      const content = (tile: Tile | undefined) => (tile ? nodeViewOf(tile)?.children : undefined);
+      const before = content(paragraph().wgTile);
+      const strong = paragraph().querySelector("strong");
+      for (const wg of [wordgard, react]) edit(wg, { from: 3, add: Alignment.of("center") });
+      expect(paragraph().getAttribute("style")).toBe("text-align: center");
+      expect(before).toBeDefined();
+      expect(content(paragraph().wgTile)).toBe(before);
+      expect(paragraph().querySelector("strong")).toBe(strong);
+      expect(react.contentDOM.innerHTML).toBe(wordgard.contentDOM.innerHTML);
+      expect(describeTile(docTileOf(react), react.contentDOM)).toEqual(
+        describeTile(docTileOf(wordgard), wordgard.contentDOM)
+      );
     });
 
     // A parameter moving the content hole within the same element: the

@@ -2,7 +2,7 @@
 // what iterDeco lays out: nodes, text, mark wrappers, Wordgard's hack nodes and
 // React widgets. Native widgets aren't React's: ReactDocTile puts their DOM in
 // place after the commit.
-import React from "react";
+import React, { memo } from "react";
 
 import { isReactWidget } from "../decorations/ReactWidgetType.js";
 import type { ChildView } from "../decorations/iterDeco.js";
@@ -44,4 +44,6 @@ const renderChildViews = (views: readonly ChildView[]) =>
     }
   });
 
-export const ChildNodeViews = ({ views }: Props) => <>{renderChildViews(views)}</>;
+// Skipped when a plot's content keeps its layout while the node around it
+// changes (iterDeco keeps the views of content that draws the same).
+export const ChildNodeViews = memo(({ views }: Props) => <>{renderChildViews(views)}</>);
