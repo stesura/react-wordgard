@@ -1,26 +1,138 @@
-import type { Wordgard } from "wordgard/editor";
+// Takes the role of Wordgard's own DocTile (src/editor/tile.ts in its repo):
+// React draws the document and the tiles are built over React's DOM, as
+// react-prosemirror's view descriptions are built over the DOM its components
+// render.
+import { createElement } from "react";
+import { flushSync } from "react-dom";
+import { type Root, createRoot } from "react-dom/client";
+import { type Attributes, Leaf, type Plot } from "wordgard/doc";
+import { Widget, type Wordgard } from "wordgard/editor";
 import type { GardState } from "wordgard/state";
 
-import { DocTile } from "./wordgardInternals.js";
+import { attrsToRecord } from "./attributes.js";
+import { needsTrailingHack } from "./components/ChildNodeViews.js";
+import { DocNodeView } from "./components/nodes/DocNodeView.js";
+import {
+  type CompositeTile,
+  DocTile,
+  type Tile,
+  TileFlag,
+  getTileClasses,
+} from "./wordgardInternals.js";
 
-// For now Wordgard still builds the tiles; this class only makes every update
-// go through our code. Step 3 builds the tree from React instead.
+// One root per content element. Wordgard's tests also render into elements of
+// their own, without an editor.
+const roots = new WeakMap<Element, Root>();
+
+// Throws for what React can't render yet, rather than drawing it wrong.
+const checkRenderable = (plot: Plot) => {
+  for (const node of plot.content) {
+    if (node.marks.length) throw new Error(`react-wordgard can't render marks yet (${node.name})`);
+    if (node.isPlot) {
+      const { children } = node.type.shape.create(node.tag.param);
+      if (node.isInline || node.type.shape.atom || children.length != 1 || children[0] !== 0)
+        throw new Error(`react-wordgard can't render the shape of ${node.name} yet`);
+      checkRenderable(node);
+    } else if (!node.is(Leaf.Text)) {
+      throw new Error(`react-wordgard can't render ${node.name} yet`);
+    }
+  }
+};
+
+// Mirrors what Wordgard's ContentUpdate builds for the same content, over the
+// DOM React committed for it.
+const addChildTiles = (parent: CompositeTile, plot: Plot, dom: Element) => {
+  const { EltTile, TextTile, WidgetTile } = getTileClasses();
+  const childDOM = dom.childNodes;
+  let index = 0;
+  const next = () => {
+    const child = childDOM[index++];
+    if (!child) throw new Error("React's DOM is missing a node");
+    return child;
+  };
+  for (const node of plot.content) {
+    if (node.is(Leaf.Text) && !node.param) continue;
+    const child = next();
+    if (node.isPlot) {
+      if (!(child instanceof Element)) throw new Error(`Expected an element for ${node.name}`);
+      const shape = node.type.shape.create(node.tag.param);
+      const tile = EltTile.of(shape, node.tag, TileFlag.PlotContent, node.length, child);
+      addChildTiles(tile, node, child);
+      parent.addChild(synced(tile));
+    } else if (node.is(Leaf.Text) && node.param) {
+      if (!(child instanceof Text)) throw new Error("Expected a text node");
+      parent.addChild(synced(new TextTile(node.param, child)));
+    }
+  }
+  if (needsTrailingHack(plot)) {
+    const br = next();
+    if (!(br instanceof Element)) throw new Error("Expected the trailing <br>");
+    parent.addChild(
+      synced(new WidgetTile(Widget.br, null, TileFlag.Point | TileFlag.PointAfter, br))
+    );
+  }
+  if (index != childDOM.length) throw new Error("React's DOM has extra nodes");
+};
+
+// The flag Wordgard's `sync()` sets once a tile's DOM matches it.
+const synced = <T extends { flags: number }>(tile: T) => {
+  tile.flags |= TileFlag.Synced;
+  return tile;
+};
+
+const setAttributes = (dom: Element, attrs: Attributes) => {
+  const wanted = attrsToRecord(attrs);
+  for (const name of dom.getAttributeNames())
+    if (!Object.hasOwn(wanted, name)) dom.removeAttribute(name);
+  for (const [name, value] of Object.entries(wanted))
+    if (dom.getAttribute(name) != value) dom.setAttribute(name, value);
+};
+
+// Puts back the DOM React committed where the browser or a script changed it
+// (the tiles Wordgard's DOM observer marked Dirty), so React's diff applies to
+// it. Wordgard's `sync()` restores children and text, not attributes.
+const restore = (tile: Tile) => {
+  const resetAttributes = (tile: Tile) => {
+    if (!(tile.flags & TileFlag.Dirty)) return;
+    if (tile instanceof getTileClasses().EltTile) setAttributes(tile.dom, tile.elt.attrs);
+    tile.children.forEach(resetAttributes);
+  };
+  resetAttributes(tile);
+  tile.sync();
+};
+
+const keepsAll = (changes: readonly number[]) => {
+  for (let i = 1; i < changes.length; i += 2) if (changes[i] != -1) return false;
+  return true;
+};
+
 export class ReactDocTile extends DocTile {
-  static create = (state: GardState, dom: Element, wg: Wordgard) =>
-    ReactDocTile.adopt(DocTile.create(state, dom, wg));
-
-  // Wordgard's updates return its own DocTile; take over its children.
-  static adopt = (tile: DocTile): ReactDocTile => {
-    if (tile instanceof ReactDocTile) return tile;
-    const adopted = new ReactDocTile(tile.state, tile.dom, tile.cursorWrapper, tile.decoSet);
-    adopted.children = tile.children;
-    for (const child of adopted.children) child.parent = adopted;
-    adopted.length = tile.length;
-    adopted.flags = tile.flags;
-    return adopted;
+  static create = (state: GardState, dom: Element, _wg: Wordgard) => {
+    if (!roots.has(dom)) {
+      // Drops what Wordgard's constructor drew before we took over.
+      dom.replaceChildren();
+      roots.set(dom, createRoot(dom));
+    }
+    checkRenderable(state.doc);
+    return ReactDocTile.render(state, dom);
   };
 
-  update(state: GardState, changes: readonly number[], wg: Wordgard, composition?: unknown) {
-    return ReactDocTile.adopt(super.update(state, changes, wg, composition));
+  // Runs inside Wordgard's flush, where its DOM observer ignores mutations, so
+  // React commits synchronously here.
+  private static render = (state: GardState, dom: Element) => {
+    const root = roots.get(dom);
+    if (!root) throw new Error("No React root for this element");
+    flushSync(() => root.render(createElement(DocNodeView, { doc: state.doc })));
+    const tile = new ReactDocTile(state, dom, null, null);
+    addChildTiles(tile, state.doc, dom);
+    tile.length = state.doc.length;
+    return synced(tile);
+  };
+
+  update(state: GardState, changes: readonly number[], _wg: Wordgard, _composition?: unknown) {
+    if (state.doc == this.state.doc && keepsAll(changes)) return this;
+    checkRenderable(state.doc);
+    restore(this);
+    return ReactDocTile.render(state, this.dom);
   }
 }

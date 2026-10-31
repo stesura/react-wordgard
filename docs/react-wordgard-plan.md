@@ -1,7 +1,8 @@
 # react-wordgard: a React view for Wordgard (plan, 2026-10-30)
 
-**Status:** not started. The skeleton (a standalone copy of our react-prosemirror fork, Tiptap
-removed, `wordgard` installed, ProseMirror still in place) is handed to another agent.
+**Status:** R1 in progress: React renders plots with a plain element shape and unmarked text
+(2026-10-30, see Progress). The skeleton (a standalone copy of our react-prosemirror fork, Tiptap
+removed, `wordgard` installed, ProseMirror still in place) is done.
 
 Related: `docs/wordgard-feasibility.md` (why Wordgard, and what a migration would mean),
 `docs/partially-executed/react-prosemirror-fork-plan.md` (our fork),
@@ -164,6 +165,8 @@ attribute- and element-shaped marks, following `DecoIterator`'s shapes. Wordgard
 bypassed (`DocTile.create` and `runUpdate`'s tile update). React renders inside the flush.
 - **Done when:** a static document renders identically to Wordgard's own view (DOM compared), and
   `posFromDOM`, `resolve`, `nodeTile` and `posAtCoords` give the same answers over both trees.
+- **Status:** met for paragraphs and unmarked text (and plots whose shape is one element with only
+  the content hole: headings, blockquotes); marks are the next slice.
 
 ### R2: editing
 
@@ -210,16 +213,20 @@ Stable inline partitions for Wordgard's mark shapes, memoised children from chan
 - **Accessibility of Wordgard's drawn cursor and selection** (`src/editor/drawcursor.ts`): untested.
 - **Server-side rendering:** whether to keep a static view (react-prosemirror's `StaticEditorView`)
   or render from Wordgard's HTML serializer.
-- **Rules of React lint (deferred, 2026-10-30):** ESLint runs only `rules-of-hooks` and
-  `exhaustive-deps`. The react-hooks plugin's full `recommended` preset (the React Compiler's
-  checks) gave 35 findings, all in the ProseMirror view code, mostly refs written during render.
-  Turn it on when the Wordgard code starts (R1), excepting the old files until they're replaced.
-  Details in `eslint.config.js`.
+- **Rules of React lint (done at R1's start, 2026-10-30):** the react-hooks plugin's full
+  `recommended` preset (the React Compiler's checks) is on, except in `src/prosemirror/` and
+  `src/refs.ts` (35 findings there, mostly refs written during render). Details in
+  `eslint.config.js`.
 - **The browser edits the DOM itself when typing (found 2026-10-30):** "Input is already
   `beforeinput`-driven" holds for computing the change, but Wordgard doesn't `preventDefault`
   `insertText`, inline deletions or composition; it lets the browser's edit through and records it
   (`addDOMChange` in `src/editor/input.ts`). React's text nodes will be mutated outside React. R2
-  must decide how React agrees with those edits, or which input types to prevent.
+  must decide how React agrees with those edits, or which input types to prevent. R1's answer,
+  outside composition: before rendering, `ReactDocTile.update` runs Wordgard's own `sync()` on the
+  previous tree, which puts the tiles the observer marked Dirty back to the DOM React committed;
+  React's diff then applies cleanly. Wordgard's own typing tests that flush are pending (marks,
+  composition); ours (`tile.browser.test.ts`, "follows the browser's own edit") emulate typing
+  and deleting, including the browser removing React's `<br>`, and match Wordgard's result.
 - **React commits outside the flush look like foreign edits:** Wordgard ignores mutations only
   inside `observer.ignore(() => runUpdate(...))`. A node view's own `setState` committing later
   marks its tiles dirty and gets redrawn. Relevant to R1 (render inside the flush) and R4.
@@ -257,3 +264,59 @@ Stable inline partitions for Wordgard's mark shapes, memoised children from chan
     `skipLibCheck`; Wordgard's own typings already require it.
   - Only `tempEditor`-based tests exercise the editor; mounting with `parent` (connect during
     `super()`) is covered by our smoke test only.
+- **2026-10-30, R1 first slice, done:** React renders the document inside Wordgard's flush and
+  `ReactDocTile` builds Wordgard's tiles over React's DOM; Wordgard's tiles are no longer adopted.
+  - Supported: plots whose type's shape is one element holding only the content hole (paragraphs,
+    headings, blockquotes) and unmarked text, plus the trailing `<br>` of empty textblocks.
+    Anything else throws "react-wordgard can't render ..." rather than drawing it wrong.
+  - Rendering: one React root per content element (`createRoot` on Wordgard's `wg-content`),
+    `flushSync` in `ReactDocTile.create` and `update`, which run inside `runUpdate` and so inside
+    the observer's `ignore`. Components follow react-prosemirror's names (`DocNodeView`,
+    `DefaultNodeView`, `ChildNodeViews`, `TextNodeView`, `TrailingHackView`, in
+    `src/components/`). Keys are indices; `DefaultNodeView` is memoised by node identity.
+  - Tiles: after the commit, the doc is walked alongside React's DOM and real `EltTile`,
+    `TextTile` and `WidgetTile` objects are built with the flags Wordgard's `ContentUpdate` and
+    `sync()` set. Wordgard doesn't export those classes; `getTileClasses` takes them from a
+    throwaway Wordgard instance, typed through `Object.getPrototypeOf`'s `any` (no `as`, but
+    unchecked). Node shapes come from `Plot.Type.shape`, declared in `src/wordgardInternals.ts`.
+  - Native edits: `update` first restores the DOM React committed (Wordgard's `sync()` on the old
+    tree, plus attributes of Dirty elements, which `sync()` doesn't reset), then renders.
+  - Verified by `src/__tests__/tile.browser.test.ts`: on six documents (paragraphs, empty ones,
+    wrapped lines, bidi text, nested plots), the DOM, the whole tile tree (classes, flags,
+    lengths, DOM), `resolve` and `nodeTile` at every position and side, `posFromDOM` at every DOM
+    point and bias, `posAtCoords` on a grid and `coordsAtPos` at every position match Wordgard's
+    own view, and stay matched through a sequence of edits and through emulated native edits
+    (typing, deleting; two of them fail if the restore step is removed).
+  - Wordgard 0.6.2 can leave empty text leaves in a document (fixed upstream after 0.6.2:
+    `Leaf.text("")` now throws). React draws no text node for `""`, so they're drawn as nothing
+    and a textblock holding only those gets the `<br>`, as Wordgard's later versions would.
+  - With a `parent` in the page, Wordgard's DOM observer is live during the constructor, so
+    `ReactDocTile.create` runs inside `observer.ignore` (else the first flush redraws everything).
+  - `view` project: 87 of Wordgard's tests pass on the React view; the 98 that need what isn't
+    rendered yet are listed in `test/view/pending.ts` and skipped by `test/view/skipPending.ts`
+    (skipped, not `it.fails`: a failing editor keeps throwing from its next flush). By the first
+    thing they hit: marks 29, other nodes 31 (images, line breaks, rules, tables, custom shapes),
+    decorations 28 (R4), composition 10 (R3).
+  - How it differs from the plan: R1 stops short of marks; the React root belongs to the editor
+    (not a portal from the app's tree yet), because Wordgard's tests create editors imperatively.
+- **Open from R1's first slice:**
+  - Composition: restoring the old tree undoes the browser's composed text, so the IME's text node
+    doesn't survive the flush. R3 has to keep it (Wordgard's `Composition` tile) while React's own
+    tree stays consistent.
+  - Wordgard's constructor still draws the document once before `ReactDocTile.create` replaces it
+    (its constructor calls the module's `DocTile.create`, not `Wordgard.DocTile`): double work at
+    load, until the renderer interface.
+  - Every update re-renders from the root and rebuilds the whole tile tree (O(document)); R2's
+    change-set keys and kept tiles fix it.
+  - Tag decorations (`Decoration.Tag.*`) live in internal facets, so `checkRenderable` can't see
+    them: a paragraph with a tag decoration renders without it instead of throwing.
+  - React writes attributes in prop order, Wordgard in sorted order: the DOM is equivalent but
+    `innerHTML` differs once a shape has several attributes.
+  - `flushSync` inside a React render or effect doesn't flush synchronously: an editor created
+    from there, or a `coordsAtPos`/`domAtPos`/`nodeDOM` call from an effect with a pending update
+    (`ensureFlushed`), would find React's DOM missing. Matters once a component owns the editor
+    (R5).
+  - Unrenderable content (typing inside a mark, pasting an image) throws from the flush and leaves
+    the editor stuck on its last tree, until support lands.
+  - Wordgard has no `destroy()`, so the React root is never unmounted; it lives as long as the
+    content element.

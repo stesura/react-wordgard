@@ -26,6 +26,10 @@ export default defineConfig({
   build: {
     target: "esnext",
   },
+  // Found mid-run otherwise, which reloads the browser tests.
+  optimizeDeps: {
+    include: ["wordgard/schema"],
+  },
   test: {
     globals: true,
     projects: [
@@ -64,7 +68,7 @@ export default defineConfig({
         test: {
           name: "view",
           include: [wordgardTests, "test/view/*.test.ts"],
-          setupFiles: ["test/wordgard-workspace.ts"],
+          setupFiles: ["test/wordgard-workspace.ts", "test/view/skipPending.ts"],
           browser: browser(),
         },
       },

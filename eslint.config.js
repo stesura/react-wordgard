@@ -4,6 +4,8 @@ import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
+const { rules: reactHooksRules } = reactHooks.configs.flat.recommended;
+
 export default tseslint.config(
   // test/wordgard/ holds unchanged copies of Wordgard's tests.
   { ignores: ["dist/", "test/wordgard/"] },
@@ -14,16 +16,9 @@ export default tseslint.config(
       globals: globals.browser,
     },
     plugins: { "react-hooks": reactHooks },
-    // Only the two classic react-hooks rules for now. The plugin's
-    // `configs.flat.recommended` adds the React Compiler's Rules of React
-    // (refs, immutability, purity, ...); on 2026-10-30 that gave 35 findings,
-    // all in the ProseMirror view code (ProseMirror.tsx, nodes/NodeView.tsx,
-    // NativeWidgetView.tsx, refs.ts, useComponentEventListeners.tsx and the
-    // view-description hooks), mostly refs written during render. Turn it on
-    // for the Wordgard rewrite, with those files excepted until replaced.
     rules: {
+      ...reactHooksRules,
       "no-console": ["error", { allow: ["error"] }],
-      "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": [
         "warn",
         {
@@ -36,6 +31,18 @@ export default tseslint.config(
       // viewdesc.ts, copied from ProseMirror, uses ternaries as statements.
       "@typescript-eslint/no-unused-expressions": ["error", { allowTernary: true }],
     },
+  },
+  {
+    // The React Compiler's Rules of React (refs, immutability, purity, ...)
+    // gave 35 findings on 2026-10-30, all in the ProseMirror view code, mostly
+    // refs written during render. Off there until it's replaced, and in
+    // src/refs.ts (copied from react-prosemirror, a spread dependency list).
+    files: ["src/prosemirror/**", "src/refs.ts"],
+    rules: Object.fromEntries(
+      Object.keys(reactHooksRules)
+        .filter((rule) => !/rules-of-hooks|exhaustive-deps/.test(rule))
+        .map((rule) => [rule, "off"])
+    ),
   },
   {
     // src/prosemirror/hooks/useEffectEvent.ts stands in for React's
