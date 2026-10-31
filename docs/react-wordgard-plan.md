@@ -3,8 +3,10 @@
 **Status:** R1 done; R2 mostly done; R3 done for what can be tested here; R4 in progress
 (2026-10-31, see Progress): React renders every node and mark Wordgard's schemas define, and
 every decoration, Wordgard's native widgets included, with stable keys and kept tiles, and keeps
-the IME's text node through Wordgard's flush. React widgets and node views are next. The skeleton (a standalone copy of our react-prosemirror fork, Tiptap
-removed, `wordgard` installed, ProseMirror still in place) is done.
+the IME's text node through Wordgard's flush. React widgets are next (R4 slice 5). The skeleton
+(a standalone copy of our react-prosemirror fork, Tiptap removed, `wordgard` installed, ProseMirror
+still in place) is done. The public API follows Wordgard's, not react-prosemirror's (see "Follow
+Wordgard's API").
 
 Related: `docs/wordgard-feasibility.md` (why Wordgard, and what a migration would mean),
 `docs/partially-executed/react-prosemirror-fork-plan.md` (our fork),
@@ -29,8 +31,11 @@ Sources:
 ## Goal
 
 A React view over Wordgard that renders the document from one React tree, as react-prosemirror
-does for ProseMirror: node views are React components in that tree, sharing its contexts, with no
-React root per node. Stesura can then move to Wordgard; other teams can use it too.
+does for ProseMirror: what Wordgard draws with code (widgets, as shapes, next to nodes or at
+positions) can be React components in that tree, sharing its contexts, with no React root per
+widget. Its API is Wordgard's: the bridge makes Wordgard's own concepts drawable by React, it isn't
+a react-prosemirror compatibility layer. Stesura can then move to Wordgard; other teams can use it
+too.
 
 ## How react-prosemirror works
 
@@ -75,7 +80,48 @@ React root per node. Stesura can then move to Wordgard; other teams can use it t
   render-then-commit, a split react-prosemirror had to retrofit (`pureSetProps` /
   `runPendingEffects`).
 
+## From ProseMirror to Wordgard
+
+How what a ProseMirror (or react-prosemirror) editor does maps onto Wordgard, worked out on
+2026-10-31 against Stesura's node views.
+
+| ProseMirror | Wordgard |
+|---|---|
+| a node's `type` + `attrs` + `marks` | its **tag**: type, one parameter, marks (marks can sit on blocks: alignment is one) |
+| `NodeSpec.toDOM` (a `DOMOutputSpec`) | the type's **shape**, an `Elt`: tag name, attributes, children (strings, `Elt`s, widgets, `0` the content hole); used for HTML output and parsing too |
+| `nodeViews` prop (draw a type differently) | **tag decorations**: `Decoration.Tag.shape` (replace the drawing), `.wrapper`, `.widget` (`before`, `after`, `start`, `end`), `.attribute`; editor only |
+| a node view's code (`dom`, `update`, `stopEvent`, `ignoreMutation`, `destroy`) | a **widget type**, `Widget.define({render, eq, propagateEvent, editable, connect, disconnect, inFlow})`: `eq` keeps the DOM, uneditable widgets' mutations are ignored |
+| `Decoration.widget` | `Decoration.Point.widget` (a widget at a position) |
+| `Decoration.node` (attributes, a wrapper) | `Decoration.Point.attributes` / `.wrapper` / `.shape` (on the node after a position) |
+| `Decoration.inline` | `Decoration.Range.attribute` / `.wrapper` |
+| a mark's `toDOM` | a mark's element or attribute shape; `Decoration.Mark.shape` overrides it |
+
+- **A node view splits in three:** the decoration says which nodes, an `Elt` gives the structure
+  and where the editable content goes (the hole), widgets carry what needs code. A widget never
+  holds editable content: that's always an `Elt`'s hole.
+- **Data a node view read from stores or React state** goes, for the editable element itself
+  (attributes, styles), through decorations from the editor's state (a state field the producer
+  updates by transaction; `decoratePlots` for values derived per plot); for non-editable parts, a
+  (React) widget can subscribe on its own, since Wordgard ignores mutations inside it.
+- **Worked example, Stesura's textblock node view** (`stesura/packages/pagination-react/src/node-views/line-numbering`):
+  the element and schema attributes are the type's shape (a code block's `pre > code[0]` too);
+  derived counters and spacing, attribute decorations from a decoration source; the pagination
+  values on the `<p>` (`--pin-h`, `data-pin`, the break gap), point attribute decorations from a
+  state field the pagination engine updates; the line-number gutter and break floats, React
+  widgets (`Decoration.Tag.widget(Paragraph, "start", …)`, or inside the shape) that keep their own
+  store subscriptions; `TextblockIdProvider`, the node's id in the widget's value. Cost to watch:
+  every pagination update becomes a transaction through the flush (R6's linear work matters
+  there).
+
 ## Design decisions
+
+### Follow Wordgard's API
+
+react-wordgard's public API is Wordgard's: the bridge adds only what React needs to draw
+Wordgard's own concepts. No `nodeViews` prop (node views become tag decorations, with React drawing
+their widgets), no keys plugin (keys come from the changes Wordgard gives the view), hooks designed
+from Wordgard's state, plugins and listeners. react-prosemirror's names still guide internal naming
+where the concept is the same (CLAUDE.md), not the API's shape.
 
 ### Render inside Wordgard's flush
 
@@ -113,7 +159,8 @@ not a flag: its synchronous-only limit came from upstream's transition path, whi
   views, positions through a stable `getPos`, children cached when node and decorations are
   unchanged; a keystroke from 177 ms to 16 ms, "rendering 6 elements instead of 15,000") gets its
   "unchanged" test from kept sections.
-- **`getPos`** reads the tile's position, instead of a ref mutated during render.
+- **Positions** come from tiles (a React widget's through a hook), instead of a `getPos` ref
+  mutated during render. Wordgard hands a widget's `render` the editor, not a position.
 - **Decorations** map through one change set per transaction.
 
 ### Marks follow Wordgard's shapes
@@ -190,27 +237,47 @@ by binary search.
 Pause React-driven DOM and selection updates during IME composition, coordinated with Wordgard's
 composition tiles, as react-prosemirror pauses its own.
 - **Done when:** composition tests pass in Chrome, Safari and Firefox, including composing at a mark
-  boundary and inside a node view.
+  boundary and in a node whose shape has React widgets around its content.
 - **Status:** done in Chromium, where all 15 of Wordgard's composition tests pass on the React view,
   mark boundaries included. Open: Safari and Firefox (the `browser` and `view` projects run
-  Chromium only), a real IME (the tests emulate one, as Wordgard's do), and composing inside a node
-  view (R4: there are none yet). Not done as planned: no pause, see Progress.
+  Chromium only), a real IME (the tests emulate one, as Wordgard's do), and composing next to React
+  widgets (R4 slice 5; widgets aren't editable, so a composition is only ever around them). Not done
+  as planned: no pause, see Progress.
 
-### R4: decorations, widgets and node views
+### R4: decorations, widgets and React widgets
 
-Wordgard's point, range and tag decorations; widgets; React node views as components in the tree,
-with a `getPos` read from tiles.
-- **Done when:** a React node view shares the editor's contexts (no React root of its own), and
-  widgets and decorations render and map through edits.
-- **Status:** in progress (2026-10-31). Slices 1 to 4 of six done: decorations and Wordgard's
-  native widgets render, redraw on their own and keep their DOM through edits. Next: React widgets
-  (slice 5), React node views (slice 6).
+Wordgard's point, range and tag decorations; its native widgets; React widgets: real Wordgard
+widget types drawn by React components in the editor's tree, usable wherever Wordgard takes a
+widget (a tag or point shape, a tag or point widget, inside an `Elt` shape). Re-scoped on
+2026-10-31 from "React node views as components with `getPos`" (see "Follow Wordgard's API").
+- **Done when:** a React widget used as a node's shape and next to nodes shares the editor's
+  contexts (no React root of its own), keeps its component instance while its value is `eq`, and
+  maps through edits; decorations and native widgets render and map through edits.
+- **Status:** in progress (2026-10-31). Slices 1 to 4 done: decorations and Wordgard's native
+  widgets render, redraw on their own and keep their DOM through edits. Next: React widgets
+  (slice 5).
+- **Slice 5, React widgets:** a widget type defined like `Widget.define` (the same spec fields:
+  `eq`, `connect`/`disconnect`, `propagateEvent`, `editable`, `inFlow`), with a component in place
+  of `render`, and still a real `Widget.Type` (with a plain `render` fallback, so it works in
+  plain Wordgard). Hooks for what `render` gets (the editor) and what actions need (the widget's
+  position, from its tile). A value that isn't `eq` re-renders the component in place rather than
+  remounting it, where React allows.
+- **Slice 6, React shapes (open question, not planned):** a React component as a node's shape,
+  owning the element around editable content. Only if a case needs React state to change that
+  element itself, which decorations (attributes from the editor's state) and React widgets around
+  the content can't cover; Stesura's textblock node view doesn't (see "From ProseMirror to
+  Wordgard"). It would need an `EltTile` subclass whose `ignoreMutations` is true for the
+  component's own commits outside the flush (React widgets don't: uneditable widgets already
+  have their mutations ignored).
 
 ### R5: hooks
 
-The public API: editor state and selectors, editor effects, event callbacks, node position,
-selection state, stop-event. Plus a layout hook running in the flush's read and write phases, for
-pagination and anything else that measures.
+The public API, designed from Wordgard's (its state, `Wordgard.Plugin` with `update` and
+`docUpdate`, transaction and update listeners, `scheduleDOMRead`): editor state and selectors,
+effects, event callbacks, a React widget's position, selection state. react-prosemirror's hook
+list is a checklist of needs, not the API: its names are kept only where the concept is the same
+(stop-event is the widget spec's `propagateEvent`). Plus a layout hook running in the flush's read
+and write phases, for pagination and anything else that measures.
 - **Done when:** each hook has tests, and a measure-then-write hook lands its write on the same
   paint as the document update.
 
@@ -244,8 +311,10 @@ Stable inline partitions for Wordgard's mark shapes, memoised children from chan
   composition); ours (`tile.browser.test.ts`, "follows the browser's own edit") emulate typing
   and deleting, including the browser removing React's `<br>`, and match Wordgard's result.
 - **React commits outside the flush look like foreign edits:** Wordgard ignores mutations only
-  inside `observer.ignore(() => runUpdate(...))`. A node view's own `setState` committing later
-  marks its tiles dirty and gets redrawn. Relevant to R1 (render inside the flush) and R4.
+  inside `observer.ignore(() => runUpdate(...))`. A component's own `setState` committing later
+  marks its tiles dirty and gets redrawn, unless it's inside an uneditable widget (Wordgard
+  ignores mutations there): React widgets are fine, a React shape (R4's open slice 6) wouldn't be.
+  Relevant to R1 (render inside the flush) and R4.
 - **Subclassing needs a typecast:** Wordgard's constructor is private and `docTile`, `runUpdate`
   and the tile classes aren't in its typings. Keep the cast in one file, or get the renderer
   interface above.
