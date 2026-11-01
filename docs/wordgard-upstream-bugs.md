@@ -139,6 +139,16 @@ to send Marijn is `docs/wordgard-upstream-asks.md`; keep the two in step.
   or dropping it is a plugin change (`src/contexts/editorEvents.ts`).
 - **Fix:** recompute the handlers when the `eventHandler` or `eventObserver` facets change.
 
+## 11. `Wordgard.label` names the outer element, not the textbox
+
+- **Repro:** `Wordgard.label("Document")`, then run axe-core over the editor: it reports
+  `aria-input-field-name`. The label goes through `Wordgard.editorAttributes`, onto `wg.dom`,
+  while `role="textbox"` is on `wg.contentDOM`, which stays without a name. Its doc comment says
+  "the editable element".
+- **What we do:** the README and our accessibility test use
+  `Wordgard.contentAttributes.of({ "aria-label": … })`.
+- **Fix:** `contentAttributes` in `label` (`editor/editor.ts`).
+
 ## Requests
 
 ### Mapping a position over bare sections

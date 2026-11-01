@@ -152,6 +152,21 @@ const config = [
   (`wg-selected-node`, `wg-selected-cell`), tag, point and mark attributes. The chrome is made
   uneditable unless it sets `contentEditable` itself.
 
+### Accessibility
+
+- Wordgard gives the editable element `role="textbox"` and `aria-multiline`. Name it with
+  `Wordgard.contentAttributes.of({ "aria-label": "…" })`: in Wordgard 0.6.2, `Wordgard.label`
+  puts the label on the editor's outer element, which leaves the textbox without a name.
+- A React decoration's chrome is read inline, with the document's text. Hide what's decorative
+  (`aria-hidden` on icons and counters), and give every control a name (its text or
+  `aria-label`).
+- Chrome is uneditable: a control in it needs to be focusable to be reached by keyboard, and
+  `useStopEvent` for its events, so that Wordgard leaves its keys alone.
+- A React widget drawing a node gets the node's attributes as props, an image's `alt` among them:
+  spread them onto the root.
+- The tests run axe-core over editors with React shapes, marks and widgets
+  (`src/__tests__/accessibility.browser.test.tsx`): nothing breaks a rule plain Wordgard keeps.
+
 ### Limits
 
 - A React decoration must keep its root element. Moving `{children}` under another element

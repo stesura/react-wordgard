@@ -34,7 +34,12 @@ Remove a point when it's done or dropped, and say so where its details are.
 ## Browsers and input
 
 - **Real Safari and real IMEs**, by hand: the tests emulate composition events (as Wordgard's do)
-  and run in Playwright's WebKit, which isn't Safari (plan, "Testing" and R3).
+  and run in Playwright's WebKit, which isn't Safari (plan, "Testing" and R3). Two steps up:
+  Chrome's DevTools protocol (`Input.imeSetComposition`, `Input.insertText`, reachable from
+  Vitest's browser mode in Chromium) drives the browser's own composition handling, so a few
+  composition tests could run on it; and a checklist by hand on the demo (Japanese and Pinyin IMEs
+  on Windows Chrome and macOS Safari, Android Gboard, iOS autocorrect), inside React shapes and
+  marks while their chrome changes.
 - **Wordgard's `moveVertically` test fails in WebKit** on plain Wordgard too; skipped there
   (`test/skipInBrowser.ts`). Check it in Safari before reporting it (`docs/wordgard-upstream-bugs.md`, 8).
 - **A widget next to an IME composition** may be redrawn rather than reused (plan, R4 slice 4).
@@ -44,8 +49,14 @@ Remove a point when it's done or dropped, and say so where its details are.
 
 ## Features not offered yet
 
-- **Accessibility** of Wordgard's drawn cursor and selection: untested. Mostly Wordgard's; ours is
-  React decorations' chrome (uneditable) and their components' own ARIA.
+- **Accessibility:** axe-core runs over editors with React shapes, marks and widgets, and finds
+  nothing plain Wordgard doesn't (`src/__tests__/accessibility.browser.test.tsx`); the README
+  says how to write accessible React decorations. It found a Wordgard bug: `Wordgard.label`
+  leaves the textbox without a name (`docs/wordgard-upstream-bugs.md`, 11). Left: a screen
+  reader pass by hand, on the demo (NVDA with Chrome on Windows, VoiceOver with Safari): reading,
+  navigating and selection announcements as in plain Wordgard, React decorations' chrome read as
+  intended. Wordgard's drawn cursor keeps the DOM selection screen readers follow; untested by
+  hand.
 
 ## Dropped (2026-11-01)
 
@@ -100,6 +111,6 @@ The DOM is equivalent in each case; details in the plan, "Open from R1's first s
   exported typings don't reference it.
 - `ReactWordgard` swaps Wordgard's `DocTile.create` for the length of its base constructor, so
   React draws the first time; Wordgard looking up `DocTile` on the class would remove the swap
-  (`docs/wordgard-upstream-asks.md`, 8).
+  (`docs/wordgard-upstream-asks.md`, 11).
 - Subclassing needs two `@ts-expect-error` for Wordgard's private constructor, and its internals
   are typed in one file; a renderer interface from Wordgard would remove both.

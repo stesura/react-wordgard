@@ -63,20 +63,35 @@ bugs below. Everything was checked on 0.6.2, and all of it is still present on `
      nested blockquotes.
    - I can send the generator if it helps.
 
+7. **`Decoration.Mark.shape`'s typing names a type that doesn't exist.**
+   - `editor.d.ts` declares `shape<V>(type: Mark.Type<V>, …)` inside `namespace Decoration.Mark`,
+     where `Mark` is the namespace: `Namespace 'Decoration.Mark' has no exported member 'Type'`.
+     Anyone importing `wordgard/editor` needs `skipLibCheck`.
+
+8. **Event handlers are recomputed only when the plugins change.**
+   - A reconfiguration that adds or drops `Wordgard.domEventHandler`s but keeps the plugins leaves
+     the old handlers running: `ensureHandlers` runs only when `updatePlugins` sees
+     `editorPlugin` change.
+
+9. **`Wordgard.label` names the outer element, not the textbox.**
+   - It goes through `editorAttributes`, onto `wg.dom`, while `role="textbox"` is on
+     `wg.contentDOM`: axe-core reports `aria-input-field-name`. The doc comment says "the editable
+     element"; `contentAttributes` would do it.
+
 ## API requests
 
-7. **Map a position over bare change sections.** `DocTile.update` receives `changes.sections`, not
+10. **Map a position over bare change sections.** `DocTile.update` receives `changes.sections`, not
    a `ChangeSet`, and a `ChangeSet` can't be rebuilt from sections. So a view mapping positions in
    its update has to copy `ChangeSet.mapPos`. Could you export a
    `mapPos(sections, pos, assoc, track)`, or a public constructor from sections?
 
-8. **Choose the renderer before the first draw.** The constructor calls the module's own
+11. **Choose the renderer before the first draw.** The constructor calls the module's own
    `DocTile.create`, so a subclass's `DocTile` isn't used for the first draw. We swap the base
    class's `create` for the length of `super()`, which works but is fragile. The constructor
    looking up `DocTile` on `this.constructor`, as the tests already redirect it, would remove the
    swap. (A CodeMirror-style `setState` would also do.)
 
-9. **A renderer interface.** The minimum that would let a view like ours stop reaching into
+12. **A renderer interface.** The minimum that would let a view like ours stop reaching into
    internals. Today we use:
    - the tile classes, taken from instances because they aren't exported;
    - `TileFlag` and `Reused`;
@@ -99,7 +114,7 @@ bugs below. Everything was checked on 0.6.2, and all of it is still present on `
    element of its own. With such an option, React could render the content element as part of the
    app's tree, as react-prosemirror does.
 
-10. **Typings.**
+13. **Typings.**
     - The constructor is `private`, so subclassing `Wordgard` needs `@ts-expect-error`.
     - `@internal` members are stripped from the `.d.ts`.
     - The npm tarball ships a stale `dist/view.d.ts` (the old `EditorState` API).
@@ -108,6 +123,6 @@ bugs below. Everything was checked on 0.6.2, and all of it is still present on `
 
 ## Before sending
 
-- Item 8's "about 40%" is from R2's measurement (Wordgard's draw 0.64 s of a 1.6 s load), in
+- Item 11's "about 40%" is from R2's measurement (Wordgard's draw 0.64 s of a 1.6 s load), in
   React's development build. Re-measure in a production build (R6's baseline).
 - The empty-text-leaf bug (`docs/wordgard-upstream-bugs.md`, 4) is left out: fixed in `08804c9`.

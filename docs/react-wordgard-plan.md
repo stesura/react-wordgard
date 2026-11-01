@@ -370,7 +370,7 @@ Starts only once the API (R5) is settled and stable (decided 2026-10-31).
     Without that draw, Wordgard's own `baseTagShape` cache stays empty: the heap holds as many
     text widgets and node shapes as plain Wordgard's (at 15,000 paragraphs, 69 MB instead of 72
     with marks, 128 instead of 135 with inline nodes). The ask to Wordgard's author now only
-    removes the swap (`docs/wordgard-upstream-asks.md`, 8).
+    removes the swap (`docs/wordgard-upstream-asks.md`, 11).
   - Group the doc's children into memoised chunks, so React compares far fewer than one element
     per top-level child. Parked (decided 2026-10-31): not for v0. After the two above, a
     keystroke at 15,000 paragraphs takes 13–15 ms against plain Wordgard's 9–10; chunking React
