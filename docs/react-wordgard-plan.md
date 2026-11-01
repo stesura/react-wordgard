@@ -307,7 +307,7 @@ meets a real need, offer the Wordgard equivalent.
   as the document update, and the README has the migration section.
 - **Status:** done (2026-10-31), see Progress: `<WordgardEditor>` and `<WordgardDoc>` host the
   editor in the app's React tree; `useWordgard`, `useEditorState`, `useEditorStateSelector`,
-  `useEditorEffect`, `useEditorEventCallback`, `useEditorMeasure`, `useWidgetPos`; exports and the
+  `useEditorEffect`, `useEditorEventCallback`, `useEditorLayoutEffect`, `useWidgetPos`; exports and the
   README's migration section. Not offered yet: event listeners (Wordgard's config covers them),
   node-selected, composition and focus state.
 
@@ -399,7 +399,13 @@ Starts only once the API (R5) is settled and stable (decided 2026-10-31).
   paragraph. A re-laid plot now keeps, child by child, the old view of each child that draws the
   same, matched by its React key (`keepSame` in `iterDeco`); a wrapper whose content changed
   keeps its unchanged children. `MarkView` draws its children from its views, so it and
-  `TextNodeView` are memoised: React re-renders the changed run only. Found with it, in R6's
+  `TextNodeView` are memoised: React re-renders the changed run only. Its cost, accepted
+  (2026-11-01): 2–4 ms per keystroke at 15,000 paragraphs, none measurable at 2,500 (full runs,
+  bisected over `ed5a7fd`, `c00fa12`, `0875b0b`, HEAD). The 26.7 ms once noted against the
+  14.6 above compared a filtered run with a full one (open-points). Declined: running
+  `keepSame` on a flat plot's changed middle only (about 1.9 ms of it). Keys are computed over
+  the whole list, so this is only safe for flat plots; it would add a special case and change
+  nothing in the output. Found with it, in R6's
   build shortcut: skipping kept nodes' DOM missed a removed native widget's DOM between them; an
   element that held widget DOM after the last build is now walked (`holdsWidgets`). "Same place"
   now maps a plot's place through its opening token (`samePlace`), kept or replaced by one (a
@@ -826,7 +832,8 @@ Starts only once the API (R5) is settled and stable (decided 2026-10-31).
     commit as the document, an effect queue and the measures. `useWordgard`, `useEditorState`,
     `useEditorStateSelector`, `useEditorEffect` (runs after the flush under way or pending, else
     in a microtask; never inside React's commit, so it may read layout and dispatch),
-    `useEditorEventCallback`, `useEditorMeasure({read, write})` (reads in Wordgard's read phase,
+    `useEditorEventCallback`, `useEditorLayoutEffect({read, write})` (named `useEditorMeasure` until
+    2026-11-01; reads in Wordgard's read phase,
     scheduled on every update, writes in the write phase inside `flushSync`, so React state they
     set lands on the same paint), and `useWidgetPos` from R4. `ReactWordgard.flush` overrides
     Wordgard's to run the effects after it.
@@ -834,7 +841,7 @@ Starts only once the API (R5) is settled and stable (decided 2026-10-31).
     pending change) can't commit: `flushSync` defers there. The bridge detects it (the portal's
     layout effect reports each commit), hands React back the last committed element and state,
     and throws `RefusedUpdate` with a message pointing to `useEditorEffect` and
-    `useEditorMeasure`; `ReactWordgard.flush` then asks Wordgard for another frame, which
+    `useEditorLayoutEffect`; `ReactWordgard.flush` then asks Wordgard for another frame, which
     catches up. This closes R1's open point on `flushSync` inside React for hosted editors.
   - Exports (`src/index.ts`): the two components, `reactWidget` and its types, the hooks.
     `ReactWordgard` and the tile code stay internal; the exported typings reach no Wordgard
@@ -865,7 +872,7 @@ Starts only once the API (R5) is settled and stable (decided 2026-10-31).
     effects waited for `wg.state` to match the flushed state, which an update listener dispatching
     after each flush would prevent. Documented: StrictMode creates a second, never-connected editor
     in development; a measure's write is measured again only when it changes the content's size.
-  - Open: a `useEditorMeasure` registered makes every flush run the read and a write pass;
+  - Open: a `useEditorLayoutEffect` registered makes every flush run the read and a write pass;
     `plugin.update` runs twice for a refused update's transactions (inherent to throwing inside
     Wordgard's flush); an uncaught refused update from a layout effect unmounts a React 18 root
     without an error boundary.

@@ -25,7 +25,7 @@ import { WordgardEditor } from "../components/WordgardEditor.js";
 import { reactWidget } from "../decorations/ReactWidgetType.js";
 import { useEditorEffect } from "../hooks/useEditorEffect.js";
 import { useEditorEventCallback } from "../hooks/useEditorEventCallback.js";
-import { useEditorMeasure } from "../hooks/useEditorMeasure.js";
+import { useEditorLayoutEffect } from "../hooks/useEditorLayoutEffect.js";
 import { useEditorState } from "../hooks/useEditorState.js";
 import { useEditorStateSelector } from "../hooks/useEditorStateSelector.js";
 import { useWordgard } from "../hooks/useWordgard.js";
@@ -513,12 +513,12 @@ describe("hooks", () => {
     expect(callbacks[0]?.(0)).toBe(wg.state.doc.content[0]?.length);
   });
 
-  it("useEditorMeasure writes on the same paint as the document update", () => {
+  it("useEditorLayoutEffect writes on the same paint as the document update", () => {
     const reads: number[] = [];
     // A widget showing the height of the paragraph it starts.
     const Height = forwardRef<HTMLSpanElement, { value: string }>(({ value }, ref) => {
       const [height, setHeight] = useState(0);
-      useEditorMeasure({
+      useEditorLayoutEffect({
         read: (wg) => {
           const height = wg.contentDOM.firstElementChild?.getBoundingClientRect().height ?? 0;
           reads.push(height);

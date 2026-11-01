@@ -256,7 +256,7 @@ it's outside the content, so no mutation handling is needed. Last, after the dec
      choice from the tag is better made with two React shapes.
    - **Rebuild:** walks the reused content's tiles with the cursor (widget DOM placed, React's
      nodes checked in order), so the cursor's `skip` lost the widget lookup the spike added
-     (open-points, the keystroke slowdown).
+     (react-wordgard-plan, R6, "Stable inline partitions").
    **Not done:** the root element changing on its own (as for React widgets, the component must
    keep its root; documented); an IME composition while React remounts the content (the
    composition ends, as in react-prosemirror).

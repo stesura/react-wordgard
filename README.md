@@ -83,8 +83,9 @@ export const Editor = () => (
   - `useEditorEffect(effect, deps)`: an effect run once the editor's DOM is up to date, where it
     may read layout (`coordsAtPos`) and dispatch.
   - `useEditorEventCallback(callback)`: a stable callback getting the editor.
-  - `useEditorMeasure({ read, write })`: reads in every update's read phase, writes in its write
-    phase, on the same paint as the document.
+  - `useEditorLayoutEffect({ read, write })`: reads in every update's read phase, writes in its write
+    phase, on the same paint as the document, for what must move with the text (markers in the
+    margin, pagination). It can't dispatch: Wordgard throws during its update.
   - `useEditorEventListener(type, (wg, event) => handled)`: the editor's DOM events of `type`
     before Wordgard's handlers and keymaps; returning true handles the event. Key events during
     a composition don't come; handling `input`, `beforeinput` or composition events skips
@@ -101,7 +102,7 @@ export const Editor = () => (
 - In React's StrictMode (development only), `<WordgardEditor>` creates its editor twice and
   drops one, which is never put in the page.
 - Don't read the editor's layout from a plain React effect: it runs inside Wordgard's update,
-  before the editor's view of the new DOM exists. Use `useEditorEffect` or `useEditorMeasure`.
+  before the editor's view of the new DOM exists. Use `useEditorEffect` or `useEditorLayoutEffect`.
 
 ## Migrating from react-prosemirror
 
@@ -124,7 +125,7 @@ side:
 | `useEditorEffect`                                 | the same name: runs after the editor's update                                                                                                                       |
 | `useEditorEventCallback`                          | the same name, getting the editor                                                                                                                                   |
 | `useEditorEventListener`                          | the same name, before Wordgard's handlers and keymaps, for a fixed set of event types                                                                               |
-| `useLayoutGroupEffect`                            | `useEditorEffect`; `useEditorMeasure` to measure, then write on the same paint                                                                                      |
+| `useLayoutGroupEffect`                            | `useEditorEffect`; `useEditorLayoutEffect` to measure, then write on the same paint                                                                                 |
 | `reactKeys()` plugin                              | not needed: keys come from the changes Wordgard gives the view                                                                                                      |
 
 Not offered yet: whether a node is selected (`useIsNodeSelected`, `useSelectNode`), composition

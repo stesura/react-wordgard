@@ -1165,7 +1165,7 @@ export class ReactDocTile extends DocTile {
       entry.revert();
       editor.publish(before.state);
       throw new RefusedUpdate(
-        "ReactWordgard can't update while React renders or commits: read the editor's layout from useEditorEffect or useEditorMeasure, not from a React effect"
+        "ReactWordgard can't update while React renders or commits: read the editor's layout from useEditorEffect or useEditorLayoutEffect, not from a React effect"
       );
     }
     return ReactDocTile.build(state, dom, decoSet, views, options);

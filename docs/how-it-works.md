@@ -141,7 +141,7 @@ re-rendered by it): the editor, a store with the state *as of the last flush* (p
 the flush, in the same commit as the document: hooks never see a state the DOM doesn't show), the
 effects to run after the flush, and the measures. `useEditorState` and `useEditorStateSelector`
 read the store; `useEditorEffect` runs after the flush (a plain React effect may run inside it,
-before the tiles exist); `useEditorMeasure` reads in Wordgard's read phase and writes in its write
+before the tiles exist); `useEditorLayoutEffect` reads in Wordgard's read phase and writes in its write
 phase, on the same paint; `useEditorEventCallback` gives a stable callback.
 
 `useEditorEventListener` registers with the editor: `ReactWordgard` adds, at creation, a
