@@ -1,6 +1,7 @@
 # react-wordgard: open points (2026-10-31)
 
-Everything still open after R0 to R6, in one place. Each point says where its details are; most
+Everything still open after R0 to R6, in one place. The steps to a first release are planned in
+`docs/v0-release-plan.md`. Each point says where its details are; most
 are in `docs/react-wordgard-plan.md` (the plan), by phase or in "Open questions" and "Progress".
 Remove a point when it's done or dropped, and say so where its details are.
 
@@ -33,13 +34,9 @@ Remove a point when it's done or dropped, and say so where its details are.
 - **Chunking parked** (not for v0): about 3 ms per keystroke at 15,000 paragraphs, nothing at load
   or when formatting the whole document.
 - **Updates that take the slow path:** two edits in one transaction re-walk every plot between
-  them; an insertion at a plot's content start (a paragraph inserted at position 0) skips the
-  unchanged-ends shortcut for that update. Correct, only slower (plan, R6, "Open from the
-  audit").
+  them. Correct, only slower (plan, R6, "Open from the audit").
 - **A development-build profile** (`npm run bench:profile-dev`): the baseline asked for both
   builds; only production was profiled.
-- **"Stable inline partitions for Wordgard's mark shapes"**, in R6's description, was never
-  checked by name: confirm our span rules (`iterDeco`, as Wordgard's `ContentUpdate`) give it.
 - **The timing benchmark's memory column** is unreliable after a ReactWordgard run (the next
   editor shows negative values); `npm run bench:heap` is the one to read.
 - **`useEditorMeasure`:** one registered makes every flush run a read and a write pass. Skipping

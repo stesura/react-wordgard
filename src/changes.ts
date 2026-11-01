@@ -96,6 +96,14 @@ export const mapKept = (changes: readonly number[], pos: number) => {
   return (startB[k] ?? 0) + pos - (startA[k] ?? 0);
 };
 
+// Whether a plot's content, which started at `oldStart`, starts at `start`
+// now, the plot kept in its place: mapped through its opening token (the doc
+// has none, and starts at 0), kept or replaced by one (a parameter changed),
+// as its key is, so an insertion at the start of the content doesn't count as
+// a move.
+export const samePlace = (changes: readonly number[], oldStart: number, start: number) =>
+  oldStart == 0 ? start == 0 : mapNodePos(changes, oldStart - 1)?.pos == start - 1;
+
 // Whether the token at `pos` in the new document is in a range the update
 // redraws or replaces.
 export const redrawn = (changes: readonly number[] | null, pos: number) => {

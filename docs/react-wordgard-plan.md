@@ -394,13 +394,29 @@ Starts only once the API (R5) is settled and stable (decided 2026-10-31).
   plot whose content draws the same as before, from the same place, now keeps its old views
   (`sameViews` in `iterDeco`), and `ChildNodeViews` is memoised on them: React redraws the
   paragraph's element only.
+- **Stable inline partitions (done 2026-10-31):** typing re-rendered every run and mark of the
+  paragraph. A re-laid plot now keeps, child by child, the old view of each child that draws the
+  same, matched by its React key (`keepSame` in `iterDeco`); a wrapper whose content changed
+  keeps its unchanged children. `MarkView` draws its children from its views, so it and
+  `TextNodeView` are memoised: React re-renders the changed run only. Found with it, in R6's
+  build shortcut: skipping kept nodes' DOM missed a removed native widget's DOM between them; an
+  element that held widget DOM after the last build is now walked (`holdsWidgets`). "Same place"
+  now maps a plot's place through its opening token (`samePlace`), kept or replaced by one (a
+  parameter changed, as keys follow it), so an insertion at the start of a plot's content keeps
+  the layout shortcuts. Audit (Fable): a plot object inserted right before itself took, in the
+  same update, the layout just written for its copy, and the two shared tiles (a bug from
+  before R6); layouts now record the pass that wrote them (`Layout.pass`), and only one from an
+  earlier update is used.
+- **`useEditorStateSelector` (fixed 2026-10-31, R5's API):** a selector building an object or
+  an array made React loop (it needs the same result until the store changes). It's now React's
+  own `useSyncExternalStoreWithSelector` (the `use-sync-external-store` package), which keeps the
+  result per state, with an optional `isEqual`.
 - **Open from the audit (performance only; the output matches Wordgard):**
   - `unchangedEnds` takes the first and last change in the whole document, so a transaction
     with two edits re-walks every plot between them, and a nested plot holding one of them is
     walked whole.
-  - An insertion exactly at a plot's content start (a paragraph inserted at position 0) maps
-    the old start past it, so neither the kept layout nor the unchanged ends are used for the
-    doc in that update.
+  - An insertion exactly at a plot's content start (a paragraph inserted at position 0) used no
+    layout shortcut. Fixed with `samePlace` (above).
 
 ## Open questions
 

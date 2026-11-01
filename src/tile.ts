@@ -143,6 +143,9 @@ const placeWidgets = (dom: Element, order: readonly ChildNode[]) => {
   return [...dom.childNodes].filter((child) => !wanted.has(child));
 };
 
+// Elements that held widget DOM after the last build.
+const holdsWidgets = new WeakSet<Element>();
+
 // Hands out the children React drew in an element, in order, past widget DOM,
 // and collects the order all its children must have.
 const childCursor = (dom: Element) => {
@@ -151,6 +154,9 @@ const childCursor = (dom: Element) => {
   const order: ChildNode[] = [];
   const after = () => (last ? last.nextSibling : dom.firstChild);
   return {
+    // Whether `skip` may be used: with widget DOM among the children, which
+    // React doesn't draw, the cursor has to walk them to find what goes.
+    canSkip: !holdsWidgets.has(dom),
     // Takes a node React left where it was, without reading the DOM.
     skip: (node: ChildNode) => {
       last = node;
@@ -175,7 +181,12 @@ const childCursor = (dom: Element) => {
         if (!widgetDOM.has(child)) throw new Error("React's DOM has extra nodes");
         widgets = true;
       }
-      return widgets ? placeWidgets(dom, order) : [];
+      if (!widgets) {
+        holdsWidgets.delete(dom);
+        return [];
+      }
+      holdsWidgets.add(dom);
+      return placeWidgets(dom, order);
     },
   };
 };
@@ -395,7 +406,7 @@ const addChildTiles = (
     }
     // In a kept element, a view laid out before, the same object, is one React
     // skipped (DefaultNodeView's memo): its DOM and tile are as they were.
-    const same = kept && view.type == "node" ? viewTiles.get(view) : undefined;
+    const same = kept && cursor.canSkip && view.type == "node" ? viewTiles.get(view) : undefined;
     const dom = same ? same.dom : cursor.next();
     if (same) cursor.skip(same.dom);
     if (view.type == "text") {
@@ -680,6 +691,7 @@ const layout = (
   return iterDeco(
     {
       deco: new DecoIterator(state, decoSet),
+      pass: {},
       keys: entry.store.keys,
       changes,
       layouts: entry.layouts,

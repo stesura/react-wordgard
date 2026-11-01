@@ -326,6 +326,39 @@ describe("hooks", () => {
     expect(blocks).toEqual([3, 4]);
   });
 
+  it("useEditorStateSelector takes a selector building an object, and an isEqual", () => {
+    const renders: number[] = [];
+    const heads: number[][] = [];
+    const Blocks = () => {
+      const { count } = useEditorStateSelector(
+        (state) => ({ count: state.doc.content.length }),
+        (a, b) => a.count == b.count
+      );
+      useLayoutEffect(() => {
+        renders.push(count);
+      });
+      return null;
+    };
+    const Head = () => {
+      const head = useEditorStateSelector((state) => [state.selection.head]);
+      useLayoutEffect(() => {
+        heads.push(head);
+      });
+      return null;
+    };
+    const { wg } = hosted(
+      <>
+        <Blocks />
+        <Head />
+      </>
+    );
+    edit(wg, { selection: { anchor: 3 } });
+    expect(renders).toEqual([3]);
+    expect(heads.at(-1)).toEqual([3]);
+    edit(wg, { changes: { from: 0, insert: [Paragraph.create([Leaf.text("new")])] } });
+    expect(renders).toEqual([3, 4]);
+  });
+
   it("useEditorEffect runs once the DOM is up to date, and may dispatch", async () => {
     const seen: (string | null)[] = [];
     const Probe = () => {

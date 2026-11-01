@@ -18,7 +18,7 @@ type Props = {
   views: readonly ChildView[];
 };
 
-const renderChildViews = (views: readonly ChildView[]) =>
+export const renderChildViews = (views: readonly ChildView[]) =>
   childViewKeys(views).map(({ view, key }) => {
     switch (view.type) {
       case "node":
@@ -26,11 +26,7 @@ const renderChildViews = (views: readonly ChildView[]) =>
       case "text":
         return <TextNodeView key={key} text={view.text} />;
       case "wrapper":
-        return (
-          <MarkView key={key} elt={view.elt}>
-            {renderChildViews(view.children)}
-          </MarkView>
-        );
+        return <MarkView key={key} elt={view.elt} views={view.children} />;
       case "buffer":
         return <SeparatorHackView key={key} />;
       case "composition":

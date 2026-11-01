@@ -3,7 +3,15 @@ import { basicSchema } from "wordgard/schema";
 import { GardState, type Transaction } from "wordgard/state";
 import { Paragraph } from "wordgard/types";
 
-import { isKept, mapKept, mapNodePos, pointMapper, redrawn, unchangedEnds } from "../changes.js";
+import {
+  isKept,
+  mapKept,
+  mapNodePos,
+  pointMapper,
+  redrawn,
+  samePlace,
+  unchangedEnds,
+} from "../changes.js";
 
 // Four paragraphs of two characters: each takes 4 positions, the second starts
 // at 4.
@@ -90,6 +98,26 @@ const reference = {
           : [...(pos == s.a ? [s.b] : []), ...(pos == s.endA ? [s.b + s.ins] : [])]
       ),
 };
+
+describe("samePlace", () => {
+  // The second paragraph's content starts at 5.
+  it("keeps a plot in its place through an insertion at the start of its content", () => {
+    expect(samePlace([5, -1, 0, 1, 11, -1], 5, 5)).toBe(true);
+  });
+
+  it("follows a plot moved by an insertion before it", () => {
+    expect(samePlace([3, -1, 0, 2, 13, -1], 5, 7)).toBe(true);
+    expect(samePlace([3, -1, 0, 2, 13, -1], 5, 5)).toBe(false);
+  });
+
+  it("keeps a plot whose opening token was replaced by one (a parameter changed)", () => {
+    expect(samePlace([4, -1, 1, 1, 11, -1], 5, 5)).toBe(true);
+  });
+
+  it("loses a plot whose opening token went with more", () => {
+    expect(samePlace([4, -1, 2, 1, 10, -1], 5, 5)).toBe(false);
+  });
+});
 
 describe("change section helpers", () => {
   it("answer as walking the sections does", () => {

@@ -7,9 +7,9 @@
 import { Attributes, Elt, Leaf, type Mark, type Node, type Plot } from "wordgard/doc";
 import { type Decoration, Widget } from "wordgard/editor";
 
-import { isKept, mapKept, pointMapper, unchangedEnds } from "../changes.js";
+import { isKept, pointMapper, samePlace, unchangedEnds } from "../changes.js";
 import type { CompositionView } from "../composition.js";
-import { type ReactKeys, createNodeKey } from "../reactKeys.js";
+import { type ReactKeys, childViewKeys, createNodeKey } from "../reactKeys.js";
 import type { DecoElt } from "../wordgardInternals.js";
 import {
   type DecoIterator,
@@ -111,45 +111,65 @@ export const uneditable = (shape: DecoElt, inEditable: boolean) => {
 export const sameNodeView = (a: NodeView, b: NodeView) =>
   a == b || (a.node == b.node && a.children == b.children && a.shape.eq(b.shape));
 
-// Whether two layouts of a plot's content draw the same thing, so the old one,
-// and React's work for it, can be kept: a plot can change while its content
-// doesn't (a mark on a paragraph's tag, its alignment).
-const sameViews = (a: readonly ChildView[], b: readonly ChildView[]): boolean =>
-  a.length == b.length &&
-  a.every((view, i) => {
-    const other = b[i];
-    if (view == other) return true;
-    switch (view.type) {
-      case "node":
-        return other?.type == "node" && view.key == other.key && sameNodeView(view, other);
-      case "text":
-        return other?.type == "text" && view.text == other.text;
-      case "wrapper":
-        return (
-          other?.type == "wrapper" &&
-          view.key == other.key &&
-          view.spanning == other.spanning &&
-          view.elt.eq(other.elt) &&
-          sameViews(view.children, other.children)
-        );
-      case "buffer":
-        return other?.type == "buffer" && view.side == other.side;
-      case "widget":
-        return (
-          other?.type == "widget" &&
-          view.side == other.side &&
-          view.key == other.key &&
-          view.offset == other.offset &&
-          view.widget.eq(other.widget)
-        );
-      case "composition":
-        return (
-          other?.type == "composition" && view.key == other.key && view.rendered == other.rendered
-        );
-      case "trailingHack":
-        return other?.type == "trailingHack";
-    }
+// Whether two views draw the same thing.
+const sameView = (view: ChildView, other: ChildView): boolean => {
+  if (view == other) return true;
+  switch (view.type) {
+    case "node":
+      return other.type == "node" && view.key == other.key && sameNodeView(view, other);
+    case "text":
+      return other.type == "text" && view.text == other.text;
+    case "wrapper":
+      return (
+        other.type == "wrapper" &&
+        view.key == other.key &&
+        view.spanning == other.spanning &&
+        view.elt.eq(other.elt) &&
+        view.children.length == other.children.length &&
+        view.children.every((child, i) => {
+          const match = other.children[i];
+          return !!match && sameView(child, match);
+        })
+      );
+    case "buffer":
+      return other.type == "buffer" && view.side == other.side;
+    case "widget":
+      return (
+        other.type == "widget" &&
+        view.side == other.side &&
+        view.key == other.key &&
+        view.offset == other.offset &&
+        view.widget.eq(other.widget)
+      );
+    case "composition":
+      return (
+        other.type == "composition" && view.key == other.key && view.rendered == other.rendered
+      );
+    case "trailingHack":
+      return other.type == "trailingHack";
+  }
+};
+
+// A plot's content laid out again, keeping the old view of each child that
+// draws the same, matched by its React key (which React keeps the component
+// for), and the old list when they all do. A wrapper that changed keeps the
+// children that didn't. React then skips what's kept (the views' memos): a
+// plot can change while its content doesn't (a paragraph's alignment, a mark
+// on its tag), and typing changes one text run of a paragraph.
+const keepSame = (before: readonly ChildView[], after: ChildView[]): readonly ChildView[] => {
+  const old = new Map(childViewKeys(before).map(({ view, key }) => [key, view]));
+  let changed = before.length != after.length;
+  const kept = childViewKeys(after).map(({ view, key }, i) => {
+    const match = old.get(key);
+    let found = view;
+    if (match && sameView(match, view)) found = match;
+    else if (match?.type == "wrapper" && view.type == "wrapper" && match.elt.eq(view.elt))
+      found = { ...view, children: [...keepSame(match.children, view.children)] };
+    if (found != before[i]) changed = true;
+    return found;
   });
+  return changed ? kept : before;
+};
 
 const isPoint = (view: ChildView | undefined) => view?.type == "buffer" || view?.type == "widget";
 
@@ -222,6 +242,9 @@ export type LayoutContext = {
   composing: ReadonlySet<Plot>;
   // The plot each plot that changed identity replaces (mapKeys).
   replaced: WeakMap<Plot, Plot>;
+  // This pass: a layout it already wrote is another occurrence's of the same
+  // plot object, not this one's from the last update.
+  pass: object;
 };
 
 // `offset` is where the plot's content starts in its parent's content (the
@@ -230,6 +253,8 @@ export type LayoutContext = {
 // unchanged ends can then be kept as they are.
 export type Layout = {
   offset: number;
+  // The layout pass that wrote it last (LayoutContext.pass).
+  pass: object;
   readonly views: readonly ChildView[];
   readonly flat: boolean;
 };
@@ -295,22 +320,25 @@ export const iterDeco = (
   const oldStartOf = (layout: Layout | undefined) =>
     layout && parent.oldStart !== null ? parent.oldStart + layout.offset : null;
   // Kept only from the same place: a plot object can appear more than once.
-  const previous = context.layouts.get(plot);
+  const fromLast = (layout: Layout | undefined) =>
+    layout?.pass == context.pass ? undefined : layout;
+  const previous = fromLast(context.layouts.get(plot));
   const previousStart = oldStartOf(previous);
   if (
     previous &&
     context.changes &&
     previousStart !== null &&
-    mapKept(context.changes, previousStart) == start &&
+    samePlace(context.changes, previousStart, start) &&
     !context.composing.has(plot) &&
     isKept(context.changes, start, end)
   ) {
     previous.offset = start - parent.start;
+    previous.pass = context.pass;
     return previous.views;
   }
   // The layout this plot replaces, and where it started.
   const oldPlot = context.replaced.get(plot) ?? plot;
-  const old = context.layouts.get(oldPlot);
+  const old = fromLast(context.layouts.get(oldPlot));
   const oldStart = oldStartOf(old);
   const nodeKeys = context.keys.get(plot);
   if (!nodeKeys) throw new Error(`No keys for ${plot.name}`);
@@ -322,7 +350,7 @@ export const iterDeco = (
     old?.flat &&
     oldStart !== null &&
     context.changes &&
-    mapKept(context.changes, oldStart) == start &&
+    samePlace(context.changes, oldStart, start) &&
     !context.composing.has(plot)
   )
     ({ head, tail } = unchangedEnds(context.changes, oldPlot, oldStart, plot));
@@ -430,7 +458,10 @@ export const iterDeco = (
       const child = content[i];
       if (!child) continue;
       const layout = child.isPlot ? context.layouts.get(child) : undefined;
-      if (layout) layout.offset = pos + 1 - start;
+      if (layout) {
+        layout.offset = pos + 1 - start;
+        layout.pass = context.pass;
+      }
       pos += child.length;
     }
   }
@@ -438,10 +469,11 @@ export const iterDeco = (
     views.push({ type: "trailingHack" });
   // From this place only: two copies of a plot mustn't share view objects.
   const fromHere =
-    old && oldStart !== null && context.changes && mapKept(context.changes, oldStart) == start;
-  const laid = old && fromHere && sameViews(old.views, views) ? old.views : views;
+    old && oldStart !== null && context.changes && samePlace(context.changes, oldStart, start);
+  const laid = old && fromHere ? keepSame(old.views, views) : views;
   context.layouts.set(plot, {
     offset: start - parent.start,
+    pass: context.pass,
     views: laid,
     flat: isFlat(plot, laid, head, tail),
   });

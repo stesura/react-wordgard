@@ -641,6 +641,43 @@ describe("ReactDocTile", () => {
       );
     });
 
+    // The copy is laid out first: the original mustn't take its layout.
+    it("lays out a plot inserted right before itself apart from it", () => {
+      const { wordgard, react } = both("<blockquote><p>a</p></blockquote>");
+      for (const wg of [wordgard, react]) {
+        const [quote] = wg.state.doc.content;
+        if (quote) edit(wg, { from: 0, insert: [quote] });
+      }
+      for (const changes of [null, { from: 7, insert: [Leaf.text("y")] }]) {
+        if (changes) for (const wg of [wordgard, react]) edit(wg, changes);
+        expect(react.contentDOM.innerHTML).toBe(wordgard.contentDOM.innerHTML);
+        expect(describeTile(docTileOf(react), react.contentDOM)).toEqual(
+          describeTile(docTileOf(wordgard), wordgard.contentDOM)
+        );
+      }
+      const [first, second] = docTileOf(react).children;
+      expect(first?.children[0]?.parent).toBe(first);
+      expect(second?.children[0]?.parent).toBe(second);
+    });
+
+    // Typing changes one text run: the others, and the marks, keep their views,
+    // so React skips them (MarkView's and TextNodeView's memos).
+    it("keeps the views of the runs typing doesn't change", () => {
+      const { wordgard, react } = both("<p>b <strong>c</strong> <em>d</em> e</p>");
+      const content = () => nodeViewOf(blockIn(react.contentDOM, 0).wgTile ?? docTileOf(react));
+      const before = content()?.children;
+      for (const wg of [wordgard, react]) edit(wg, { from: 1, insert: [Leaf.text("x")] });
+      const after = content()?.children;
+      expect(after).not.toBe(before);
+      expect(after?.[0]).not.toBe(before?.[0]);
+      expect(after?.slice(1)).toEqual(before?.slice(1));
+      after?.slice(1).forEach((view, i) => expect(view).toBe(before?.[i + 1]));
+      expect(react.contentDOM.innerHTML).toBe(wordgard.contentDOM.innerHTML);
+      expect(describeTile(docTileOf(react), react.contentDOM)).toEqual(
+        describeTile(docTileOf(wordgard), wordgard.contentDOM)
+      );
+    });
+
     // A parameter moving the content hole within the same element: the
     // paragraphs inside keep their layouts and stay where they were.
     it("keeps the content of an element whose hole moves", () => {

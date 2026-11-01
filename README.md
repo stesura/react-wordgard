@@ -75,8 +75,9 @@ export const Editor = () => (
   on its own; it must keep the same root element.
 - Hooks, from inside `<WordgardEditor>` or a React widget:
   - `useWordgard()`: the editor.
-  - `useEditorState()`, `useEditorStateSelector(selector)`: the state as of the editor's last
-    flush, rendered in the same React commit as the document.
+  - `useEditorState()`, `useEditorStateSelector(selector, isEqual?)`: the state as of the
+    editor's last flush, rendered in the same React commit as the document. The selector's result
+    re-renders when it changes, by `Object.is` or by `isEqual`.
   - `useEditorEffect(effect, deps)`: an effect run once the editor's DOM is up to date, where it
     may read layout (`coordsAtPos`) and dispatch.
   - `useEditorEventCallback(callback)`: a stable callback getting the editor.
