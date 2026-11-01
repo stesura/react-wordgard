@@ -1,5 +1,6 @@
 # Copyright (c) The New York Times Company
 /dist/
+/demo-dist/
 
 /docs/
 package-lock.json

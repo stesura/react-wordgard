@@ -2,6 +2,7 @@
 
 # Compiled code
 /dist/
+/demo-dist/
 
 node_modules
 

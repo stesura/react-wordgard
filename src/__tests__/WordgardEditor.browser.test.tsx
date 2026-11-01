@@ -16,7 +16,7 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { Leaf, Plot } from "wordgard/doc";
 import { Decoration, Widget, Wordgard } from "wordgard/editor";
-import { basicSchema, image } from "wordgard/schema";
+import { basicSchema, blockquote, bulletList, image } from "wordgard/schema";
 import { GardState, type Transaction } from "wordgard/state";
 import { Image, Paragraph, Strong } from "wordgard/types";
 
@@ -29,6 +29,7 @@ import { useEditorMeasure } from "../hooks/useEditorMeasure.js";
 import { useEditorState } from "../hooks/useEditorState.js";
 import { useEditorStateSelector } from "../hooks/useEditorStateSelector.js";
 import { useWordgard } from "../hooks/useWordgard.js";
+import { renderedNodes } from "../testing/renders.js";
 import { docTileOf, drawing } from "../testing/tiles.js";
 import { ReactDocTile } from "../tile.js";
 
@@ -304,6 +305,31 @@ describe("WordgardEditor", () => {
     expect(wg.contentDOM.querySelector(".w")).toBe(widget);
     expect(widget?.textContent).toBe("dark:x");
     expect(docTileOf(wg)).toBe(tile);
+  });
+});
+
+describe("renders", () => {
+  it("renders only the block typed in and its ancestors, from the first keystroke", () => {
+    const { wg } = render(
+      <WordgardEditor
+        doc="<p>one</p><blockquote><p>two</p></blockquote><ul><li><p>three</p></li></ul>"
+        config={[basicSchema(), blockquote(), bulletList()]}
+      >
+        <Grab />
+        <WordgardDoc />
+      </WordgardEditor>
+    );
+    const typed = (from: number) => {
+      edit(wg, { changes: { from, insert: [Leaf.text("x")] } });
+      return renderedNodes(wg.dom).map((node) => node.name);
+    };
+    expect(typed(16)).toEqual(["BulletList", "ListItem", "Paragraph"]);
+    expect(typed(17)).toEqual(["BulletList", "ListItem", "Paragraph"]);
+    expect(typed(8)).toEqual(["Blockquote", "Paragraph"]);
+    expect(typed(2)).toEqual(["Paragraph"]);
+    expect(
+      wg.state.doc.content.map((node) => (node instanceof Plot ? node.textContent() : ""))
+    ).toEqual(["oxne", "txwo", "txxhree"]);
   });
 });
 

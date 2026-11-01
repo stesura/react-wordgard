@@ -128,6 +128,7 @@ npm run check                                   # types, lint, format
 npm run check:bench                             # the benchmark's types (needs react-prosemirror, below)
 npm test                                        # unit (jsdom) and browser (Chromium, Firefox, WebKit) tests
 npm run demo                                    # the demo, on Vite's dev server
+npm run demo:preview                            # the demo built for production (React's production build), served
 npm run bench                                   # times ReactWordgard, Wordgard, react-prosemirror and ProseMirror
 npm run bench:heap                              # what each editor holds in the heap, by class
 npm run bench:profile                           # where load's and a keystroke's time go, by function

@@ -8,7 +8,7 @@ const { rules: reactHooksRules } = reactHooks.configs.flat.recommended;
 
 export default tseslint.config(
   // test/wordgard/ holds unchanged copies of Wordgard's tests.
-  { ignores: ["dist/", "test/wordgard/"] },
+  { ignores: ["dist/", "demo-dist/", "test/wordgard/"] },
   js.configs.recommended,
   tseslint.configs.recommended,
   {

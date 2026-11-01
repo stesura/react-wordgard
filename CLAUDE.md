@@ -29,7 +29,8 @@ derived from react-prosemirror. The plan is `docs/react-wordgard-plan.md`.
   re-copies for the installed version (needs `../wordgard`, or `WORDGARD_REPO`).
   Our setup is `test/wordgard-workspace.ts`.
 - Demo: `npm run demo` (Vite dev server): `WordgardEditor` in a React app
-  (only the schema parts it renders).
+  (only the schema parts it renders). `npm run demo:preview` builds it for
+  production into `demo-dist/` and serves it.
 - Benchmarks: `npm run bench` and its variants (`bench/`), against our
   react-prosemirror fork from `../react-prosemirror` (or
   `REACT_PROSEMIRROR_REPO`), its dependencies installed. `npm run check:bench`
