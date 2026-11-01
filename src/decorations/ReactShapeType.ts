@@ -89,6 +89,9 @@ export type ShapeHandle = {
 
 const roots = new WeakMap<Element, ShapeHandle>();
 const contents = new WeakMap<Element, ShapeHandle>();
+// Every element that was a shape's content element: typing never adds or
+// removes one, React moving a shape's content does.
+const everContent = new WeakSet<Element>();
 
 export const shapeOfRoot = (dom: Element) => roots.get(dom);
 
@@ -104,7 +107,10 @@ export const createShapeHandle = () => {
   const contentDOMRef = (dom: Element | null) => {
     if (handle.content) contents.delete(handle.content);
     handle.content = dom;
-    if (dom) contents.set(dom, handle);
+    if (dom) {
+      contents.set(dom, handle);
+      everContent.add(dom);
+    }
   };
   return { handle, ref, contentDOMRef };
 };
@@ -122,19 +128,61 @@ const shapeAround = (node: Node | null): ShapeHandle | null => {
   return null;
 };
 
+// The React shape whose content element `dom` is.
+const contentShape = (dom: Element) => {
+  const handle = contents.get(dom) ?? roots.get(dom);
+  return handle && contentOf(handle) == dom ? handle : null;
+};
+
+// The React shape whose root, or an element inside it, `node` is.
+const shapeOf = (node: Node | null) => {
+  for (let cur = node; cur; cur = cur.parentNode) {
+    const handle = cur instanceof Element ? roots.get(cur) : undefined;
+    if (handle) return handle;
+  }
+  return null;
+};
+
+const movesContent = (record: MutationRecord) =>
+  [...record.addedNodes, ...record.removedNodes].some(
+    (node) => node instanceof Element && everContent.has(node)
+  );
+
 // Sorts DOM mutation records: the ones a React shape's own commit made outside
 // its content go (Wordgard would take them for edits), and the shapes whose
 // structure changed (an element added or removed between the root and the
-// content) are collected, for their tiles to be rebuilt.
-export const sortRecords = (records: readonly MutationRecord[], changed: Set<Element>) =>
-  records.filter((record) => {
+// content, or beside the content in a container's content element) are
+// collected, for their tiles to be rebuilt. In a container (blocks, no text),
+// the browser's typing never adds or removes children of the content element
+// itself, so those records are React's too; `inline` says whether a shape's
+// content is text. Typing in an empty textblock in the same task as a commit
+// moving its content would be taken for React's (a limit).
+export const sortRecords = (
+  records: readonly MutationRecord[],
+  changed: Set<Element>,
+  inline: (root: Element) => boolean
+) => {
+  // Shapes whose content React moved to another element in these records (one
+  // commit's: typing comes in a task of its own): what else changed in their
+  // content element is React's too.
+  const moved = new Set<ShapeHandle>();
+  for (const record of records)
+    if (record.type == "childList" && movesContent(record)) {
+      const handle = shapeOf(record.target);
+      if (handle) moved.add(handle);
+    }
+  return records.filter((record) => {
     const { target } = record;
     if (record.type == "attributes") {
       if (!(target instanceof Element)) return true;
       return !contents.has(target) && !roots.has(target) && !shapeAround(target);
     }
-    if (record.type == "childList" && target instanceof Element && contents.has(target))
-      return true;
+    const own = record.type == "childList" && target instanceof Element && contentShape(target);
+    if (own) {
+      if (own.root && inline(own.root) && !moved.has(own)) return true;
+      if (own.root) changed.add(own.root);
+      return false;
+    }
     const handle = shapeAround(target);
     if (!handle) return true;
     const content = contentOf(handle);
@@ -148,3 +196,4 @@ export const sortRecords = (records: readonly MutationRecord[], changed: Set<Ele
       changed.add(handle.root);
     return false;
   });
+};

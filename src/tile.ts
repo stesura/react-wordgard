@@ -18,6 +18,7 @@ import { DocNodeView } from "./components/nodes/DocNodeView.js";
 import { EditorContext, editorOf } from "./contexts/EditorContext.js";
 import { type RenderStore, RenderStoreContext } from "./contexts/RenderStoreContext.js";
 import { widgetRoots } from "./contexts/WidgetContext.js";
+import { viewRoots } from "./viewRoots.js";
 import { contentOf, isReactShape, shapeOfRoot, sortRecords } from "./decorations/ReactShapeType.js";
 import { isReactWidget } from "./decorations/ReactWidgetType.js";
 import { DecoIterator, getDecoSet } from "./decorations/DecoIterator.js";
@@ -147,9 +148,12 @@ const placeWidgets = (dom: Element, order: readonly ChildNode[]) => {
 // Elements that held widget DOM after the last build.
 const holdsWidgets = new WeakSet<Element>();
 
-// Hands out the children React drew in an element, in order, past widget DOM,
-// and collects the order all its children must have.
-const childCursor = (dom: Element) => {
+const noChrome: ReadonlySet<Node> = new Set();
+
+// Hands out the children React drew in an element, in order, past widget DOM
+// and a React shape's `chrome` beside its content, and collects the order all
+// its children must have.
+const childCursor = (dom: Element, chrome: ReadonlySet<Node> = noChrome) => {
   let last: ChildNode | null = null;
   let widgets = false;
   const order: ChildNode[] = [];
@@ -157,16 +161,22 @@ const childCursor = (dom: Element) => {
   return {
     // Whether `skip` may be used: with widget DOM among the children, which
     // React doesn't draw, the cursor has to walk them to find what goes.
-    canSkip: !holdsWidgets.has(dom),
+    canSkip: !holdsWidgets.has(dom) && !chrome.size,
     // Takes a node React left where it was, without reading the DOM.
     skip: (node: ChildNode) => {
       last = node;
       order.push(node);
-      if (widgetDOM.has(node)) widgets = true;
     },
     next: () => {
       let child = after();
-      for (; child && widgetDOM.has(child); child = child.nextSibling) widgets = true;
+      for (; child && (widgetDOM.has(child) || chrome.has(child)); child = child.nextSibling) {
+        if (widgetDOM.has(child)) {
+          widgets = true;
+        } else {
+          last = child;
+          order.push(child);
+        }
+      }
       if (!child) throw new Error("React's DOM is missing a node");
       last = child;
       order.push(child);
@@ -180,6 +190,10 @@ const childCursor = (dom: Element) => {
     // the element no longer holds.
     done: () => {
       for (let child = after(); child; child = child.nextSibling) {
+        if (chrome.has(child)) {
+          order.push(child);
+          continue;
+        }
         if (!widgetDOM.has(child)) throw new Error("React's DOM has extra nodes");
         widgets = true;
       }
@@ -454,6 +468,7 @@ const addChildTiles = (
       };
       const tile = shapeTile(shape, tag, node.length, elementOf(dom, node.name), {
         inEditable: true,
+        container: isContainer(node),
         afterContent: 0,
         keepShape,
         fill,
@@ -519,6 +534,9 @@ const compositionTile = (dom: ChildNode, composition: CompositionView): Tile => 
 
 type ShapeContext = {
   inEditable: boolean;
+  // Whether the plot's content is blocks, beside which a React shape may draw
+  // chrome in the content element.
+  container: boolean;
   afterContent: number;
   keepShape: boolean;
   // Adds the plot's content tiles at the hole; `pool` knows what the element
@@ -560,7 +578,7 @@ const shapeTile = (
       const flags = TileFlag.Point | TileFlag.NodeInner | after;
       tile.addChild(synced(new WidgetTile(Widget.text.of(child), null, flags, text)));
     } else if (child instanceof Elt) {
-      const inside = { inEditable: inner, afterContent: after, keepShape, fill, context };
+      const inside = { ...shapeContext, inEditable: inner, afterContent: after };
       tile.addChild(shapeTile(child, null, 0, elementOf(cursor.next(), child.tagName), inside));
     } else if (isReactWidget(child)) {
       const flags = TileFlag.Point | TileFlag.NodeInner | after;
@@ -617,22 +635,47 @@ const reactShapeTile = (
   tag: DocNode.Tag | null,
   length: number,
   dom: Element,
-  { afterContent, fill, context }: ShapeContext
+  { afterContent, container, fill, context }: ShapeContext
 ): Tile => {
   const { EltTile, WidgetTile } = getTileClasses();
   const handle = shapeOfRoot(dom);
   if (!handle)
     throw new Error("A React shape's component must forward its ref to its root element");
+  if (dom.localName != elt.tagName) warnElement(elt.tagName, dom.localName);
   const content = contentOf(handle) ?? dom;
   if (!dom.contains(content)) throw new Error("A React shape's content element is outside it");
+  // Content React remounted in another element: the widget DOM placed in the
+  // old one, which React doesn't remove, comes out (to be reused from the
+  // pool, or dropped), and the old content's widgets make the pool.
+  const old = dom.wgTile ? contentTile(dom.wgTile) : null;
+  const moved = old && old.dom != content ? old : null;
+  if (moved) for (const child of moved.children) if (widgetDOM.has(child.dom)) child.dom.remove();
+  const addChrome = (tile: CompositeTile, child: ChildNode, after: number) => {
+    if (!(child instanceof Element || child instanceof Text)) return;
+    if (child instanceof Element) setUneditable(child);
+    const flags = TileFlag.Point | TileFlag.NodeInner | after;
+    tile.addChild(synced(new WidgetTile(chrome, null, flags, child)));
+  };
   const build = (element: Element, elt: DecoElt, tag: DocNode.Tag | null, flags: number): Tile => {
     const previous = element.wgTile ?? null;
     const tile = EltTile.of(elt, tag, flags, tag ? length : 0, element);
     shapeTiles.add(tile);
     if (element == content) {
       tile.flags |= TileFlag.PlotContent;
-      const cursor = childCursor(element);
-      fill(tile, cursor, widgetPool(previous));
+      // In a container, what isn't a node's or a widget's DOM is chrome, before
+      // or after the content, which React draws as one run.
+      const children = [...element.childNodes];
+      const isChrome = (child: ChildNode) => container && !isContentDOM(child);
+      const first = children.findIndex((child) => !isChrome(child));
+      const last = children.findLastIndex((child) => !isChrome(child));
+      if (children.slice(first, last + 1).some(isChrome))
+        throw new Error("A React shape's chrome is between its content's nodes");
+      const before = first < 0 ? children : children.slice(0, first);
+      const after = first < 0 ? [] : children.slice(last + 1);
+      for (const child of before) addChrome(tile, child, 0);
+      const cursor = childCursor(element, new Set([...before, ...after]));
+      fill(tile, cursor, widgetPool(moved ?? previous));
+      for (const child of after) addChrome(tile, child, TileFlag.AfterContent);
       finish(cursor, context);
     } else {
       let after = 0;
@@ -642,10 +685,8 @@ const reactShapeTile = (
             build(child, Elt.mk(child.localName, [0]), null, TileFlag.NodeInner | after)
           );
           after = TileFlag.AfterContent;
-        } else if (child instanceof Element || child instanceof Text) {
-          if (child instanceof Element) setUneditable(child);
-          const flags = TileFlag.Point | TileFlag.NodeInner | after;
-          tile.addChild(synced(new WidgetTile(chrome, null, flags, child)));
+        } else {
+          addChrome(tile, child, after);
         }
       }
     }
@@ -654,6 +695,42 @@ const reactShapeTile = (
     return synced(tile);
   };
   return build(dom, elt, tag, (tag ? 0 : TileFlag.NodeInner) | afterContent);
+};
+
+// A plot whose content is blocks: no text, so no browser edits in its content
+// element itself.
+const isContainer = (node: DocNode) => node.isPlot && !node.isTextblock && !node.isInline;
+
+// Whether a React shape's content is text, from the node its tile was built
+// for (records only come once it's built).
+const holdsText = (root: Element) => {
+  let tile = root.wgTile;
+  while (tile && !tile.tag) tile = tile.parent ?? undefined;
+  const view = tile && tileViews.get(tile);
+  return !view || !isContainer(view.node);
+};
+
+// The DOM a container's content is made of: elements React drew for nodes,
+// mark wrappers and React widgets, and native widgets' DOM.
+const isContentDOM = (node: ChildNode) =>
+  widgetDOM.has(node) ||
+  (node instanceof Element &&
+    (viewRoots.has(node) || !!shapeOfRoot(node) || widgetRoots.has(node)));
+
+const isChromeTile = (tile: Tile) =>
+  tile instanceof getTileClasses().WidgetTile && tile.widget == chrome;
+
+const warned = new Set<string>();
+
+// A React shape whose component's root isn't the element its Elt names:
+// `target` selectors match the Elt, and plain Wordgard draws it.
+const warnElement = (expected: string, found: string) => {
+  const key = `${expected}>${found}`;
+  if (warned.has(key)) return;
+  warned.add(key);
+  console.error(
+    `A React shape's component drew <${found}> where its shape says <${expected}>: give reactShape the element its component draws`
+  );
 };
 
 // Whether a React shape whose structure changed is drawn in a tile's DOM: the
@@ -971,6 +1048,8 @@ export class ReactDocTile extends DocTile {
     addChildTiles(tile, state.doc, views, cursor, context, widgetPool(old), 0, !!changes && !!old);
     finish(cursor, context);
     for (const stray of context.strays) if (!context.taken.has(stray)) stray.remove();
+    // What the build itself moved (widget DOM, strays) isn't a shape's change.
+    takeShapeChanges(wg);
     tile.length = state.doc.length;
     tile.widgets = context.oldWidgets || context.taken.size > 0;
     if (wg.connected) {
@@ -1040,12 +1119,14 @@ const rebuildShape = (root: Element, wg: Wordgard) => {
   const parent = old?.parent;
   if (!old || !view || !parent || !(view.shape instanceof Elt)) return;
   const entry = rootOf(wg.contentDOM);
+  const length = entry.last?.state.doc.length;
   const context: BuildContext = {
     keys: entry.store.keys,
     rendered: entry.rendered,
     composition: entry.composition,
     wg,
-    changes: null,
+    // Nothing changed in the document: widgets map to where they were.
+    changes: length === undefined ? null : [length, -1],
     reused: new Map(),
     oldWidgets: false,
     toConnect: [],
@@ -1060,7 +1141,9 @@ const rebuildShape = (root: Element, wg: Wordgard) => {
   const fill = (tile: CompositeTile, cursor: ChildCursor, pool: WidgetPool) => {
     if (oldContent && oldContent.dom == tile.dom) {
       for (const child of oldContent.children) {
-        cursor.skip(child.dom);
+        if (isChromeTile(child)) continue;
+        if (widgetDOM.has(child.dom)) cursor.place(child.dom);
+        else if (cursor.next() != child.dom) throw new Error("A React shape's content moved");
         tile.addChild(child);
       }
     } else if (node.isPlot && children) {
@@ -1070,6 +1153,7 @@ const rebuildShape = (root: Element, wg: Wordgard) => {
   const tag = node.isPlot ? node.tag : node;
   const tile = shapeTile(shape, tag, node.length, elementOf(old.dom, node.name), {
     inEditable: true,
+    container: isContainer(node),
     afterContent: 0,
     keepShape: true,
     fill,
@@ -1077,10 +1161,17 @@ const rebuildShape = (root: Element, wg: Wordgard) => {
   });
   parent.children[parent.children.indexOf(old)] = tile;
   tile.parent = parent;
+  // Wordgard finds a tile from its DOM and checks the tree owns it: the old one
+  // and its DOM, now React's elsewhere, are out of the tree.
+  old.parent = null;
   tileViews.set(tile, view);
   viewTiles.set(view, tile);
   for (const stray of context.strays) if (!context.taken.has(stray)) stray.remove();
-  if (wg.connected) for (const widget of context.toConnect) widget.connect();
+  if (wg.connected) {
+    if (oldContent && contentTile(tile)?.dom != oldContent.dom)
+      for (const child of oldContent.children) child.disconnect(context.reused);
+    for (const widget of context.toConnect) widget.connect();
+  }
 };
 
 // Each ReactWordgard's DOM observer's MutationObserver, replaced so records
@@ -1088,22 +1179,31 @@ const rebuildShape = (root: Element, wg: Wordgard) => {
 // whose structure changed.
 const shapeObservers = new WeakMap<
   Wordgard,
-  { observer: MutationObserver; changed: Set<Element> }
+  { observer: MutationObserver; changed: Set<Element>; discard: () => void }
 >();
 
 export const observeShapes = (wg: Wordgard, queue: (records: MutationRecord[]) => void) => {
   const changed = new Set<Element>();
+  // Wordgard also takes records outside the flush (`focus`, through `clear`):
+  // the shapes are rebuilt there too, before it reads the tiles.
   class ShapeObserver extends MutationObserver {
     takeRecords() {
-      return sortRecords(super.takeRecords(), changed);
+      const kept = sortRecords(super.takeRecords(), changed, holdsText);
+      rebuildShapes(wg);
+      return kept;
+    }
+
+    // What the rebuild itself moved (widget DOM, strays), not an edit.
+    discard() {
+      super.takeRecords();
     }
   }
   const observer = new ShapeObserver((records) => {
-    const kept = sortRecords(records, changed);
+    const kept = sortRecords(records, changed, holdsText);
     if (kept.length) queue(kept);
     rebuildShapes(wg);
   });
-  shapeObservers.set(wg, { observer, changed });
+  shapeObservers.set(wg, { observer, changed, discard: () => observer.discard() });
   return observer;
 };
 
@@ -1122,6 +1222,8 @@ const takeShapeChanges = (wg: Wordgard): ReadonlySet<Element> => {
 export const rebuildShapes = (wg: Wordgard) => {
   const found = shapeObservers.get(wg);
   if (!found || editorOf(wg).flushing || !roots.has(wg.contentDOM)) return;
+  if (!found.changed.size) return;
   for (const root of found.changed) rebuildShape(root, wg);
   found.changed.clear();
+  found.discard();
 };

@@ -8,6 +8,7 @@ import type { ChildView } from "../../decorations/iterDeco.js";
 import { attrsToRecord, htmlAttrsToReactProps } from "../../helpers/index.js";
 import type { DecoElt } from "../../wordgardInternals.js";
 import { renderChildViews } from "../ChildNodeViews.js";
+import { viewRoot } from "../../viewRoots.js";
 
 type Props = {
   elt: DecoElt;
@@ -18,7 +19,7 @@ export const MarkView = memo(
   ({ elt, views }: Props) =>
     createElement(
       elt.tagName,
-      htmlAttrsToReactProps(attrsToRecord(elt.attrs)),
+      { ...htmlAttrsToReactProps(attrsToRecord(elt.attrs)), ref: viewRoot },
       renderChildViews(views)
     ),
   (a, b) => a.views == b.views && a.elt.eq(b.elt)

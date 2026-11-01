@@ -15,6 +15,7 @@ import type { DecoElt } from "../../wordgardInternals.js";
 import { ChildNodeViews } from "../ChildNodeViews.js";
 import { ShapeView } from "../ShapeView.js";
 import { WidgetView } from "../WidgetView.js";
+import { viewRoot } from "../../viewRoots.js";
 
 type Props = {
   view: NodeView;
@@ -25,12 +26,14 @@ const renderShape = (
   shape: DecoElt,
   inEditable: boolean,
   content: ReactNode,
-  key?: number
+  key?: number,
+  ref?: (dom: Element | null) => void
 ): ReactElement => {
   if (isReactShape(shape)) return <ShapeView key={key} elt={shape} node={node} content={content} />;
   const { shape: elt, inEditable: inner } = uneditable(shape, inEditable);
   const props = {
     key,
+    ref,
     suppressContentEditableWarning: true,
     ...htmlAttrsToReactProps(attrsToRecord(elt.attrs)),
   };
@@ -58,7 +61,9 @@ export const DefaultNodeView = memo(
       node,
       shape,
       true,
-      node.isPlot && children ? <ChildNodeViews key="content" views={children} /> : null
+      node.isPlot && children ? <ChildNodeViews key="content" views={children} /> : null,
+      undefined,
+      viewRoot
     );
   },
   (a, b) => sameNodeView(a.view, b.view)

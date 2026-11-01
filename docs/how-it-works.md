@@ -138,7 +138,7 @@ read the store; `useEditorEffect` runs after the flush (a plain React effect may
 before the tiles exist); `useEditorMeasure` reads in Wordgard's read phase and writes in its write
 phase, on the same paint; `useEditorEventCallback` gives a stable callback.
 
-## React shapes (spike: plan step 1, `docs/react-decorations-plan.md`)
+## React shapes (plan steps 1 and 2, `docs/react-decorations-plan.md`)
 
 A **React shape** (`reactShape({component, element})`) is a real Wordgard `Elt` with a content hole
 (`<div data-wg-react="1">[0]`), registered as drawn by a component. Wordgard reasons about the
@@ -155,17 +155,30 @@ content), a forwarded `ref` for its root, and the decorations' attributes as pro
 elements from the root down to the content element (`contentDOMRef`, else the root) are its
 structure, and every other DOM node is *chrome*: an uneditable widget tile over a private widget
 type, as Wordgard models a widget inside a shape. So selection, coordinates and positions treat
-chrome like any widget in a shape, and Wordgard ignores mutations inside it.
+chrome like any widget in a shape, and Wordgard ignores mutations inside it. In a container (a
+plot holding blocks), chrome may also sit in the content element, before or after the content:
+the content's DOM there is all elements React drew for nodes, mark wrappers and widgets
+(`viewRoots`), so anything else is chrome. A textblock's content element must hold only the
+content: its text can't be told from chrome text. A shape the editor state changes is rebuilt in
+the flush's build; one the component changes on its own, below.
 
 **The component's own commits.** A component re-rendering from its own state, a context or a store
 commits outside Wordgard's flush. Wordgard's observer would read that as a user edit, mark the node
 Dirty, and our `restore` would undo React's chrome. So `ReactWordgard` replaces Wordgard's
 `MutationObserver` with one that sorts the records first (`sortRecords`): inside a React shape it
 drops everything that isn't a content edit (records under chrome, attribute changes on its
-elements, child changes on its structure) and notes which shapes' structure changed. Those shapes'
-tiles are rebuilt over React's DOM, keeping the content's tiles: from the observer's callback (a
-microtask after the commit), before a flush, or inside the flush's build, which then doesn't reuse
-their old tiles. This is react-prosemirror's design adapted: it switched ProseMirror's observer off
+elements, child changes on its structure) and notes which shapes' structure changed. Child
+changes on a content element are React's in a container (typing never adds or removes blocks
+there); in a textblock they're typing, unless the same batch shows React moving the shape's content
+to another element (React remounting it), since a batch is one task's and typing comes in tasks of
+its own. A content React remounts is built again from its views, the old content's widgets reused
+(their DOM, which React doesn't move, taken out of the old element first). Those shapes'
+tiles are rebuilt over React's DOM, keeping the content's tiles: whenever records are taken outside
+the flush (the observer's callback a microtask after the commit, before a flush, Wordgard's own
+`clear` in `focus`), or inside the flush's build, which then doesn't reuse their old tiles. The
+rebuild and the build discard the records of their own DOM work (widget DOM moved, strays
+removed), as Wordgard's flush does inside `ignore`, and the rebuild detaches the replaced tile so
+Wordgard can't reach it again. This is react-prosemirror's design adapted: it switched ProseMirror's observer off
 and handled all typing itself; Wordgard needs its observer for typing, so only React's own
 mutations are filtered out.
 

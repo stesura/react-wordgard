@@ -231,6 +231,57 @@ it's outside the content, so no mutation handling is needed. Last, after the dec
    changing.
 2. **React shapes:** `reactShape`, `ShapeView`, the tile build, the commit handling, the flush
    fallback; `Tag.shape` and `Point.shape`.
+   **Done (2026-11-01).** Exported (`reactShape`, `ReactShapeSpec`, `ShapeViewComponentProps`).
+   `src/__tests__/reactShape.browser.test.tsx`, 13 cases, pass in the three browsers: the spike's,
+   plus the node's position (`getPos`), a `Point.shape`, an IME composition in the content while
+   the chrome changes (the composed node and the selection stay, the result matches a fresh
+   build), content React remounts in another element from a context (Stesura's exact rows: a row
+   tells its cells to clip their content), chrome beside a container's content in its content
+   element (Stesura's slots), the warning for a root that isn't the shape's element, and a leaf
+   refused. Deviations and what was learned:
+   - **Chrome beside the content, in the content element:** supported for containers (plots
+     holding blocks) only. There the content's DOM is all elements React drew for nodes, mark
+     wrappers and widgets (`viewRoots`, `src/viewRoots.ts`, plus React shapes' and widgets'
+     roots), so anything else is chrome, before or after the content (React draws `children` as
+     one run); chrome between the content's nodes throws. A textblock's content is text, which
+     can't be told from chrome text: there the content element must hold only the content
+     (Wordgard's own table cells are textblocks; Stesura's hold paragraphs).
+   - **Records on a content element:** in a container, the browser's typing never adds or removes
+     its children, so those records are React's (dropped, the shape rebuilt). In a textblock they
+     can be typing, unless the same batch shows React moving the shape's content (adding or
+     removing an element that was a content element): a batch is one task's, and typing comes in
+     tasks of its own. Then the batch's changes there are React's too (`sortRecords`).
+   - **Element check:** a root that isn't the `Elt`'s element logs an error once
+     (`console.error`, the only console call the lint allows), rather than throwing: a `td`/`th`
+     choice from the tag is better made with two React shapes.
+   - **Rebuild:** walks the reused content's tiles with the cursor (widget DOM placed, React's
+     nodes checked in order), so the cursor's `skip` lost the widget lookup the spike added
+     (open-points, the keystroke slowdown).
+   **Not done:** the root element changing on its own (as for React widgets, the component must
+   keep its root; documented); an IME composition while React remounts the content (the
+   composition ends, as in react-prosemirror).
+   **Audit (Fable, 2026-11-01)**, each finding checked against the code; all held and are fixed:
+   1. Content React remounts lost its widgets: the old content's tiles weren't disconnected, and
+      native widget DOM left in the old element (React doesn't remove it) was then walked as
+      chrome, the widget drawn twice. The build now takes that DOM out first and reuses the old
+      content's widgets through the pool (the rebuild maps positions as all kept), and the rebuild
+      disconnects what it didn't reuse.
+   2. A replaced tile kept its `parent`, so a later record could still reach it through Wordgard's
+      `owns` (a crash in `posBefore`): the rebuild detaches it.
+   3. Records Wordgard takes outside the flush (`focus`, through `clear`) collected changed shapes
+      without rebuilding them: taking records now rebuilds (outside the flush). The build's and the
+      rebuild's own DOM work (widget DOM placed, strays removed) was read back as changes: both
+      discard those records.
+   4. Limit, documented in `sortRecords`: typing in an empty textblock in the same task as a commit
+      moving its content would be taken for React's.
+   5. Tests added: the observer's callback path (no flush between the commit and the check),
+      widgets in content React remounts (a native and a React one, drawn and connected once), a
+      deletion, nested React shapes. The comparison is with a fresh ReactWordgard, not plain
+      Wordgard, which draws the fallback `Elt` (different DOM by design).
+   6. The `inline` flag set from a layout effect is gone: the record sorting reads the node's kind
+      from its tile (`holdsText`), one predicate with the build's `isContainer`.
+   After the fixes: 16 cases × 3 browsers pass; full suite 1910 passed, the known WebKit timeout
+   aside; `npm run check` and `npm run build` clean.
 3. **React wrappers:** `reactWrapper`; `Tag.wrapper` and `Point.wrapper`.
 4. **React marks:** `reactMark`; `Decoration.Mark.shape`.
 5. **Hooks:** the list above.
