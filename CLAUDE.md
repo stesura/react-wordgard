@@ -185,7 +185,7 @@ checks are green:
 The goal is Wordgard drawn by React in one tree: every Wordgard decoration
 that takes a shape, a wrapper or a widget (`Tag.shape`, `Tag.wrapper`,
 `Tag.widget`, their `Point` counterparts, and `Decoration.Mark.shape`) can be
-a React component, and so can a `Tooltip`. Shapes, wrappers and marks render
+a React component. Shapes, wrappers and marks render
 their hole (`0`) as `{children}`, and can re-render or change the DOM around
 it without breaking Wordgard. Everything else (React drawing every node, tiles
 over React's DOM) is the foundation for that, not the product: don't answer a

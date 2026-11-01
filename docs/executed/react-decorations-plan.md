@@ -1,9 +1,12 @@
 # React decorations: plan (2026-11-01)
 
+**Executed (2026-11-01):** steps 1 to 5 and 7 done; step 6 (tooltips) dropped, the reason at the
+step.
+
 The library's purpose (CLAUDE.md, "Why this library exists"): every Wordgard decoration that
 takes a shape, a wrapper or a widget can be a React component, and so can a mark's shape and a
 tooltip. React widgets exist (`reactWidget`); this plan adds React shapes, wrappers and marks, the
-hooks node views need, and React tooltips. It replaces the plan's R4 slice 6 ("React shapes, open
+hooks node views need, and React tooltips (dropped, step 6). It replaces the plan's R4 slice 6 ("React shapes, open
 question") in `docs/react-wordgard-plan.md`.
 
 Constraint (the user, 2026-11-01): Wordgard's API and taxonomy win, but the way a React decoration
@@ -444,8 +447,21 @@ it's outside the content, so no mutation handling is needed. Last, after the dec
        or widget too, not only its own.
    After the fixes: 11 cases × 3 browsers pass.
 6. **Tooltips:** `reactTooltip`.
+   **Dropped (2026-11-01, the user).** Not worth it: apps position their popovers with a library
+   (Floating UI, Radix, Base UI), which handles focus, collisions and accessibility better than a
+   Wordgard tooltip; Stesura's menus already do (`@floating-ui/react` with `coordsAtPos`, from
+   `useEditorEffect`). What it needs is here: `useEditorStateSelector` to show or hide,
+   `useEditorEffect` or `useEditorLayoutEffect` to read `coordsAtPos` for a virtual anchor.
+   Wordgard's own tooltips and panels keep working as plain DOM. The one case left uncovered, a
+   tooltip defined through Wordgard's API whose content needs the app's React contexts, has no
+   user. Panels likewise. CLAUDE.md's purpose no longer lists tooltips.
 7. **Docs:** the README (API, limits, migrating a react-prosemirror node view), CLAUDE.md,
    open-points; the R4 slice 6 entry in the plan.
+   **Done (2026-11-01).** The README gained React shapes, wrappers and marks, their limits,
+   migrating a node view, and effects and timing (`useEditorEffect` and `useEditorLayoutEffect`,
+   renamed from `useEditorMeasure` after the hooks step); its migration table follows. CLAUDE.md
+   drops tooltips from the library's purpose; open-points drops what's done or not worth doing;
+   the main plan's R4 slice 6 points here. Moved to `docs/executed`.
 
 Each step lands with its tests and the full suite green (`npm test`, three browsers), and the
 benchmark smoke run (`npm run bench:smoke`).

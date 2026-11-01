@@ -10,14 +10,7 @@ Remove a point when it's done or dropped, and say so where its details are.
 1. **Publishing.** `"private": true`, version `0.0.0`: the name and scope, the version, and how
    releases are made (the plan's "Our fork's changes": replace the fork's `@stesura` scope, CI and
    staged releases with the library's own).
-2. **Consumers need `skipLibCheck`.** Our emitted `ReactWordgard.d.ts` extends a class with a
-   private constructor (Wordgard's typings already require it). Worth a line in the README, or
-   keeping `ReactWordgard` out of the emitted typings (plan, "Open from the takeover").
-3. **A standalone editor flushed from inside React.** `ReactWordgard.create` (its own React root)
-   doesn't detect a flush from inside a React render or effect, where React can't commit; a
-   hosted editor (`<WordgardEditor>`) refuses it with an error and catches up. Detect it there
-   too, or document hosted editors as the supported way (plan, "Open from R1's first slice").
-4. **Send the upstream list** to Wordgard's author: `docs/wordgard-upstream-asks.md`, kept in step
+2. **Send the upstream list** to Wordgard's author: `docs/wordgard-upstream-asks.md`, kept in step
    with `docs/wordgard-upstream-bugs.md`. Not sent yet.
 
 ## Performance (R6)
@@ -51,15 +44,25 @@ Remove a point when it's done or dropped, and say so where its details are.
 
 ## Features not offered yet
 
-- **React shapes, wrappers, marks and tooltips, with the node view hooks** (`useStopEvent`,
-  `useIgnoreMutation`, `useSelectNode`, `useIsNodeSelected`, `useEditorEventListener`,
-  `useNodePos`, `useMergedDOMRefs`): the library's purpose (CLAUDE.md), planned in
-  `docs/react-decorations-plan.md`. Next.
-- **Hooks** (plan, R5): composition state (`useIsComposingIn`), focus state.
-- **Several editors in one paginated layout** (headers, footers, notes): one flush per editor, or
-  coordinated flushes so pagination measures them together.
-- **Server-side rendering:** a static view, or Wordgard's HTML serializer.
-- **Accessibility** of Wordgard's drawn cursor and selection: untested.
+- **Accessibility** of Wordgard's drawn cursor and selection: untested. Mostly Wordgard's; ours is
+  React decorations' chrome (uneditable) and their components' own ARIA.
+
+## Dropped (2026-11-01)
+
+- **Consumers need `skipLibCheck`:** not ours. A consumer typechecked without it fails only on
+  Wordgard's own typings (`editor.d.ts` names a `Decoration.Mark.Type` that doesn't exist); ours
+  pass, `ReactWordgard` being internal. The README says so; Wordgard's bug is on the upstream list.
+- **A standalone editor flushed from inside React** isn't detected: `ReactWordgard.create` is
+  internal (Wordgard's copied tests, the benchmark), and the public `<WordgardEditor>` detects it.
+- **React tooltips and panels:** an app positions its own popovers (Floating UI, Radix, Base UI)
+  from `coordsAtPos`, as Stesura does; Wordgard's own tooltips and panels work as they are
+  (`docs/executed/react-decorations-plan.md`, step 6).
+- **Composition and focus hooks:** react-prosemirror's `useIsComposingIn` and `useIsEditorStatic`
+  aren't used by Stesura; focus is Wordgard's (`wg.hasFocus`, event listeners).
+- **Several editors in one paginated layout:** Stesura's header, footer and note editors are
+  created to edit and dropped after, their content kept as HTML; they don't take part in
+  pagination.
+- **Server-side rendering:** static HTML comes from Wordgard's own serializer, without React.
 
 ## Known differences from Wordgard
 

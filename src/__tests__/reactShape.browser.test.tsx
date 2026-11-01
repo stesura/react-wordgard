@@ -1,4 +1,4 @@
-// React shapes (docs/react-decorations-plan.md): a node drawn by a component
+// React shapes (docs/executed/react-decorations-plan.md): a node drawn by a component
 // that renders its content as `children` and changes its chrome and attributes
 // on its own, from editor state inside the flush, wrapped, while the user types
 // or composes, and with chrome beside a container's content; and React

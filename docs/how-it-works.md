@@ -13,8 +13,9 @@ owns) and writes the DOM. react-wordgard replaces that DOM writer: inside Wordga
 renders the document, then we build Wordgard's tiles over the DOM React committed. Wordgard keeps
 doing everything else (input, selection, composition, decorations, coordinates), reading our
 tiles as if it had built them. The goal (CLAUDE.md, "Why this library exists") is that every
-decoration taking a shape, a wrapper or a widget, plus marks and tooltips, can be a React
-component in the app's React tree.
+decoration taking a shape, a wrapper or a widget, plus marks, can be a React component in the
+app's React tree. Tooltips and panels aren't: an app positions its own popovers (Floating UI and
+the like) from `coordsAtPos`, in `useEditorEffect` or `useEditorLayoutEffect`.
 
 ## The pieces
 
@@ -167,7 +168,7 @@ whether its node is selected (`useIsNodeSelected`, `useSelectNode`), and the set
   anywhere in the node's shape: a point wrapper may sit around it), so the components render with
   it; `useSelectNode` runs its callbacks after the flush that draws the change.
 
-## React shapes (plan steps 1 and 2, `docs/react-decorations-plan.md`)
+## React shapes (plan steps 1 and 2, `docs/executed/react-decorations-plan.md`)
 
 A **React shape** (`reactShape({component, element})`) is a real Wordgard `Elt` with a content hole
 (`<div data-wg-react="1">[0]`), registered as drawn by a component. Wordgard reasons about the

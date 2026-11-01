@@ -1,7 +1,7 @@
 # react-wordgard: a React view for Wordgard (plan, 2026-10-30)
 
-**Status:** R1 done; R2 mostly done; R3 done for what can be tested here; R4 done apart from its
-open slice 6; R5 done (2026-10-31, see Progress): React renders every node and mark Wordgard's schemas
+**Status:** R1 done; R2 mostly done; R3 done for what can be tested here; R4 done (its slice 6,
+React shapes, as `docs/executed/react-decorations-plan.md`); R5 done (2026-10-31, see Progress): React renders every node and mark Wordgard's schemas
 define, and every decoration, Wordgard's native widgets included, with stable keys and kept tiles,
 keeps the IME's text node through Wordgard's flush, and draws React widgets in the editor's own
 React tree. R5 done: the editor renders in the app's React tree, with hooks and a public API.
@@ -275,14 +275,16 @@ widget (a tag or point shape, a tag or point widget, inside an `Elt` shape). Re-
 - **Status:** done (2026-10-31), slices 1 to 5: decorations and Wordgard's native widgets
   render, redraw on their own and keep their DOM through edits; React widgets render wherever
   Wordgard takes a widget, keep their instance while `eq` and re-render in place when not. Slice
-  6 stays an open question.
+  6 done since, as its own plan (`docs/executed/react-decorations-plan.md`).
 - **Slice 5, React widgets (done, see Progress):** a widget type defined like `Widget.define` (the same spec fields:
   `eq`, `connect`/`disconnect`, `propagateEvent`, `editable`, `inFlow`), with a component in place
   of `render`, and still a real `Widget.Type` (with a plain `render` fallback, so it works in
   plain Wordgard). Hooks for what `render` gets (the editor) and what actions need (the widget's
   position, from its tile). A value that isn't `eq` re-renders the component in place rather than
   remounting it, where React allows.
-- **Slice 6, React shapes (open question, not planned):** a React component as a node's shape,
+- **Slice 6, React shapes (done, replaced by `docs/executed/react-decorations-plan.md`, 2026-11-01:
+  React shapes, wrappers and marks, with react-prosemirror's node view hooks).** The original
+  question: a React component as a node's shape,
   owning the element around editable content. Only if a case needs React state to change that
   element itself, which decorations (attributes from the editor's state) and React widgets around
   the content can't cover; Stesura's textblock node view doesn't (see "From ProseMirror to

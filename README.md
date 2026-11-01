@@ -75,7 +75,8 @@ export const Editor = () => (
   on its own; it must keep the same root element. A widget drawing a node gets the node's
   attributes as props (`className` for the selected node, tag and mark attributes), for its
   root.
-- Hooks, from inside `<WordgardEditor>` or a React widget:
+- React shapes, wrappers and marks: below.
+- Hooks, from inside `<WordgardEditor>`:
   - `useWordgard()`: the editor.
   - `useEditorState()`, `useEditorStateSelector(selector, isEqual?)`: the state as of the
     editor's last flush, rendered in the same React commit as the document. The selector's result
@@ -104,6 +105,75 @@ export const Editor = () => (
 - Don't read the editor's layout from a plain React effect: it runs inside Wordgard's update,
   before the editor's view of the new DOM exists. Use `useEditorEffect` or `useEditorLayoutEffect`.
 
+### React shapes, wrappers and marks
+
+A node's shape, a wrapper and a mark's shape can each be a React component that renders what it
+holds as `children`, and changes the DOM around it (its "chrome") on its own: from its state, a
+context or a store. Each is a real Wordgard value, what plain Wordgard draws, registered as drawn by
+the component:
+
+```tsx
+import { forwardRef } from "react";
+import { Decoration } from "wordgard/editor";
+import { Blockquote, Link } from "wordgard/types";
+import { type ShapeViewComponentProps, reactMark, reactShape } from "react-wordgard";
+
+const Callout = forwardRef<HTMLDivElement, ShapeViewComponentProps<HTMLDivElement>>(
+  ({ nodeProps, children, ...attrs }, ref) => (
+    <div {...attrs} ref={ref}>
+      <TitleBar />
+      <div className="body" ref={nodeProps.contentDOMRef}>
+        {children}
+      </div>
+    </div>
+  )
+);
+
+const config = [
+  Decoration.Tag.shape(Blockquote, reactShape({ component: Callout })),
+  Decoration.Mark.shape(Link, reactMark({ component: LinkView, element: "a" })),
+];
+```
+
+- `reactShape({ component, element })`, for `Decoration.Tag.shape` and `Decoration.Point.shape`:
+  the component gets `nodeProps` (`node`, `getPos`, `contentDOMRef`), `children` (the content), a
+  forwarded `ref` for its root, and the decorations' attributes as props. The content goes in the
+  `contentDOMRef` element, else in the root. For nodes with content; a leaf is a React widget.
+- `reactWrapper({ component, element })`, for `Decoration.Tag.wrapper` and
+  `Decoration.Point.wrapper`: the same props without `contentDOMRef`; `children` is what it
+  wraps (the node's shape, or the element its `target` picks).
+- `reactMark({ component, element })`, for `Decoration.Mark.shape` or a mark type's own `shape`:
+  `markProps` (`mark`, the document's, `getPos`, `contentDOMRef`), `children`, `ref`. One
+  component draws each run of an equal mark. A React mark replacing an attribute-shaped mark makes
+  it element-shaped.
+- `element` is the component's root element (`div` for shapes and wrappers, `span` for marks, by
+  default; `span` for an inline node): `target` selectors match it, and plain Wordgard draws it.
+- Spread the attributes onto the root: they carry Wordgard's selection classes
+  (`wg-selected-node`, `wg-selected-cell`), tag, point and mark attributes. The chrome is made
+  uneditable unless it sets `contentEditable` itself.
+
+### Limits
+
+- A React decoration must keep its root element. Moving `{children}` under another element
+  remounts the content: the browser loses a selection or an IME composition in it.
+- In a textblock or a mark, the content element holds only the content: chrome there would be text
+  that can't be told from the content's. In a node holding blocks, chrome may sit before or after
+  the content in the same element, not between its nodes.
+- A React wrapper can't wrap a node a native widget draws (draw it with a React widget), nor text.
+- `useStopEvent` is asked for events in chrome and in React widgets, not on a decoration's own
+  elements or in plain content.
+- `useEditorEventListener` takes these event types: keyboard (`keydown`, `keyup`, `keypress`),
+  input (`beforeinput`, `input`, composition events), mouse (`mousedown`, `mouseup`, `mouseover`,
+  `mouseout`, `click`, `dblclick`, `contextmenu`), `focus`, `blur`, clipboard (`copy`, `cut`,
+  `paste`) and drag-and-drop events. Wordgard adds a handler per type when the editor is created;
+  scroll-blocking and the most frequent events (touch, wheel, `mousemove`, pointer events) are left
+  out.
+- A node drawn by a React widget has no element around it for its attributes, unlike plain
+  Wordgard's: its component gets them as props, so a selection doesn't remount it.
+- Typing with marks before there's text draws a mark from its own type, not a
+  `Decoration.Mark.shape` override, as Wordgard does.
+- Wordgard 0.6.2's own typings need `skipLibCheck`.
+
 ## Migrating from react-prosemirror
 
 react-wordgard isn't a compatibility layer: it follows Wordgard's API, and most of a migration is
@@ -111,25 +181,57 @@ moving from ProseMirror's concepts to Wordgard's (see Wordgard's
 [ProseMirror migration guide](https://wordgard.net/docs/prosemirror/)). What changes on the React
 side:
 
-| react-prosemirror                                 | react-wordgard                                                                                                                                                      |
-| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `<ProseMirror state={…} dispatchTransaction={…}>` | `<WordgardEditor doc={…} config={…}>`, uncontrolled: the editor owns its state, changes go through `wg.dispatch`                                                    |
-| `<ProseMirrorDoc />`                              | `<WordgardDoc />`                                                                                                                                                   |
-| `plugins` prop                                    | Wordgard extensions in `config`; to change them later, compartments or `GardState.appendConfig`                                                                     |
-| `nodeViews` prop and node view components         | Tag decorations (`Decoration.Tag.shape`, `.widget`, `.wrapper`, `.attribute`): an `Elt` shape for structure and editable content, React widgets for what needs code |
-| `widget()` decorations with a component           | `Decoration.Point.widget(MyReactWidget.of(value))`                                                                                                                  |
-| `getPos` prop, `useNodePos`                       | `nodeProps.getPos`, `useNodePos()` (a function, not the position)                                                                                                   |
-| `useStopEvent`                                    | the same name, for events in a React decoration's chrome or a React widget                                                                                          |
-| `useIgnoreMutation`                               | the same name; chrome's and React widgets' mutations never reach Wordgard anyway                                                                                    |
-| `useEditorState`, `useEditorStateSelector`        | the same names, with the state of the last flush                                                                                                                    |
-| `useEditorEffect`                                 | the same name: runs after the editor's update                                                                                                                       |
-| `useEditorEventCallback`                          | the same name, getting the editor                                                                                                                                   |
-| `useEditorEventListener`                          | the same name, before Wordgard's handlers and keymaps, for a fixed set of event types                                                                               |
-| `useLayoutGroupEffect`                            | `useEditorEffect`; `useEditorLayoutEffect` to measure, then write on the same paint                                                                                 |
-| `reactKeys()` plugin                              | not needed: keys come from the changes Wordgard gives the view                                                                                                      |
+| react-prosemirror                                 | react-wordgard                                                                                                                                              |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<ProseMirror state={…} dispatchTransaction={…}>` | `<WordgardEditor doc={…} config={…}>`, uncontrolled: the editor owns its state, changes go through `wg.dispatch`                                            |
+| `<ProseMirrorDoc />`                              | `<WordgardDoc />`                                                                                                                                           |
+| `plugins` prop                                    | Wordgard extensions in `config`; to change them later, compartments or `GardState.appendConfig`                                                             |
+| `nodeViews` prop and node view components         | Tag decorations: `reactShape` with `Decoration.Tag.shape` for a node with content, a React widget for an atom, `reactWrapper` with `Decoration.Tag.wrapper` |
+| `markViews` prop and mark view components         | `reactMark` with `Decoration.Mark.shape`                                                                                                                    |
+| `widget()` decorations with a component           | `Decoration.Point.widget(MyReactWidget.of(value))`                                                                                                          |
+| `getPos` prop, `useNodePos`                       | `nodeProps.getPos`, `useNodePos()` (a function, not the position)                                                                                           |
+| `useStopEvent`                                    | the same name, for events in a React decoration's chrome or a React widget                                                                                  |
+| `useIgnoreMutation`                               | the same name; chrome's and React widgets' mutations never reach Wordgard anyway                                                                            |
+| `useEditorState`, `useEditorStateSelector`        | the same names, with the state of the last flush                                                                                                            |
+| `useEditorEffect`                                 | the same name: runs after the editor's update; what it sets shows a frame later (below)                                                                     |
+| `useIsNodeSelected`, `useSelectNode`              | the same names                                                                                                                                              |
+| `useMergedDOMRefs`                                | the same name                                                                                                                                               |
+| `useEditorEventCallback`                          | the same name, getting the editor                                                                                                                           |
+| `useEditorEventListener`                          | the same name, before Wordgard's handlers and keymaps, for a fixed set of event types                                                                       |
+| `useLayoutGroupEffect`                            | `useEditorEffect`; `useEditorLayoutEffect` to measure, then write on the same paint                                                                         |
+| `reactKeys()` plugin                              | not needed: keys come from the changes Wordgard gives the view                                                                                              |
 
-Not offered yet: whether a node is selected (`useIsNodeSelected`, `useSelectNode`), composition
-state (`useIsComposingIn`) and focus state.
+Not offered: `useIsComposingIn`, `useIsEditorStatic`.
+
+### Migrating a node view
+
+A react-prosemirror node view keeps its body: the props keep their names (`nodeProps`,
+`contentDOMRef`, `children`, `ref`, the attributes). What changes:
+
+- The props type: `ShapeViewComponentProps` (a node with content), `WrapperViewComponentProps`,
+  `MarkViewComponentProps`, or a React widget's `WidgetViewComponentProps` for an atom.
+- `node.attrs` becomes the node's parameter (`node.tag.param` for a node with content, `node.param`
+  for a leaf), and `view` becomes `wg`, Wordgard's editor.
+- Registration: a decoration in the editor's `config` instead of `nodeViews`.
+- Class names: `ProseMirror-selectednode` is `wg-selected-node`, a selected cell's class
+  `wg-selected-cell`.
+- `useNodePos()` returns a function giving the position, not the position.
+- `innerDecorations` has no equivalent.
+
+### Effects and timing
+
+In react-prosemirror React drives: `useEditorEffect` is a React layout effect that runs after the
+view's update, inside React's commit, so it can read layout, dispatch, and what it sets shows on the
+same paint. In react-wordgard Wordgard drives: React commits inside Wordgard's update, and those
+properties split between two hooks.
+
+|                                           | react-prosemirror `useEditorEffect` | `useEditorEffect`                  | `useEditorLayoutEffect`                              |
+| ----------------------------------------- | ----------------------------------- | ---------------------------------- | ---------------------------------------------------- |
+| Reads layout after the update             | yes                                 | yes                                | yes, in Wordgard's read phase                        |
+| May dispatch                              | yes                                 | yes                                | no                                                   |
+| What it sets shows on the same paint      | yes                                 | no, a frame later                  | yes                                                  |
+| Runs on every update without re-rendering | no                                  | no                                 | yes                                                  |
+| For                                       | everything                          | menus, focus, follow-up dispatches | what moves with the text: margin markers, pagination |
 
 ## Development
 

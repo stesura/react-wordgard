@@ -1,4 +1,4 @@
-// The hooks React decorations use (docs/react-decorations-plan.md, step 5),
+// The hooks React decorations use (docs/executed/react-decorations-plan.md, step 5),
 // react-prosemirror's node view hooks for Wordgard: positions, stopped events,
 // claimed mutations, the node selection, editor event listeners before
 // keymaps, merged refs.

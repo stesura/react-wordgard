@@ -120,6 +120,25 @@ to send Marijn is `docs/wordgard-upstream-asks.md`; keep the two in step.
 - **Before sending:** check it in Safari; Playwright's WebKit on Windows isn't Safari (fonts,
   layout). Not in `docs/wordgard-upstream-asks.md` until confirmed.
 
+## 9. `Decoration.Mark.shape`'s typing names a type that doesn't exist
+
+- **Repro:** typecheck anything importing `wordgard/editor` without `skipLibCheck`:
+  `editor.d.ts(196,38): Namespace 'Decoration.Mark' has no exported member 'Type'`. Inside
+  `namespace Decoration.Mark`, `Mark.Type<V>` resolves to the namespace, not to `wordgard/doc`'s
+  `Mark`.
+- **What we do:** nothing; every consumer of Wordgard needs `skipLibCheck` (our README says so).
+- **Fix:** qualify the reference (an import alias for the doc's `Mark`).
+
+## 10. Event handlers are recomputed only when the plugins change
+
+- **Repro:** reconfigure (`GardState.reconfigure`, or `appendConfig`) with different
+  `Wordgard.domEventHandler`s but the same plugins: `InputState.ensureHandlers` runs only when
+  `updatePlugins` sees the `editorPlugin` facet change (`editor/editor.ts`, `configChange`), so the
+  old handlers keep running, and added ones never do.
+- **What we do:** `useEditorEventListener`'s extension carries a no-op `Wordgard.Plugin`, so adding
+  or dropping it is a plugin change (`src/contexts/editorEvents.ts`).
+- **Fix:** recompute the handlers when the `eventHandler` or `eventObserver` facets change.
+
 ## Requests
 
 ### Mapping a position over bare sections
