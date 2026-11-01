@@ -24,7 +24,8 @@ derived from react-prosemirror. The plan is `docs/react-wordgard-plan.md`.
 - `test/wordgard/`: Wordgard's browser tests (`webtest-*.ts`) and helpers,
   copied unchanged from the tag matching the installed `wordgard` (`0.6.2`), and
   run by the `browser` project. Don't edit them. `npm run update-wordgard` pins
-  the latest `wordgard` and re-copies them; `npm run sync-wordgard-tests`
+  the latest `wordgard` (development dependency; the peer range is its patches)
+  and re-copies them; `npm run sync-wordgard-tests`
   re-copies for the installed version (needs `../wordgard`, or `WORDGARD_REPO`).
   Our setup is `test/wordgard-workspace.ts`.
 - Demo: `npm run demo` (Vite dev server): `WordgardEditor` in a React app

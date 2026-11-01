@@ -25,18 +25,30 @@ until the Wordgard view replaced it. Done as planned, except:
   pass; the demo loads with no console errors. `npm test`: 1 failure, the WebKit timeout listed
   in V6, unrelated (it fails alone too).
 
-## V2: package metadata
+## V2: package metadata (done, 2026-11-01)
 
-- **Peer dependencies:** `wordgard`, `react`, `react-dom` (`prosemirror-*` and `react-reconciler`
-  went with V1).
+- **Peer dependencies:** `wordgard` (`~0.6.2`), `react`, `react-dom` (`prosemirror-*` and
+  `react-reconciler` went with V1).
 - **`wordgard` as a peer, not a dependency:** two copies in one app break Wordgard's own
-  `instanceof` checks (a `Transaction`, a `Mark`). A narrow range (`~0.6.2` or exact): we use its
-  internals (`src/wordgardInternals.ts`), so a minor version can break us. Keep it a development
-  dependency for the tests.
-- **Dependencies:** `use-sync-external-store` (the selector hook) stays; `classnames` went with V1.
-- **Done when:** `npm pack --dry-run` lists `dist`, the README and the licences only, and a
-  scratch app installing the packed tarball next to its own `wordgard` and React builds and runs
-  the README's example.
+  `instanceof` checks (a `Transaction`, a `Mark`). Decided: `~0.6.2`, patches allowed, and a CI job
+  (`check.yml`, "newest wordgard") runs everything against the newest patch in range, since we use
+  its internals (`src/wordgardInternals.ts`). It stays an exact development dependency for the
+  tests; `npm run update-wordgard` now pins that and sets the peer range to the new version's
+  patches, and `npm run sync-wordgard-tests` reads the development dependency.
+- **Dependencies:** `use-sync-external-store` (the selector hook) only.
+- **Found on the way:** `dist/` was never cleaned, so the helpers V1 deleted would have shipped
+  (`findDOMNode.js` importing `react-reconciler`). `prebuild` empties it now.
+- **Metadata, beyond the plan:** dropped the `./src` export (react-prosemirror's, pointing at
+  files we don't publish); `engines` became `devEngines` (Node 22.12 is our tooling's need, not
+  the library's, and `engines` warns apps built on older Node); added `"sideEffects": false`
+  (`dist/` runs nothing at import but enum initialisers), `homepage`, `bugs` and `keywords`.
+- **Checked:** `npm pack --dry-run` lists `dist`, the README, the licences and `package.json`. A
+  scratch app (Vite, React 18, `wordgard@0.6.2`) installing the packed tarball gets one copy of
+  each, type-checks (with `skipLibCheck`, see V3), builds, and runs the README's example in
+  Chromium (it renders, typing updates the word count, no console errors). The same app on
+  `wordgard@0.5.2` gets `ERESOLVE` when installing the tarball, with npm's default
+  `legacy-peer-deps=false` (an app with `legacy-peer-deps=true` only gets an `invalid` in
+  `npm ls`).
 
 ## V3: typings for consumers
 

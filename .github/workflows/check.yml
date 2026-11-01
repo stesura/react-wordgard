@@ -20,13 +20,19 @@ jobs:
   check:
     runs-on: ubuntu-latest
 
-    # The peer range is React 18 and 19; the lockfile pins 18.
+    # The peer ranges are React 18 and 19, and wordgard's patches; the lockfile
+    # pins React 18 and one wordgard. A patch can still change the internals we
+    # use, so the newest one in range gets a job too.
     strategy:
       fail-fast: false
       matrix:
         react: [18, 19]
+        wordgard: [locked]
+        include:
+          - react: 18
+            wordgard: newest
 
-    name: check (React ${{ matrix.react }})
+    name: check (React ${{ matrix.react }}, ${{ matrix.wordgard }} wordgard)
 
     steps:
       - uses: actions/checkout@v4
@@ -42,6 +48,10 @@ jobs:
       - name: Switch to React 19
         if: matrix.react == 19
         run: npm i --no-save react@19 react-dom@19 @types/react@19 @types/react-dom@19
+
+      - name: Switch to the newest wordgard in the peer range
+        if: matrix.wordgard == 'newest'
+        run: npm i --no-save "wordgard@$(npm pkg get peerDependencies.wordgard | tr -d '"')"
 
       - name: Install the browsers for the browser tests
         run: npx playwright install --with-deps chromium firefox webkit

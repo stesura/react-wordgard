@@ -21,7 +21,7 @@ const git = (...args) => execFileSync("git", ["-C", repo, ...args], { maxBuffer:
 const readJSON = (path) => JSON.parse(readFileSync(path, "utf8"));
 
 const { version } = readJSON(join(root, "node_modules", "wordgard", "package.json"));
-const pinned = readJSON(join(root, "package.json")).dependencies.wordgard;
+const pinned = readJSON(join(root, "package.json")).devDependencies.wordgard;
 if (pinned !== version)
   fail(
     `package.json asks for wordgard ${pinned} but ${version} is installed; run npm install first.`
