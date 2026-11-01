@@ -50,7 +50,13 @@ until the Wordgard view replaced it. Done as planned, except:
   `legacy-peer-deps=false` (an app with `legacy-peer-deps=true` only gets an `invalid` in
   `npm ls`).
 
-## V3: typings for consumers
+## V3: typings for consumers (done, 2026-11-01)
+
+**Done:** a consumer typechecked with `skipLibCheck: false` fails only on Wordgard's own
+`editor.d.ts` (`docs/wordgard-upstream-bugs.md`, 9); ours pass: `ReactWordgard` isn't exported
+and nothing public names it, nor `Wordgard.DocTile`. The README says Wordgard's typings need
+`skipLibCheck`.
+
 
 `dist/ReactWordgard.d.ts` extends a class whose constructor is private in Wordgard's typings, so
 an app without `skipLibCheck` gets errors from our typings (Wordgard's own already need it).
@@ -63,7 +69,12 @@ an app without `skipLibCheck` gets errors from our typings (Wordgard's own alrea
 - **Done when:** the scratch app from V2 type-checks with `skipLibCheck: false`, or the README
   says it can't.
 
-## V4: the supported way to host an editor
+## V4: the supported way to host an editor (done, 2026-11-01)
+
+**Decided:** `create` stays internal (Wordgard's copied tests and the benchmark use it); the
+public way is `<WordgardEditor>`, the only one exported, which refuses an update React can't
+commit and catches up. Dropped from `docs/open-points.md`, which says why.
+
 
 A hosted editor (`<WordgardEditor>` and `<WordgardDoc>`) refuses an update React can't commit (a
 flush from inside a React render or effect) with an error, and catches up on its next frame. An
@@ -74,13 +85,20 @@ export `ReactWordgard`; Wordgard's copied tests use `create`.
   make it public with the same guard.
 - **Done when:** the README says it, and the choice is in `docs/open-points.md`.
 
-## V5: Wordgard's author
+## V5: Wordgard's author (not done: the owner sends it, not needed to publish)
 
 - Re-read `docs/wordgard-upstream-asks.md` and send it (the owner sends it). The WebKit
   `moveVertically` item stays out until it's checked in Safari.
 - **Done when:** sent; the asks list and `docs/wordgard-upstream-bugs.md` say so.
 
-## V6: checks before publishing
+## V6: checks before publishing (done but CI, 2026-11-01)
+
+**Done:** the flaky WebKit test has a 60 s timeout; the README has an install section (the peers
+and their ranges, one copy of `wordgard`, `skipLibCheck`) besides what the list below asks; the
+CLAUDE.md audit of the package's source found no casts, no `useEffect`, no inline imports, and
+three function declarations in `src/helpers/props.ts` (adapted from react-prosemirror), now arrow
+functions. **Left:** CI green on a push (the owner pushes).
+
 
 - **Timing benchmark** on an idle machine on mains power: done, the user confirmed (2026-11-01)
   the run whose numbers are in the plan's R6 status was idle and on mains.
@@ -95,7 +113,16 @@ export `ReactWordgard`; Wordgard's copied tests use `create`.
   decided.
 - **Done when:** all of the above, and a CLAUDE.md audit of the release diff.
 
-## V7: publish
+## V7: publish (prepared, 2026-11-01: the owner publishes)
+
+**Decided:** `react-wordgard`, unscoped (free on npm on 2026-11-01); `0.1.0`; published by hand.
+`"private": true` is gone and the version set. The packed tarball (100 files, 62.6 kB) installs
+into a scratch app (Vite 6, React 18.3.1, `wordgard@0.6.2`) with one copy each of React,
+`wordgard` and react-wordgard; the app type-checks (with `skipLibCheck`), builds, and runs the
+README's example in Chromium: it renders, typing turns "2 words" into "3 words", no console
+errors. **Left to the owner:** `npm login`, `npm publish`, tag the commit (`v0.1.0`), then install
+from npm into a scratch app; then this plan moves to `docs/executed`.
+
 
 - **Decide:** the package name and scope (plain `react-wordgard` if free on npm), the first
   version (`0.1.0` suits an API that can still change), and who publishes: by hand
@@ -105,7 +132,8 @@ export `ReactWordgard`; Wordgard's copied tests use `create`.
 
 ## After v0
 
-Everything else in `docs/open-points.md`: real Safari and IMEs, React shapes (R4 slice 6), more
-hooks (node-selected, composition and focus state), pagination across editors, server-side
-rendering, accessibility, chunking (parked), the slow path for two edits in one transaction, and
-the known differences from Wordgard.
+Everything else in `docs/open-points.md`: real Safari and IMEs, a screen reader pass, chunking
+(parked), the slow path for two edits in one transaction, and the known differences from
+Wordgard. React shapes, the node view hooks and accessibility checks are done since
+(`docs/executed/react-decorations-plan.md`); the other features once listed here were dropped
+(`docs/open-points.md`, "Dropped").

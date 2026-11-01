@@ -7,9 +7,8 @@ Remove a point when it's done or dropped, and say so where its details are.
 
 ## Before a v0 release
 
-1. **Publishing.** `"private": true`, version `0.0.0`: the name and scope, the version, and how
-   releases are made (the plan's "Our fork's changes": replace the fork's `@stesura` scope, CI and
-   staged releases with the library's own).
+1. **Publishing:** prepared (`react-wordgard` `0.1.0`, by hand); the owner pushes for CI,
+   publishes and tags (`docs/partially-executed/v0-release-plan.md`, V7).
 2. **Send the upstream list** to Wordgard's author: `docs/wordgard-upstream-asks.md`, kept in step
    with `docs/wordgard-upstream-bugs.md`. Not sent yet.
 
@@ -43,9 +42,7 @@ Remove a point when it's done or dropped, and say so where its details are.
 - **Wordgard's `moveVertically` test fails in WebKit** on plain Wordgard too; skipped there
   (`test/skipInBrowser.ts`). Check it in Safari before reporting it (`docs/wordgard-upstream-bugs.md`, 8).
 - **A widget next to an IME composition** may be redrawn rather than reused (plan, R4 slice 4).
-- **A WebKit test can time out on a busy machine:** `tile.browser.test.ts`, "maps coordinates the
-  same way" (many `posAtCoords` calls) passes in about half the runs once the machine is loaded,
-  on the code before and after the alignment fix. Raise its timeout if it keeps happening.
+
 
 ## Features not offered yet
 

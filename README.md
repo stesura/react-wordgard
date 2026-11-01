@@ -25,6 +25,16 @@ large documents, against upstream, are:
 - `ReactEditorView` detaches the React-rendered children around the base
   constructor's attribute changes.
 
+## Install
+
+```sh
+npm install react-wordgard wordgard react react-dom
+```
+
+Peer dependencies: `wordgard` 0.6 (`~0.6.2`: react-wordgard reaches into Wordgard's internals, so
+only its patches), `react` and `react-dom` 18 or 19. An app must have one copy of `wordgard`, the
+one react-wordgard uses. With TypeScript, Wordgard's own typings need `skipLibCheck`.
+
 ## Usage
 
 ```tsx

@@ -1,7 +1,6 @@
 {
   "name": "react-wordgard",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "description": "A React view for the Wordgard rich text editor",
   "keywords": [
     "react",
@@ -32,6 +31,7 @@
   },
   "files": [
     "README.md",
+    "CHANGELOG.md",
     "LICENSE.txt",
     "THIRD_PARTY_LICENSES.txt",
     "dist"

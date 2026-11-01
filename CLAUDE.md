@@ -75,6 +75,15 @@ For each file, if they're an exact copy of react-prosemirror, add "taken verbati
 We'll try to get as close as possible to the original react-prosemirror repo taxonomy.
 So when you suggest a structure, a folder or file name, try to reuse the same names as react-prosemirror's (only if it makes sense given the names of certain concepts are different in wordgard)
 
+## Changelog
+
+`CHANGELOG.md` is kept by hand, in Wordgard's format: one sentence per paragraph, under
+`### Breaking changes`, `### Bug fixes` or `### New features`. After completing work that changes
+what the package's users see (the API, behaviour, a fix, the peer ranges), add its line under an
+`## Unreleased` heading at the top, creating it if needed; not for tests, docs, plans or the
+benchmark. On 0.x, a breaking change goes in a minor version. At a release, the owner renames
+`## Unreleased` to the version and date.
+
 ## Finishing work
 
 When a long, multi-point task is done and nothing is left to do, say so and

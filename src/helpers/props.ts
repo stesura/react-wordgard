@@ -7,11 +7,11 @@ import { HTMLProps } from "react";
 
 let patched = false;
 
-function patchConsoleError() {
+const patchConsoleError = () => {
   if (patched) return;
 
   const consoleError = console.error;
-  console.error = function (...data: unknown[]) {
+  console.error = (...data: unknown[]) => {
     const [message, prop, correction] = data;
     if (
       typeof message === "string" &&
@@ -24,13 +24,13 @@ function patchConsoleError() {
     consoleError(...data);
   };
   patched = true;
-}
+};
 
 /**
  * Given a record of HTML attributes, returns tho
  * equivalent React props.
  */
-export function htmlAttrsToReactProps(attrs: Record<string, string>): HTMLProps<HTMLElement> {
+export const htmlAttrsToReactProps = (attrs: Record<string, string>): HTMLProps<HTMLElement> => {
   patchConsoleError();
   const props: Record<string, unknown> = {};
   for (const [attrName, attrValue] of Object.entries(attrs)) {
@@ -225,4 +225,4 @@ export function htmlAttrsToReactProps(attrs: Record<string, string>): HTMLProps<
     }
   }
   return props;
-}
+};

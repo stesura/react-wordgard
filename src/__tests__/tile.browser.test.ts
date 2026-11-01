@@ -467,7 +467,8 @@ describe("ReactDocTile", () => {
         expect(alone(ReactWordgard.create, doc, answers, extra)).toEqual(
           alone(Wordgard.create, doc, answers, extra)
         );
-      });
+        // Thousands of posAtCoords calls: WebKit takes over 15 s on a loaded machine.
+      }, 60_000);
     });
   }
 

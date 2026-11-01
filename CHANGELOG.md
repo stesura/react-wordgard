@@ -1,0 +1,23 @@
+## 0.1.0 (2026-11-01)
+
+### New features
+
+First release: React draws Wordgard's documents inside Wordgard's own update, in the app's React tree, and Wordgard keeps handling input, selection, composition and decorations.
+
+Requires `wordgard` ~0.6.2 and React 18 or 19.
+
+`WordgardEditor` creates an editor and provides it to its children; `WordgardDoc` puts it in the page and renders its document through a portal, so the app's contexts reach what it draws.
+
+`reactWidget` defines a Wordgard widget type drawn by a React component, usable wherever Wordgard takes a widget; one drawing a node gets the node's attributes as props.
+
+`reactShape` makes a node's shape (`Decoration.Tag.shape`, `Decoration.Point.shape`) a React component that renders the node's content as `children` and may change the elements around it on its own.
+
+`reactWrapper` does the same for `Decoration.Tag.wrapper` and `Decoration.Point.wrapper`, and `reactMark` for a mark's shape (`Decoration.Mark.shape`, or a mark type's own).
+
+`useWordgard`, `useEditorState` and `useEditorStateSelector` read the editor and its state as of its last update.
+
+`useEditorEffect` runs after the editor's update; `useEditorLayoutEffect` reads and writes within it, on the same paint as the document; `useEditorEventCallback` gives a stable callback getting the editor.
+
+`useEditorEventListener` handles the editor's DOM events before Wordgard's own handlers and keymaps.
+
+`useNodePos`, `useStopEvent`, `useIgnoreMutation`, `useIsNodeSelected`, `useSelectNode` and `useMergedDOMRefs` give React decorations what react-prosemirror's node views had.
