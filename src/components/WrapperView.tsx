@@ -2,9 +2,14 @@
 // the element its `target` picks) as its children. Like ShapeView, it has no
 // effects: ReactDocTile builds the tiles over what it commits, and the
 // component's own commits are sorted out of Wordgard's DOM observer.
-import { type ReactNode, useMemo, useState } from "react";
+import React, { type ReactNode, useMemo, useState } from "react";
 import type { Node } from "wordgard/doc";
 
+import {
+  DecorationContext,
+  createDecorationHandlers,
+  decorationRoot,
+} from "../contexts/DecorationContext.js";
 import { createWrapperHandle, nodePos, shapeAttributes } from "../decorations/ReactShapeType.js";
 import { drawWrapper } from "../decorations/ReactWrapperType.js";
 import { attrsToRecord, htmlAttrsToReactProps } from "../helpers/index.js";
@@ -16,17 +21,26 @@ type Props = {
   node: Node;
   // Draws what's wrapped, its root's ref given.
   wrapped: (ref: (dom: Element | null) => void) => ReactNode;
-  outerRef?: (dom: Element | null) => void;
+  selected: boolean;
+  outerRef?: ((dom: Element | null) => void) | undefined;
 };
 
-export const WrapperView = ({ elt, node, wrapped, outerRef }: Props) => {
+export const WrapperView = ({ elt, node, wrapped, selected, outerRef }: Props) => {
   const [{ handle, ref, wrappedRef }] = useState(createWrapperHandle);
-  const [getPos] = useState(() => nodePos(handle));
-  const rootRef = useMemo(() => mergeRefs(ref, outerRef), [ref, outerRef]);
-  return drawWrapper(elt, {
-    attrs: htmlAttrsToReactProps(attrsToRecord(shapeAttributes(elt))),
-    nodeProps: { node, getPos },
-    children: wrapped(wrappedRef),
-    ref: rootRef,
-  });
+  const [handlers] = useState(() => createDecorationHandlers(nodePos(handle)));
+  const rootRef = useMemo(
+    () => mergeRefs(ref, outerRef, decorationRoot(handlers)),
+    [ref, outerRef, handlers]
+  );
+  const decoration = useMemo(() => ({ handlers, selected }), [handlers, selected]);
+  return (
+    <DecorationContext.Provider value={decoration}>
+      {drawWrapper(elt, {
+        attrs: htmlAttrsToReactProps(attrsToRecord(shapeAttributes(elt))),
+        nodeProps: { node, getPos: handlers.getPos },
+        children: wrapped(wrappedRef),
+        ref: rootRef,
+      })}
+    </DecorationContext.Provider>
+  );
 };

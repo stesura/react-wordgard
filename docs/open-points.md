@@ -84,6 +84,9 @@ The DOM is equivalent in each case; details in the plan, "Open from R1's first s
 - An empty text leaf with marks is skipped with its wrappers, so `resolve` and `posFromDOM` differ
   at that spot.
 - A widget whose DOM is a `<br>` counts as content for the trailing `<br>`.
+- A node drawn by a React widget has no element around it for its attributes (the selected-node
+  class, tag and mark attributes): its component gets them as props, so a selection doesn't
+  remount it.
 
 ## Limits
 

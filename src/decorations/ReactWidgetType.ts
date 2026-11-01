@@ -8,15 +8,27 @@
 // element itself: the parent's tile would put the old one back. An editable
 // one the user edits keeps the edit, where Wordgard would redraw it.
 import {
+  type AllHTMLAttributes,
   type ComponentType,
+  type HTMLProps,
   type ReactElement,
   type RefAttributes,
   type RefCallback,
   createElement,
 } from "react";
+import { Attributes, Elt } from "wordgard/doc";
 import { Widget } from "wordgard/editor";
 
-export type WidgetViewComponentProps<Param, E extends Element = HTMLElement> = {
+import { stopsEvent } from "../contexts/DecorationContext.js";
+import { reserved } from "./ReactShapeType.js";
+
+// A widget drawing a node also gets the node's attributes (the selected-node
+// class, tag and mark attributes) as props, for its root element.
+// (`value` is the widget's.)
+export type WidgetViewComponentProps<Param, E extends Element = HTMLElement> = Omit<
+  AllHTMLAttributes<HTMLElement>,
+  "value"
+> & {
   value: Param;
 } & RefAttributes<E>;
 
@@ -24,19 +36,30 @@ export type ReactWidgetSpec<Param, E extends Element = HTMLElement> = Widget.Spe
   component: ComponentType<WidgetViewComponentProps<Param, E>>;
 };
 
-type Draw = (widget: Widget, ref: RefCallback<Element>) => ReactElement | null;
+type Draw = (
+  widget: Widget,
+  ref: RefCallback<Element>,
+  attrs: HTMLProps<HTMLElement>
+) => ReactElement | null;
 
 const components = new WeakMap<Widget.Type<unknown>, Draw>();
 
 export const reactWidget = <Param, E extends Element = HTMLElement>(
   spec: ReactWidgetSpec<Param, E>
 ): Widget.Type<Param> => {
-  const type = Widget.define<Param>(spec);
+  const { propagateEvent } = spec;
+  // Its components' useStopEvent first, then the spec's.
+  const type = Widget.define<Param>({
+    ...spec,
+    propagateEvent: (event) =>
+      !stopsEvent(event) &&
+      (typeof propagateEvent == "function" ? propagateEvent(event) : propagateEvent !== false),
+  });
   // A type guard, not checked by the compiler: a widget of `type` was made by
   // `type.of`, so its value is a Param.
   const own = (widget: Widget): widget is Widget<Param> => widget.type == type;
-  components.set(type, (widget, ref) =>
-    own(widget) ? createElement(spec.component, { value: widget.value, ref }) : null
+  components.set(type, (widget, ref, attrs) =>
+    own(widget) ? createElement(spec.component, { ...attrs, value: widget.value, ref }) : null
   );
   return type;
 };
@@ -44,5 +67,39 @@ export const reactWidget = <Param, E extends Element = HTMLElement>(
 export const isReactWidget = (widget: Widget) => components.has(widget.type);
 
 // The widget's component, its ref on the root element.
-export const drawWidget = (widget: Widget, ref: RefCallback<Element>) =>
-  components.get(widget.type)?.(widget, ref) ?? null;
+export const drawWidget = (
+  widget: Widget,
+  ref: RefCallback<Element>,
+  attrs: HTMLProps<HTMLElement> = {}
+) => components.get(widget.type)?.(widget, ref, attrs) ?? null;
+
+// Wordgard adds attributes to a widget-drawn node by wrapping the widget in an
+// element. Around a React widget, that element is marked: the view draws the
+// widget alone, the attributes as props, so a selection (the class it adds)
+// doesn't move the component under a new parent, which would remount it. The
+// marked element still merges later attributes and takes wrappers, as
+// Wordgard's.
+const attributed = "widget";
+
+export const attributeWidget = (widget: Widget, attrs: Attributes, tagName: string) =>
+  Elt.create(
+    tagName,
+    isReactWidget(widget) ? Attributes.merge(attrs, [reserved, attributed]) : attrs,
+    [widget]
+  );
+
+// The React widget a marked element holds, its attributes being the widget's.
+export const attributedWidget = (elt: Elt<unknown>) => {
+  const [widget] = elt.children;
+  return Attributes.get(elt.attrs, reserved) == attributed && widget instanceof Widget
+    ? widget
+    : null;
+};
+
+// The root elements React widgets forwarded their ref to, for ReactDocTile to
+// check it got the widget's DOM.
+export const widgetRoots = new WeakSet<Element>();
+
+export const widgetRoot = (dom: Element | null) => {
+  if (dom) widgetRoots.add(dom);
+};

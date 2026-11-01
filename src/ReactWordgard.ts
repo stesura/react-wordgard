@@ -3,8 +3,10 @@
 // the docView ProseMirror's constructor builds, has the base constructor build
 // a tile tree React renders.
 import { Wordgard } from "wordgard/editor";
+import { GardState } from "wordgard/state";
 
 import { editorOf } from "./contexts/EditorContext.js";
+import { editorEventHandlers, hasEditorEventHandlers } from "./contexts/editorEvents.js";
 import { ReactDocTile, RefusedUpdate, observeShapes } from "./tile.js";
 import { type DOMObserver, DocTile } from "./wordgardInternals.js";
 
@@ -51,9 +53,17 @@ export class ReactWordgard
     };
     // Given a `parent`, it would also put the editor in the page, where
     // connecting measures it: that's left until it's built.
+    // useEditorEventListener's handlers come first; Wordgard keeps one copy of
+    // an extension, so a state taken from another ReactWordgard is fine.
+    const events = spec.state
+      ? {
+          state: spec.state.update({ effects: GardState.appendConfig.of(editorEventHandlers) })
+            .state,
+        }
+      : { config: [editorEventHandlers, spec.config ?? []] };
     try {
       // @ts-expect-error The typings drop the private constructor's parameter.
-      super({ ...spec, parent: undefined });
+      super({ ...spec, ...events, parent: undefined });
     } finally {
       DocTile.create = create;
     }
@@ -87,5 +97,9 @@ export class ReactWordgard
       editor.flushing = false;
     }
     editor.runEffects();
+    // A reconfiguration (GardState.reconfigure) dropped useEditorEventListener's
+    // handlers: they come back with a transaction of their own.
+    if (!hasEditorEventHandlers(this.state))
+      this.dispatch({ effects: GardState.appendConfig.of(editorEventHandlers) });
   }
 }

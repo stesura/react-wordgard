@@ -11,6 +11,8 @@
 // - `nodeWrappers` without wrappers returns a shared empty array, as upstream.
 // - It records the document's mark behind a mark of an overridden shape
 //   (`documentMark`), for React marks.
+// - The element it wraps a React widget in to add attributes is marked
+//   (`attributeWidget`): the view draws the widget with them as props.
 // The internal classes and facets come from src/wordgardInternals.ts.
 import { Attributes, Elt, Leaf, type Mark, type Node, type Plot, type Pos } from "wordgard/doc";
 import { Decoration, Widget } from "wordgard/editor";
@@ -26,6 +28,7 @@ import {
   type WrapperRangeDecoration,
   getDecorationInternals,
 } from "../wordgardInternals.js";
+import { attributeWidget } from "./ReactWidgetType.js";
 
 const enum DecorationScope {
   Atom = 1,
@@ -100,7 +103,7 @@ const addMarkAttributes = (
 const addAttrs = (shape: Decoration.Shape, attrs: Attributes, inline: boolean): Decoration.Shape =>
   shape instanceof Elt
     ? shape.addAttrs(attrs)
-    : Elt.create(inline ? "span" : "div", attrs, [shape]);
+    : attributeWidget(shape, attrs, inline ? "span" : "div");
 
 const applyDeco = (shape: Decoration.Shape, deco: Decoration.Point, tag: Node.Tag) => {
   const { AttributeDecoration, WrapperDecoration } = getDecorationInternals();
@@ -487,7 +490,7 @@ export class DecoIterator {
     if (add) {
       if (shape instanceof Elt)
         shape = Elt.create(shape.tagName, Attributes.merge(shape.attrs, add), shape.children);
-      else shape = Elt.create(tag.type.isBlock ? "div" : "span", add, [shape]);
+      else shape = attributeWidget(shape, add, tag.type.isBlock ? "div" : "span");
     }
     return shape;
   }

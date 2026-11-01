@@ -72,7 +72,9 @@ export const Editor = () => (
 - `reactWidget(spec)` takes `Widget.define`'s spec plus a `component`. It's a real
   `Widget.Type`: use it wherever Wordgard takes a widget (a node's shape, a tag or point widget,
   inside an `Elt` shape). React widgets are uneditable by default, so a component may re-render
-  on its own; it must keep the same root element.
+  on its own; it must keep the same root element. A widget drawing a node gets the node's
+  attributes as props (`className` for the selected node, tag and mark attributes), for its
+  root.
 - Hooks, from inside `<WordgardEditor>` or a React widget:
   - `useWordgard()`: the editor.
   - `useEditorState()`, `useEditorStateSelector(selector, isEqual?)`: the state as of the
@@ -83,7 +85,19 @@ export const Editor = () => (
   - `useEditorEventCallback(callback)`: a stable callback getting the editor.
   - `useEditorMeasure({ read, write })`: reads in every update's read phase, writes in its write
     phase, on the same paint as the document.
-  - `useWidgetPos()`, in a React widget: a function returning its position.
+  - `useEditorEventListener(type, (wg, event) => handled)`: the editor's DOM events of `type`
+    before Wordgard's handlers and keymaps; returning true handles the event. Key events during
+    a composition don't come; handling `input`, `beforeinput` or composition events skips
+    Wordgard's own handling of them.
+- Hooks, from inside a React shape, wrapper, mark or widget:
+  - `useNodePos()`: a function returning the position of what it draws.
+  - `useStopEvent((wg, event) => stop)`: Wordgard leaves alone the events it stops, in the
+    decoration's chrome or in a React widget (not on its own elements or in plain content).
+  - `useIgnoreMutation((wg, record) => ignore)`: Wordgard doesn't read the DOM mutations it
+    claims, typing aside (Wordgard takes it from `beforeinput`).
+  - `useIsNodeSelected()`, `useSelectNode(select, deselect?)`: the node selection.
+  - `useMergedDOMRefs(...refs)`: one ref setting several, as for a root that's also the content
+    element.
 - In React's StrictMode (development only), `<WordgardEditor>` creates its editor twice and
   drops one, which is never put in the page.
 - Don't read the editor's layout from a plain React effect: it runs inside Wordgard's update,
@@ -103,13 +117,13 @@ side:
 | `plugins` prop                                    | Wordgard extensions in `config`; to change them later, compartments or `GardState.appendConfig`                                                                     |
 | `nodeViews` prop and node view components         | Tag decorations (`Decoration.Tag.shape`, `.widget`, `.wrapper`, `.attribute`): an `Elt` shape for structure and editable content, React widgets for what needs code |
 | `widget()` decorations with a component           | `Decoration.Point.widget(MyReactWidget.of(value))`                                                                                                                  |
-| `getPos` prop, `useNodePos`                       | `useWidgetPos()`                                                                                                                                                    |
-| `useStopEvent`                                    | the widget spec's `propagateEvent`                                                                                                                                  |
-| `useIgnoreMutation`                               | not needed: React widgets are uneditable, Wordgard ignores their mutations                                                                                          |
+| `getPos` prop, `useNodePos`                       | `nodeProps.getPos`, `useNodePos()` (a function, not the position)                                                                                                   |
+| `useStopEvent`                                    | the same name, for events in a React decoration's chrome or a React widget                                                                                          |
+| `useIgnoreMutation`                               | the same name; chrome's and React widgets' mutations never reach Wordgard anyway                                                                                    |
 | `useEditorState`, `useEditorStateSelector`        | the same names, with the state of the last flush                                                                                                                    |
 | `useEditorEffect`                                 | the same name: runs after the editor's update                                                                                                                       |
 | `useEditorEventCallback`                          | the same name, getting the editor                                                                                                                                   |
-| `useEditorEventListener`                          | `Wordgard.domEventHandler` in `config`                                                                                                                              |
+| `useEditorEventListener`                          | the same name, before Wordgard's handlers and keymaps, for a fixed set of event types                                                                               |
 | `useLayoutGroupEffect`                            | `useEditorEffect`; `useEditorMeasure` to measure, then write on the same paint                                                                                      |
 | `reactKeys()` plugin                              | not needed: keys come from the changes Wordgard gives the view                                                                                                      |
 

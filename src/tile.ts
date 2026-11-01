@@ -22,12 +22,12 @@ import type { GardState } from "wordgard/state";
 
 import { attrsToRecord } from "./helpers/index.js";
 import { DocNodeView } from "./components/nodes/DocNodeView.js";
+import { stopsEvent } from "./contexts/DecorationContext.js";
 import { EditorContext, editorOf } from "./contexts/EditorContext.js";
 import { type RenderStore, RenderStoreContext } from "./contexts/RenderStoreContext.js";
-import { widgetRoots } from "./contexts/WidgetContext.js";
 import { viewRoots } from "./viewRoots.js";
 import { contentOf, isReactShape, shapeOfRoot, sortRecords } from "./decorations/ReactShapeType.js";
-import { isReactWidget } from "./decorations/ReactWidgetType.js";
+import { attributedWidget, isReactWidget, widgetRoots } from "./decorations/ReactWidgetType.js";
 import { isReactWrapper } from "./decorations/ReactWrapperType.js";
 import { markOfTile, markTiles } from "./decorations/ReactMarkType.js";
 import { DecoIterator, getDecoSet } from "./decorations/DecoIterator.js";
@@ -573,6 +573,8 @@ const shapeTile = (
 ): Tile => {
   if (isReactShape(shape) || isReactWrapper(shape))
     return reactShapeTile(shape, tag, length, dom, shapeContext);
+  const attributed = attributedWidget(shape);
+  if (attributed) return attributedWidgetTile(attributed, tag, length, dom, shapeContext);
   const { inEditable, afterContent, keepShape, fill, context } = shapeContext;
   const { EltTile, WidgetTile } = getTileClasses();
   const previous = dom.wgTile ?? null;
@@ -633,6 +635,24 @@ const shapeTile = (
   return synced(tile);
 };
 
+// A React widget with the attributes Wordgard would wrap it in an element for:
+// the view draws the widget alone, its attributes as props.
+const attributedWidgetTile = (
+  widget: Widget,
+  tag: DocNode.Tag | null,
+  length: number,
+  dom: Element,
+  { inEditable, afterContent, keepShape, context }: ShapeContext
+): Tile => {
+  const { WidgetTile } = getTileClasses();
+  const flags = (tag ? TileFlag.Atom : TileFlag.Point | TileFlag.NodeInner) | afterContent;
+  const keep = (old: WidgetTile) => keepShape && old.widget.eq(widget);
+  return reactWidgetTile(dom, context, keep, (dom) => {
+    if (inEditable && !widget.type.editable) setUneditable(dom);
+    return new WidgetTile(widget, tag, flags, dom, tag ? length : 0);
+  });
+};
+
 // What a React shape's component draws besides the content element and the
 // elements around it. Its tiles are uneditable widgets, as a widget inside a
 // shape is: Wordgard ignores mutations in them, and positions skip them.
@@ -640,6 +660,7 @@ const chrome = Widget.define<null>({
   render: () => {
     throw new Error("React draws a shape's chrome");
   },
+  propagateEvent: (event) => !stopsEvent(event),
 }).of(null);
 
 // Tiles over a React shape's elements: React's attributes, not the shape's.

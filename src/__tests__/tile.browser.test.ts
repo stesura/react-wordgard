@@ -40,7 +40,7 @@ import {
 
 import { ReactWordgard } from "../ReactWordgard.js";
 import { reactWidget } from "../decorations/ReactWidgetType.js";
-import { useWidgetPos } from "../hooks/useWidgetPos.js";
+import { useNodePos } from "../hooks/useNodePos.js";
 import { useWordgard } from "../hooks/useWordgard.js";
 import { ReactDocTile, nodeViewOf } from "../tile.js";
 import { describeTile, docTileOf, pathOf } from "../testing/tiles.js";
@@ -1245,7 +1245,7 @@ describe("ReactDocTile", () => {
       const seen: [Wordgard, () => number][] = [];
       const Probe = forwardRef<HTMLSpanElement, { value: string }>(({ value }, ref) => {
         const wg = useWordgard();
-        const pos = useWidgetPos();
+        const pos = useNodePos();
         return createElement(
           "span",
           { ref, className: "w", onClick: () => seen.push([wg, pos]) },
@@ -1400,7 +1400,7 @@ describe("ReactDocTile", () => {
     it("draws an image as a React widget with state of its own", async () => {
       const ImageView = forwardRef<HTMLImageElement, { value: string }>(({ value }, ref) => {
         const wg = useWordgard();
-        const pos = useWidgetPos();
+        const pos = useNodePos();
         const [hover, setHover] = useState(false);
         const grow = () =>
           wg.dispatch({

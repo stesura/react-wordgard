@@ -30,6 +30,7 @@ component in the app's React tree.
 | `src/components/` | What React renders: `DocNodeView`, `ChildNodeViews`, `DefaultNodeView`, `MarkView`, `TextNodeView`, `WidgetView`, `ShapeView`, `WrapperView`, `ReactMarkView`, the hack nodes; `WordgardEditor` and `WordgardDoc` host the editor. |
 | `src/decorations/ReactWidgetType.ts`, `ReactShapeType.ts`, `ReactWrapperType.ts`, `ReactMarkType.ts` | React widgets, shapes, wrappers and marks: Wordgard widgets, `Elt`s and mark shapes registered as drawn by a component. |
 | `src/contexts/EditorContext.ts`, `src/hooks/` | The state store, effects and measures the hooks use. |
+| `src/contexts/DecorationContext.ts`, `src/contexts/editorEvents.ts` | What the node view hooks use: each React decoration's position, selection and handlers; the editor event listeners. |
 | `src/wordgardInternals.ts` | The only file typing Wordgard's internals (with two `@ts-expect-error` in `ReactWordgard.ts`). |
 
 ## Creating an editor
@@ -125,8 +126,13 @@ A **native widget** (`Widget.define`) is Wordgard's: its DOM comes from `render`
 `Widget.Type` whose `render` is the fallback plain Wordgard draws; the React view draws its
 component instead, in the editor's tree, with the app's contexts. Its root element (the forwarded
 ref) is the widget's DOM. Widgets are uneditable, and Wordgard ignores mutations inside them, so a
-React widget re-renders freely; it must keep its root element. `useWidgetPos` reads its position
+React widget re-renders freely; it must keep its root element. `useNodePos` reads its position
 from its tile.
+
+A React widget drawing a node gets the node's attributes as props (the selected-node class, tag
+and mark attributes). Wordgard wraps a widget in an element to add them, and a selection would
+then move the component under a new parent, remounting it; our `DecoIterator` copy marks that
+element (`attributeWidget`), and the view draws the widget alone in its place.
 
 ## Hooks and the store
 
@@ -137,6 +143,29 @@ effects to run after the flush, and the measures. `useEditorState` and `useEdito
 read the store; `useEditorEffect` runs after the flush (a plain React effect may run inside it,
 before the tiles exist); `useEditorMeasure` reads in Wordgard's read phase and writes in its write
 phase, on the same paint; `useEditorEventCallback` gives a stable callback.
+
+`useEditorEventListener` registers with the editor: `ReactWordgard` adds, at creation, a
+`Wordgard.domEventHandler` at the highest precedence for each of a fixed list of event types
+(`src/contexts/editorEvents.ts`; Wordgard has a handler per type, and handlers make its listeners
+non-passive, so scroll-blocking events are left out), which runs the registered listeners, the
+latest first. A state taken from another ReactWordgard already has them: Wordgard keeps one copy
+of an extension. A `GardState.reconfigure` drops them; the next flush puts them back. The
+extension carries a no-op plugin, as Wordgard redoes its handlers only when its plugins change.
+
+**The node view hooks** (plan step 5). Each React decoration (`ShapeView`, `WrapperView`,
+`ReactMarkView`, `WidgetView`) provides a `DecorationContext`: its `getPos` (`useNodePos`),
+whether its node is selected (`useIsNodeSelected`, `useSelectNode`), and the sets its components'
+`useStopEvent` and `useIgnoreMutation` register into, keyed by its root element too.
+- `useStopEvent` feeds `propagateEvent`: the chrome's widget type's and every React widget type's
+  ask the decorations around the event's target, up to its editor's content element (an editor
+  nested in a decoration isn't its). Wordgard checks it before its handlers, so a stopped event
+  reaches no handler or keymap, and keeps its default. Events with no widget tile on their path
+  (on a shape's own elements, in plain content) aren't asked.
+- `useIgnoreMutation` is asked in `sortRecords`, for the records that would reach Wordgard, up to
+  the editor's content element too.
+- The selection is read from the class Wordgard draws a node selection with (`wg-selected-node`,
+  anywhere in the node's shape: a point wrapper may sit around it), so the components render with
+  it; `useSelectNode` runs its callbacks after the flush that draws the change.
 
 ## React shapes (plan steps 1 and 2, `docs/react-decorations-plan.md`)
 

@@ -375,6 +375,74 @@ it's outside the content, so no mutation handling is needed. Last, after the dec
       paragraph's end) passed.
    After the fix: 13 cases × 3 browsers pass.
 5. **Hooks:** the list above.
+   **Done (2026-11-01).** Exported: `useStopEvent`, `useIgnoreMutation`, `useSelectNode`,
+   `useIsNodeSelected`, `useEditorEventListener`, `useNodePos`, `useMergedDOMRefs`.
+   `useWidgetPos` is gone (`useNodePos` does it, for every React decoration), and so is
+   `WidgetContext` (one `DecorationContext` for shapes, wrappers, marks and widgets,
+   `src/contexts/DecorationContext.ts`). 11 cases in `src/__tests__/decorationHooks.browser.test.tsx`
+   (7, and 4 from the audit),
+   in the three browsers; each mechanism fails one when disabled (the chrome's and React widgets'
+   `propagateEvent`, `ignoresMutation` in `sortRecords`, the selection class read, the handlers
+   installed at creation, the latest listener first, `useSelectNode`'s transitions). The README's
+   API list and migration table follow. Deviations and what was learned:
+   - **One context**, not react-prosemirror's four (`GetPosContext`, `SelectNodeContext`,
+     `StopEventContext`, `IgnoreMutationContext`): every React decoration provides the same.
+   - **The handlers' arguments** stay react-prosemirror's order, the editor first
+     (`(wg, event)`, `(wg, mutation)`), as `useEditorEventCallback`; Stesura's bodies keep their
+     `view` parameter, renamed.
+   - **`useIsNodeSelected`** is read from the `wg-selected-node` class on the node's shape, not
+     state set from `useSelectNode`'s callbacks: the component renders selected in the same
+     commit, without an effect. A widget-drawn node's class is on an element around the widget,
+     so the widget is told too. A mark is never selected.
+   - **`useStopEvent`** covers the chrome and React widgets, as planned: events on a decoration's
+     own elements or in its content aren't asked (Wordgard asks widget tiles only). Stesura's
+     uses (controls in a title bar, a frame) are chrome.
+   - **`useEditorEventListener`**: Wordgard's `domEventHandler` is per event type, and the types
+     are fixed when the editor is created, so the hook takes a fixed list
+     (`src/contexts/editorEvents.ts`, typed: another type doesn't compile). Touch, wheel and
+     scroll events are left out: a handler makes Wordgard's listener non-passive. Installed in
+     `config`, or appended to a given state (`GardState.appendConfig`; Wordgard keeps one copy).
+   - **`useNodePos`** returns the function, as `useWidgetPos` did: during render the tile may not
+     be built. react-prosemirror's returns the position and re-renders on every state.
+   - **`useMergedDOMRefs`** sets object refs with `Object.assign`, not a cast.
+   - **Lint:** the React Compiler lint reported `nodeProps.contentDOMRef` as a ref read during
+     render in one test component (not the others); destructuring `contentDOMRef` from the props
+     avoids it.
+   **Audit (Fable, 2026-11-01)**, each finding checked against the code:
+   1. **Accepted, fixed (the user chose how).** A node drawn by a React widget remounted when
+      selected and again when deselected: Wordgard adds attributes to a widget-drawn node (the
+      selected class, tag and mark attributes) by wrapping the widget in an element, and React
+      can't move a component under a new parent. The component lost its state and `deselectNode`
+      never ran. Now our `DecoIterator` copy marks that element around a React widget
+      (`attributeWidget`, the reserved attribute): the view draws the widget alone, with the
+      attributes as props (`WidgetViewComponentProps` take them, `value` aside), and the build
+      gives it the widget's tile (`attributedWidgetTile`). The marked element still merges later
+      attributes and takes wrappers. The DOM differs from plain Wordgard's: no element around the
+      widget. Tested (same element and instance through select and deselect, both callbacks run);
+      fails without the marker.
+   2. **Accepted, fixed.** A point wrapper applied after the selection's class put the class on an
+      inner element, and `useIsNodeSelected` read only the outer one: the class is now looked for
+      in the whole shape. Tested.
+   3. **Accepted, fixed.** A `GardState.reconfigure` drops `useEditorEventListener`'s handlers: a
+      marker facet tells, and the next flush appends them again. Checking it found a Wordgard
+      quirk: it redoes its handlers only when its plugins change, so the extension carries a no-op
+      plugin, without which neither the drop nor the return is seen. Tested; fails without either.
+   4. **Accepted, documented.** Among `prec.highest` handlers, ours come first in an editor made
+      from `config`, after the state's own in one made from a `state`. Keymaps come after in both.
+   5. **Accepted, fixed.** `stopsEvent` and `ignoresMutation` walked up past the editor: a
+      decoration around a nested editor (a floating box's sub-editor in a React widget) claimed its
+      events and mutations. The walk stops at the editor's content element. Tested.
+   6. **Accepted, documented.** Key events during a composition don't reach the listeners:
+      Wordgard ignores them before its handlers.
+   7. **Accepted, documented.** Handling `input`, `beforeinput` or composition events skips
+      Wordgard's own handling of them (as with react-prosemirror's `handleDOMEvents`).
+   8. **Accepted, fixed.** `mousemove`, `pointerdown` and `pointerup` left the list: each event
+      would walk the tiles, and Stesura listens to none of them.
+   9. **Accepted, documented.** `useIgnoreMutation` doesn't stop typing: Wordgard takes it from
+      `beforeinput`.
+   10. **Accepted, documented.** `useStopEvent` is asked for events in a nested decoration's chrome
+       or widget too, not only its own.
+   After the fixes: 11 cases × 3 browsers pass.
 6. **Tooltips:** `reactTooltip`.
 7. **Docs:** the README (API, limits, migrating a react-prosemirror node view), CLAUDE.md,
    open-points; the R4 slice 6 entry in the plan.

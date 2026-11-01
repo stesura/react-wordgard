@@ -17,6 +17,8 @@ import {
 } from "react";
 import { Attributes, type Node as DocNode, Elt } from "wordgard/doc";
 
+import { ignoresMutation } from "../contexts/DecorationContext.js";
+
 export type ShapeViewComponentProps<E extends Element = HTMLElement> =
   AllHTMLAttributes<HTMLElement> & {
     nodeProps: {
@@ -198,7 +200,7 @@ export const sortRecords = (
       const handle = shapeOf(record.target);
       if (handle) moved.add(handle);
     }
-  return records.filter((record) => {
+  const keeps = (record: MutationRecord) => {
     const { target } = record;
     if (record.type == "attributes") {
       if (!(target instanceof Element)) return true;
@@ -222,5 +224,7 @@ export const sortRecords = (
     )
       changed.add(handle.root);
     return false;
-  });
+  };
+  // What's left is Wordgard's, unless a decoration around it claims it.
+  return records.filter((record) => keeps(record) && !ignoresMutation(record));
 };

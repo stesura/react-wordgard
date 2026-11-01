@@ -1,9 +1,9 @@
 type DOMRef = (dom: Element | null) => void;
 
-// A React decoration's root ref, also given to the React wrapper around it.
+// A React decoration's root ref, with what else must know its root: the
+// React wrapper around it, its hooks' handlers.
 export const mergeRefs =
-  (ref: DOMRef, outer?: DOMRef): DOMRef =>
+  (...refs: (DOMRef | undefined)[]): DOMRef =>
   (dom) => {
-    ref(dom);
-    outer?.(dom);
+    for (const ref of refs) ref?.(dom);
   };
