@@ -41,7 +41,7 @@ jobs:
 
       - name: Switch to React 19
         if: matrix.react == 19
-        run: npm i --no-save react@19 react-dom@19 react-reconciler@0.33 @types/react@19 @types/react-dom@19
+        run: npm i --no-save react@19 react-dom@19 @types/react@19 @types/react-dom@19
 
       - name: Install the browsers for the browser tests
         run: npx playwright install --with-deps chromium firefox webkit

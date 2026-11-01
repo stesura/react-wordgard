@@ -1,8 +1,8 @@
 // Adapted from react-prosemirror, for Wordgard: `draggable`, `hidden`,
 // `colspan` and `rowspan` render as Wordgard's own setAttribute does (shape
 // attributes, such as an image's `draggable="false"`, go through here).
+// mergeReactProps is left out: nothing uses it.
 
-import cx from "classnames";
 import { HTMLProps } from "react";
 
 let patched = false;
@@ -24,37 +24,6 @@ function patchConsoleError() {
     consoleError(...data);
   };
   patched = true;
-}
-
-function mergeStyleProps(a: HTMLProps<HTMLElement>, b: HTMLProps<HTMLElement>) {
-  if (!("STYLE" in a) || typeof a.STYLE !== "string") {
-    if (!("STYLE" in b) || typeof b.STYLE !== "string") {
-      return undefined;
-    }
-    return b.STYLE;
-  }
-  if (!("STYLE" in b) || typeof b.STYLE !== "string") {
-    return a.STYLE;
-  }
-  return `${a.STYLE.match(/;\s*$/) ? a.STYLE : `${a.STYLE};`} ${b.STYLE}`;
-}
-
-/**
- * Merges two sets of React props. Class names
- * will be concatenated and style objects
- * will be merged.
- */
-export function mergeReactProps(a: HTMLProps<HTMLElement>, b: HTMLProps<HTMLElement>) {
-  return {
-    ...a,
-    ...b,
-    className: cx(a.className, b.className),
-    STYLE: mergeStyleProps(a, b),
-    style: {
-      ...a.style,
-      ...b.style,
-    },
-  };
 }
 
 /**

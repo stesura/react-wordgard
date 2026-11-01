@@ -12,9 +12,9 @@ by [Handle with Care Collective](https://github.com/handlewithcarecollective)
 and originally The New York Times Company. Thanks to them for the design this
 builds on.
 
-`src/prosemirror/` still holds the ProseMirror view of our react-prosemirror fork, for the
-ProseMirror demo and as the benchmark's comparison, until it's deleted. Its changes for large
-documents, against upstream:
+The benchmark compares it with our react-prosemirror fork
+([stesura/react-prosemirror](https://github.com/stesura/react-prosemirror)), whose changes for
+large documents, against upstream, are:
 
 - Node, mark, text and widget views place their view description among their
   siblings with a binary search instead of re-sorting the sibling list.
@@ -125,6 +125,7 @@ npm install
 npx playwright install chromium firefox webkit  # once, for the browser tests
 npm run build
 npm run check                                   # types, lint, format
+npm run check:bench                             # the benchmark's types (needs react-prosemirror, below)
 npm test                                        # unit (jsdom) and browser (Chromium, Firefox, WebKit) tests
 npm run demo                                    # the demo, on Vite's dev server
 npm run bench                                   # times ReactWordgard, Wordgard, react-prosemirror and ProseMirror
@@ -135,7 +136,9 @@ npm run bench:profile                           # where load's and a keystroke's
 The benchmark (`bench/`, not part of the package) times load, a keystroke and bolding the whole
 document, and measures the memory each loaded editor holds, at 2,500 and 15,000 paragraphs. It uses
 React's production build; `npm run bench:dev` uses the development build and `npm run bench:smoke`
-checks it runs; `npm run bench:heap` breaks the memory down by class, from heap snapshots. Run it
+checks it runs; `npm run bench:heap` breaks the memory down by class, from heap snapshots. It
+takes react-prosemirror and ProseMirror from a checkout of our fork next to this repository
+(`../react-prosemirror`, or `REACT_PROSEMIRROR_REPO`), with its dependencies installed. Run it
 on an idle machine, on mains power. An editor holding over 1 GB skips the
 whole-document format: Chromium caps a page's heap at 4 GB, and react-prosemirror runs out of it
 there at 15,000 paragraphs with inline nodes.
@@ -145,5 +148,4 @@ there at 15,000 paragraphs with inline nodes.
 MIT, © 2026 Edoardo Caratti, see [LICENSE.txt](LICENSE.txt).
 
 Includes code from react-prosemirror (© Handle with Care Collective and The New
-York Times Company) and ProseMirror (© Marijn Haverbeke and others); their
-notices are in [THIRD_PARTY_LICENSES.txt](THIRD_PARTY_LICENSES.txt).
+York Times Company) and Wordgard (© Marijn Haverbeke); their notices are in [THIRD_PARTY_LICENSES.txt](THIRD_PARTY_LICENSES.txt).

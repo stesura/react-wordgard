@@ -1,0 +1,15 @@
+{
+  "extends": "../tsconfig.json",
+  "include": ["."],
+  "compilerOptions": {
+    // vitest.config.ts's aliases, for ../react-prosemirror (not
+    // REACT_PROSEMIRROR_REPO); React's typings stay ours.
+    "paths": {
+      "@stesura/react-prosemirror": ["../../react-prosemirror/src/index.ts"],
+      "prosemirror-*": ["../../react-prosemirror/node_modules/prosemirror-*/dist/index.d.ts"],
+      "react": ["../node_modules/@types/react/index.d.ts"],
+      "react-dom": ["../node_modules/@types/react-dom/index.d.ts"],
+      "react-dom/client": ["../node_modules/@types/react-dom/client.d.ts"]
+    }
+  }
+}

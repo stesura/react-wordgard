@@ -1,7 +1,12 @@
 // The editors and documents the benchmarks compare: ReactWordgard, plain
-// Wordgard, react-prosemirror and plain ProseMirror. react-prosemirror is our
-// fork's copy in src/prosemirror, imported here only to compare against; once
-// that folder is deleted, this compares against the published package instead.
+// Wordgard, react-prosemirror (our fork) and plain ProseMirror, the last two
+// from a react-prosemirror checkout (vitest.config.ts).
+import {
+  ProseMirror,
+  ProseMirrorDoc,
+  reactKeys,
+  useEditorEffect,
+} from "@stesura/react-prosemirror";
 import { type Node as PMNode, DOMParser as PMParser } from "prosemirror-model";
 import { schema as pmSchema } from "prosemirror-schema-basic";
 import { EditorState, type Plugin } from "prosemirror-state";
@@ -15,12 +20,6 @@ import { GardState } from "wordgard/state";
 import { Strong } from "wordgard/types";
 
 import { ReactWordgard } from "../src/ReactWordgard.js";
-import {
-  ProseMirror,
-  ProseMirrorDoc,
-  reactKeys,
-  useEditorEffect,
-} from "../src/prosemirror/index.js";
 
 export const smoke = import.meta.env.MODE.includes("smoke");
 export const development = import.meta.env.MODE.endsWith("development");

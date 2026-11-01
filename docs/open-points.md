@@ -1,30 +1,25 @@
 # react-wordgard: open points (2026-10-31)
 
 Everything still open after R0 to R6, in one place. The steps to a first release are planned in
-`docs/v0-release-plan.md`. Each point says where its details are; most
+`docs/partially-executed/v0-release-plan.md`. Each point says where its details are; most
 are in `docs/react-wordgard-plan.md` (the plan), by phase or in "Open questions" and "Progress".
 Remove a point when it's done or dropped, and say so where its details are.
 
 ## Before a v0 release
 
-1. **Package metadata.** `package.json` still has react-prosemirror's peer dependencies
-   (`prosemirror-*`, `react-reconciler`), not `wordgard`, and `prosemirror-view` among its
-   dependencies. The peers should be `wordgard`, `react` and `react-dom`.
-2. **Remove the ProseMirror view** (`src/prosemirror/`), as CLAUDE.md plans: the demo's `/` page
-   still uses it, and so does the benchmark's react-prosemirror column (switch it to the published
-   `@nytimes/react-prosemirror`, or drop it). Then the ProseMirror development dependencies go, and
-   the lint exception for that folder (`eslint.config.js`).
-3. **Publishing.** `"private": true`, version `0.0.0`: the name and scope, the version, and how
+1. **Package metadata.** The peers are `react` and `react-dom`; `wordgard` should move from the
+   dependencies to the peers (`docs/partially-executed/v0-release-plan.md`, V2).
+2. **Publishing.** `"private": true`, version `0.0.0`: the name and scope, the version, and how
    releases are made (the plan's "Our fork's changes": replace the fork's `@stesura` scope, CI and
    staged releases with the library's own).
-4. **Consumers need `skipLibCheck`.** Our emitted `ReactWordgard.d.ts` extends a class with a
+3. **Consumers need `skipLibCheck`.** Our emitted `ReactWordgard.d.ts` extends a class with a
    private constructor (Wordgard's typings already require it). Worth a line in the README, or
    keeping `ReactWordgard` out of the emitted typings (plan, "Open from the takeover").
-5. **A standalone editor flushed from inside React.** `ReactWordgard.create` (its own React root)
+4. **A standalone editor flushed from inside React.** `ReactWordgard.create` (its own React root)
    doesn't detect a flush from inside a React render or effect, where React can't commit; a
    hosted editor (`<WordgardEditor>`) refuses it with an error and catches up. Detect it there
    too, or document hosted editors as the supported way (plan, "Open from R1's first slice").
-6. **Send the upstream list** to Wordgard's author: `docs/wordgard-upstream-asks.md`, kept in step
+5. **Send the upstream list** to Wordgard's author: `docs/wordgard-upstream-asks.md`, kept in step
    with `docs/wordgard-upstream-bugs.md`. Not sent yet.
 
 ## Performance (R6)

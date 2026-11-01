@@ -5,36 +5,35 @@ what's left before publishing a first version, in order. Everything still open a
 or not, is in `docs/open-points.md`; keep the two in step. Decisions that are the owner's are
 marked **Decide**.
 
-## V1: remove the ProseMirror view
+## V1: remove the ProseMirror view (done, 2026-11-01)
 
-`src/prosemirror/` (81 files) is react-prosemirror's view, kept for the demo and the benchmarks
-until the Wordgard view replaced it (CLAUDE.md). The build already leaves it out.
+`src/prosemirror/` (81 files) was react-prosemirror's view, kept for the demo and the benchmarks
+until the Wordgard view replaced it. Done as planned, except:
 
-- **Demo:** `/` (`demo/main.tsx`, `demo/Menu.tsx`, `demo/LinkTooltip.tsx`, `demo/schema.ts`,
-  `demo/doc.ts`) is a ProseMirror editor; `/wordgard.html` (`demo/wordgard/`) is the Wordgard one.
-  Make the Wordgard demo the only one, at `/`.
-- **Benchmarks:** `bench/editors.ts` imports react-prosemirror from `src/prosemirror/`.
-  **Decide:** compare against the published `@nytimes/react-prosemirror` (a different, slower
-  baseline than our fork's copy), or drop that column and keep ProseMirror and Wordgard.
-- **Helpers:** `src/helpers/` re-exports react-prosemirror leftovers the Wordgard view doesn't use:
-  `findDOMNode` (the only use of `react-reconciler`), `refs`, `browser`, `mergeReactProps` (the
-  only use of `classnames`). Keep `attrsToRecord` and `htmlAttrsToReactProps`.
-- **Then:** the ProseMirror development dependencies, the `prosemirror-view` override, the lint
-  exceptions for `src/prosemirror/` and `src/helpers/refs.ts` (`eslint.config.js`), their notices
-  in `THIRD_PARTY_LICENSES.txt` (keep those of files still copied), the `src/prosemirror`
-  exclusion in `tsconfig.build.json`, and CLAUDE.md's layout and demo paragraphs.
-- **Done when:** nothing imports ProseMirror; `npm run check`, `npm run build`, `npm test` and
-  `npm run bench:smoke` pass; the demo runs (`npm run demo`).
+- **Demo:** the Wordgard demo is the only one, at `/` (`index.html`, `demo/main.tsx`).
+- **Benchmarks:** decided: compare against our fork, not the published package, taken from a
+  checkout next to this repository (`../react-prosemirror`, or `REACT_PROSEMIRROR_REPO`, with its
+  dependencies installed). `bench/vitest.config.ts` aliases `@stesura/react-prosemirror` to its
+  `src/index.ts` and `prosemirror-*` to its `node_modules` (the versions the fork is tested with),
+  with one React. The bench left the root `tsconfig.json`: `bench/tsconfig.json` types it
+  against the checkout (`npm run check:bench`), which CI doesn't have.
+- **Helpers:** `findDOMNode`, `refs`, `browser` and `mergeReactProps` removed.
+- **Then:** all done. No ProseMirror code is left, so its notice left `THIRD_PARTY_LICENSES.txt`.
+  `react-reconciler` and `classnames` went too (dependencies and peers): their only users were
+  the removed helpers. That leaves V2 only `wordgard`'s move to the peers.
+- **Checks:** `npm run check`, `npm run build`, `npm run check:bench` and `npm run bench:smoke`
+  pass; the demo loads with no console errors. `npm test`: 1 failure, the WebKit timeout listed
+  in V6, unrelated (it fails alone too).
 
 ## V2: package metadata
 
-- **Peer dependencies:** `wordgard`, `react`, `react-dom`. Drop `prosemirror-*` and
-  `react-reconciler`.
+- **Peer dependencies:** `wordgard`, `react`, `react-dom` (`prosemirror-*` and `react-reconciler`
+  went with V1).
 - **`wordgard` as a peer, not a dependency:** two copies in one app break Wordgard's own
   `instanceof` checks (a `Transaction`, a `Mark`). A narrow range (`~0.6.2` or exact): we use its
   internals (`src/wordgardInternals.ts`), so a minor version can break us. Keep it a development
   dependency for the tests.
-- **Dependencies:** `use-sync-external-store` (the selector hook) stays; `classnames` goes with V1.
+- **Dependencies:** `use-sync-external-store` (the selector hook) stays; `classnames` went with V1.
 - **Done when:** `npm pack --dry-run` lists `dist`, the README and the licences only, and a
   scratch app installing the packed tarball next to its own `wordgard` and React builds and runs
   the README's example.
@@ -75,7 +74,10 @@ export `ReactWordgard`; Wordgard's copied tests use `create`.
   R6 section, against the numbers there.
 - **The flaky WebKit test:** `tile.browser.test.ts`, "maps coordinates the same way", times out at
   15 s on a loaded machine. Give it a longer timeout if it still fails on an idle one.
-- **CI** (`.github/workflows/check.yml`) green on a push, with all three browsers.
+- **CI** (`.github/workflows/check.yml`) green on a push, with all three browsers, on React 18
+  and 19 (a matrix; the 19 leg installs it over the lockfile). Locally on 19, build, check and
+  tests pass, apart from the timeouts under load. Two tests had expected a render error to come
+  out of `flushSync`, which React 19 no longer does; they catch it with an error boundary now.
 - **README:** install, the peer dependencies, the example, the hooks (with
   `useEditorStateSelector`'s `isEqual`), migrating from react-prosemirror, and what V3 and V4
   decided.

@@ -3,11 +3,9 @@
 react-wordgard: a skeleton for a React view over Wordgard (`wordgard` on npm),
 derived from react-prosemirror. The plan is `docs/react-wordgard-plan.md`.
 
-- Layout: the Wordgard view is built at the root of `src/`. `src/prosemirror/`
-  is the old ProseMirror view, kept for the demo until the Wordgard view
-  replaces it, then deleted. Don't import from it in new code: copy or port
-  what's needed. `src/index.ts` exports the public API (components,
-  `reactWidget`, hooks); `ReactWordgard` and the tile code stay internal.
+- Layout: the Wordgard view is at the root of `src/`. `src/index.ts` exports
+  the public API (components, `reactWidget`, hooks); `ReactWordgard` and the
+  tile code stay internal.
 
 - Package manager: npm. Node 22.12 or later.
 - Build: `npm run build` (tsc, ESM only, to `dist/`).
@@ -29,9 +27,12 @@ derived from react-prosemirror. The plan is `docs/react-wordgard-plan.md`.
   the latest `wordgard` and re-copies them; `npm run sync-wordgard-tests`
   re-copies for the installed version (needs `../wordgard`, or `WORDGARD_REPO`).
   Our setup is `test/wordgard-workspace.ts`.
-- Demo: `npm run demo` (Vite dev server): `/` is the ProseMirror view,
-  `/wordgard.html` is `WordgardEditor` in a React app (only the schema parts it
-  renders).
+- Demo: `npm run demo` (Vite dev server): `WordgardEditor` in a React app
+  (only the schema parts it renders).
+- Benchmarks: `npm run bench` and its variants (`bench/`), against our
+  react-prosemirror fork from `../react-prosemirror` (or
+  `REACT_PROSEMIRROR_REPO`), its dependencies installed. `npm run check:bench`
+  type-checks them; CI doesn't, it has no checkout.
 - Licensing: LICENSE.txt is MIT, © Edoardo Caratti. Keep the "Copyright (c) The
   New York Times Company" headers on files from react-prosemirror. Code copied
   from another project (react-prosemirror, ProseMirror, Wordgard's tests) needs

@@ -2,9 +2,11 @@
 // draws what Wordgard draws, shares the app's contexts, and gives the hooks
 // the state, effects, callbacks and measures they promise.
 import React, {
+  Component,
   type ReactNode,
   StrictMode,
   createContext,
+  createRef,
   forwardRef,
   useContext,
   useLayoutEffect,
@@ -97,6 +99,18 @@ const render = (ui: ReactNode) => {
   const wg = editors.at(-1);
   if (!wg) throw new Error("No editor");
   return { wg, root };
+};
+
+// React 18 rethrows a render error from flushSync, React 19 reports it to the
+// root instead: a boundary catches it in both.
+class Catch extends Component<{ children: ReactNode }, { error: unknown }> {
+  state: { error: unknown } = { error: null };
+  static getDerivedStateFromError = (error: unknown) => ({ error });
+  render = () => (this.state.error ? null : this.props.children);
+}
+const errorOf = (boundary: Catch | null) => {
+  const error = boundary?.state.error;
+  return error instanceof Error ? error.message : "";
 };
 
 const hosted = (children: ReactNode = null, extra: GardState.Extension = []) =>
@@ -219,14 +233,17 @@ describe("WordgardEditor", () => {
   });
 
   it("refuses a second WordgardDoc for one editor", () => {
-    expect(() =>
-      render(
-        <WordgardEditor doc={doc} config={config}>
+    const boundary = createRef<Catch>();
+    render(
+      <WordgardEditor doc={doc} config={config}>
+        <Grab />
+        <Catch ref={boundary}>
           <WordgardDoc />
           <WordgardDoc />
-        </WordgardEditor>
-      )
-    ).toThrow(/already rendered by another WordgardDoc/);
+        </Catch>
+      </WordgardEditor>
+    );
+    expect(errorOf(boundary.current)).toMatch(/already rendered by another WordgardDoc/);
   });
 
   it("refuses a WordgardDoc added for an editor already rendered", () => {
@@ -238,14 +255,18 @@ describe("WordgardEditor", () => {
       }, []);
       return on ? <WordgardDoc /> : null;
     };
+    const boundary = createRef<Catch>();
     render(
       <WordgardEditor doc={doc} config={config}>
         <Grab />
         <WordgardDoc />
-        <Second />
+        <Catch ref={boundary}>
+          <Second />
+        </Catch>
       </WordgardEditor>
     );
-    expect(add).toThrow(/already rendered by another WordgardDoc/);
+    add();
+    expect(errorOf(boundary.current)).toMatch(/already rendered by another WordgardDoc/);
   });
 
   it("gives React widgets the app's contexts, which may change outside the flush", () => {
