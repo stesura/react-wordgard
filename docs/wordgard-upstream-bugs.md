@@ -6,8 +6,7 @@ what to do once Wordgard changes. Checked against `wordgard` 0.6.2 (installed)
 and Wordgard's `main` at `08804c9`, where all but the fourth are still present. None reported
 upstream yet.
 
-Code that depends on one of these points here: `grep -rn wordgard-upstream-bugs src`. The list
-to send Marijn is `docs/wordgard-upstream-asks.md`; keep the two in step.
+Code that depends on one of these points here: `grep -rn wordgard-upstream-bugs src`.
 
 ## 1. An inline atom gets a stray buffer after it
 
@@ -89,7 +88,7 @@ to send Marijn is `docs/wordgard-upstream-asks.md`; keep the two in step.
 
 ## 6. Wordgard's incremental update with position-dependent decorations
 
-- **Repro:** not reduced. In the R4 audit's random runs (random documents, random point and range
+- **Repro:** not reduced. In an audit's random runs (random documents, random point and range
   decorations, edits), Wordgard's incremental update differed from its own fresh render in about
   90 of 1,900 steps (point attributes or wrappers dropped, content duplicated), and threw
   (`Cannot read properties of null (reading 'isNodeOuter')`, `Missing partial node`, `Moving past
@@ -118,7 +117,7 @@ to send Marijn is `docs/wordgard-upstream-asks.md`; keep the two in step.
   not 2. Chromium and Firefox pass.
 - **What we do:** skip it in WebKit (`test/skipInBrowser.ts`).
 - **Before sending:** check it in Safari; Playwright's WebKit on Windows isn't Safari (fonts,
-  layout). Not in `docs/wordgard-upstream-asks.md` until confirmed.
+  layout). Not to report until confirmed.
 
 ## 9. `Decoration.Mark.shape`'s typing names a type that doesn't exist
 
@@ -164,3 +163,33 @@ to send Marijn is `docs/wordgard-upstream-asks.md`; keep the two in step.
 - **Ask:** a public way to map over sections (an exported `mapPos(sections, pos, assoc, track)`,
   or a public constructor from sections).
 - **Once available:** `mapNodePos` becomes a call to it, keeping only the `retagged` check.
+
+### Choosing the renderer before the first draw
+
+- **What we do:** Wordgard's constructor draws with the module's own `DocTile.create`, so a
+  subclass's `DocTile` isn't used for the first draw. `ReactWordgard` swaps the base class's
+  `create` for the length of `super()`: it works, but is fragile.
+- **Ask:** the constructor looking up `DocTile` on `this.constructor`, as Wordgard's tests already
+  redirect it (or a CodeMirror-style `setState`).
+- **Once available:** the swap goes.
+
+### A renderer interface
+
+- **What we do:** reach into Wordgard's internals, all typed in `src/wordgardInternals.ts`: the
+  tile classes (taken from instances, as they aren't exported); `TileFlag` and `Reused`; `docTile`,
+  `observer.ignore` and `updateRanges`; a copy of `DecoIterator` and `getDecoSet`; the decoration
+  classes and facets; `Widget.Type`'s internal fields (`inFlow`, `editable`, `render`),
+  `Widget.br`, `Widget.img` and `Widget.text`; `Plot.Type.shape` and `Leaf.Type.shape`;
+  `Mark.Type`'s `rank`, `element` and `attribute`; `Elt.addAttrs`, `wrap` and `fill`.
+- **Ask:** a supported way to supply the tile producer, with exported tile classes or a builder
+  for them. Part of it: adopting an existing element as the content element (as ProseMirror's
+  `EditorView` takes a `mount`), so React could render that element in the app's tree instead of
+  drawing into it through a portal.
+- **Once available:** most of `src/wordgardInternals.ts` goes.
+
+### Typings
+
+- **What we do:** two `@ts-expect-error` for the private constructor, `declare` for the
+  `@internal` members the `.d.ts` strips.
+- **Ask:** a constructor subclasses can call, and the members a view needs in the typings. The
+  npm tarball also ships a stale `dist/view.d.ts` (the old `EditorState` API).

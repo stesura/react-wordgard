@@ -1,9 +1,7 @@
 # How react-wordgard works (2026-11-01)
 
-How the library draws Wordgard with React, end to end, and the decisions behind it, each with
-where it's argued. For Wordgard's own internals, see the `wordgard-internals` skill
-(`.claude/skills/wordgard-internals/SKILL.md`); for what's still open, `docs/open-points.md`.
-Keep this file in step when the design changes.
+How the library draws Wordgard with React, end to end, and the decisions behind it. For what's
+still open, see `docs/open-points.md`. Keep this file in step when the design changes.
 
 ## The idea in one paragraph
 
@@ -12,7 +10,7 @@ the decorations, and its `DocTile` rebuilds a *tile tree* (its view tree, one ti
 owns) and writes the DOM. react-wordgard replaces that DOM writer: inside Wordgard's flush, React
 renders the document, then we build Wordgard's tiles over the DOM React committed. Wordgard keeps
 doing everything else (input, selection, composition, decorations, coordinates), reading our
-tiles as if it had built them. The goal (CLAUDE.md, "Why this library exists") is that every
+tiles as if it had built them. The goal is that every
 decoration taking a shape, a wrapper or a widget, plus marks, can be a React component in the
 app's React tree. Tooltips and panels aren't: an app positions its own popovers (Floating UI and
 the like) from `coordsAtPos`, in `useEditorEffect` or `useEditorLayoutEffect`.
@@ -153,7 +151,7 @@ latest first. A state taken from another ReactWordgard already has them: Wordgar
 of an extension. A `GardState.reconfigure` drops them; the next flush puts them back. The
 extension carries a no-op plugin, as Wordgard redoes its handlers only when its plugins change.
 
-**The node view hooks** (plan step 5). Each React decoration (`ShapeView`, `WrapperView`,
+**The node view hooks.** Each React decoration (`ShapeView`, `WrapperView`,
 `ReactMarkView`, `WidgetView`) provides a `DecorationContext`: its `getPos` (`useNodePos`),
 whether its node is selected (`useIsNodeSelected`, `useSelectNode`), and the sets its components'
 `useStopEvent` and `useIgnoreMutation` register into, keyed by its root element too.
@@ -168,7 +166,7 @@ whether its node is selected (`useIsNodeSelected`, `useSelectNode`), and the set
   anywhere in the node's shape: a point wrapper may sit around it), so the components render with
   it; `useSelectNode` runs its callbacks after the flush that draws the change.
 
-## React shapes (plan steps 1 and 2, `docs/executed/react-decorations-plan.md`)
+## React shapes
 
 A **React shape** (`createShape({component, element})`) is a real Wordgard `Elt` with a content hole
 (`<div data-wg-react="1">[0]`), registered as drawn by a component. Wordgard reasons about the
@@ -213,7 +211,7 @@ Wordgard can't reach it again. This is react-prosemirror's design adapted: it sw
 and handled all typing itself; Wordgard needs its observer for typing, so only React's own
 mutations are filtered out.
 
-## React wrappers (plan step 3)
+## React wrappers
 
 A **React wrapper** (`createWrapper({component, element})`) is the same idea for `Tag.wrapper` and
 `Point.wrapper`: a real `Elt` with a hole, registered by the reserved attribute. Wordgard fills the
@@ -237,7 +235,7 @@ Limits: a React wrapper can't wrap a node a native widget draws (React drew noth
 component's `children` can't be found; draw the node with a React widget), nor text. Around an
 atom, the wrapper's root is made uneditable, as Wordgard makes a shape without a hole.
 
-## React marks (plan step 4)
+## React marks
 
 A **React mark** (`createMarkShape({component, element})`, `span` by default) is a mark's element shape
 (`Shape.Element`) carrying the reserved attribute, for `Decoration.Mark.shape` or a mark type's
@@ -260,22 +258,22 @@ registers the same handle); when a mark's structure changes outside the flush, i
 rebuilt (`rebuildMark`), keeping the content's tiles or building them again from the views where
 React remounted the content, with its leftover widget DOM taken out first.
 
-## Decisions, and where they're argued
+## Decisions
 
-| Decision | Why | Where |
-|---|---|---|
-| Follow Wordgard's API, not react-prosemirror's `nodeViews`; React decorations keep react-prosemirror's prop names. | The library makes Wordgard's concepts drawable by React; Stesura's node views port with few changes. | Plan, "From ProseMirror to Wordgard"; CLAUDE.md; `react-decorations-plan.md` |
-| React draws inside Wordgard's flush (`flushSync` in `updateRanges`). | Wordgard ignores mutations only inside its flush, and reads layout right after. | Plan, R1 |
-| Tiles built over React's DOM, real tile objects. | Wordgard's input, selection and coordinates code walk tiles and check their classes and flags. | Plan, R1; skill, "The tile tree" |
-| Let the browser's edits through, `restore` before rendering. | Wordgard types through native DOM edits on purpose. | Plan, "Open from R1's first slice" |
-| Keys from change sections, per parent plot. | No positions needed to render; kept plots keep keys for free. | Plan, R2; `reactKeys.ts` |
-| Lay out changed sections only; draw once at load. | Per-keystroke cost; Wordgard's first draw was wasted. | Plan, R6 |
-| Host the editor in the app's tree through a portal. | The app's contexts reach React widgets and shapes. | Plan, R5 |
-| Wordgard as a peer dependency, `~0.6.2`. | Two copies break Wordgard's `instanceof` checks; we use its internals. | `partially-executed/v0-release-plan.md`, V2 |
-| React shapes as `Elt`s registered by a reserved attribute on a real element. | Survives Wordgard's copies; keeps `target` selectors and the fallback valid. | `react-decorations-plan.md` |
-| Chrome as uneditable widget tiles. | Wordgard's own model for a shape's elements around its hole. | `react-decorations-plan.md` |
-| Replace Wordgard's `MutationObserver`; rebuild changed shapes from the records, no layout effect. | A component's own commits must never reach Wordgard as edits; a component re-rendering alone doesn't run its parent's effects. | `react-decorations-plan.md`, review and spike |
-| Hook event listeners run before keymaps (highest precedence). | As react-prosemirror's `handleDOMEvents`; Stesura needs keydown first. | `react-decorations-plan.md` |
+| Decision | Why |
+|---|---|
+| Follow Wordgard's API, not react-prosemirror's `nodeViews`; React decorations keep react-prosemirror's prop names. | The library makes Wordgard's concepts drawable by React; Stesura's node views port with few changes. |
+| React draws inside Wordgard's flush (`flushSync` in `updateRanges`). | Wordgard ignores mutations only inside its flush, and reads layout right after. |
+| Tiles built over React's DOM, real tile objects. | Wordgard's input, selection and coordinates code walk tiles and check their classes and flags. |
+| Let the browser's edits through, `restore` before rendering. | Wordgard types through native DOM edits on purpose. |
+| Keys from change sections, per parent plot. | No positions needed to render; kept plots keep keys for free. |
+| Lay out changed sections only; draw once at load. | Per-keystroke cost; Wordgard's first draw was wasted. |
+| Host the editor in the app's tree through a portal. | The app's contexts reach React widgets and shapes. |
+| Wordgard as a peer dependency, `~0.6.2`. | Two copies break Wordgard's `instanceof` checks; we use its internals. |
+| React shapes as `Elt`s registered by a reserved attribute on a real element. | Survives Wordgard's copies; keeps `target` selectors and the fallback valid. |
+| Chrome as uneditable widget tiles. | Wordgard's own model for a shape's elements around its hole. |
+| Replace Wordgard's `MutationObserver`; rebuild changed shapes from the records, no layout effect. | A component's own commits must never reach Wordgard as edits; a component re-rendering alone doesn't run its parent's effects. |
+| Hook event listeners run before keymaps (highest precedence). | As react-prosemirror's `handleDOMEvents`; Stesura needs keydown first. |
 
 ## What we depend on in Wordgard
 
@@ -284,4 +282,5 @@ All typed in `src/wordgardInternals.ts`, re-read after `npm run update-wordgard`
 (swapped in the constructor), and, since React shapes, the `DOMObserver`'s `observer` and `queue`
 and `scheduleFlush`. A Wordgard release changing any of these can break us: the copied Wordgard
 tests (`test/wordgard/`, the `view` project runs them on `ReactWordgard`) and CI's newest-wordgard
-job are the alarm. The asks that would remove some of this are in `docs/wordgard-upstream-asks.md`.
+job are the alarm. The Wordgard changes that would remove some of this are the requests at the end of
+`docs/wordgard-upstream-bugs.md`.

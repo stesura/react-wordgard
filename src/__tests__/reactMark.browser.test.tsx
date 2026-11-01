@@ -1,4 +1,4 @@
-// React marks (docs/executed/react-decorations-plan.md, step 4): a mark drawn by a
+// React marks: a mark drawn by a
 // component that renders the marked content as `children`, with chrome and
 // attributes from its own state, content React remounts, one component per run
 // of the mark, compositions inside it. After each change, Wordgard's next flush

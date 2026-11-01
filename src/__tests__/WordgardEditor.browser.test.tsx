@@ -1,4 +1,4 @@
-// R5: an editor hosted in the app's React tree (WordgardEditor, WordgardDoc)
+// An editor hosted in the app's React tree (WordgardEditor, WordgardDoc)
 // draws what Wordgard draws, shares the app's contexts, and gives the hooks
 // the state, effects, callbacks and measures they promise.
 import React, {

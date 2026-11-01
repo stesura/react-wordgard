@@ -21,3 +21,5 @@ Requires `wordgard` ~0.6.2 and React 18 or 19.
 `useEditorEventListener` handles the editor's DOM events before Wordgard's own handlers and keymaps.
 
 `useNodePos`, `useStopEvent`, `useIgnoreMutation`, `useIsNodeSelected`, `useSelectNode` and `useMergedDOMRefs` give React decorations what react-prosemirror's node views had.
+
+The package ships a skill for AI coding agents, `skills/react-wordgard/SKILL.md`, on building editors with Wordgard and react-wordgard.

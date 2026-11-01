@@ -23,9 +23,10 @@ Where things are:
   `src/decorations/` the layout and the React decorations, `src/hooks/` and `src/contexts/` the
   hooks. Tests are in `src/__tests__/`, their helpers in `src/testing/`.
 - `test/wordgard/`: Wordgard's own browser tests, copied (below).
+- `skills/react-wordgard/SKILL.md`: the skill for users' AI agents, shipped in the package.
 - `demo/`: the demo, `bench/`: the benchmark, `scripts/`: maintenance scripts.
-- `docs/`: how it works, open points, plans (`docs/executed/` once done), notes for Wordgard's
-  author (`docs/wordgard-upstream-*.md`).
+- `docs/`: how it works (`how-it-works.md`), what's open (`open-points.md`), and the Wordgard
+  bugs and requests the code works around (`wordgard-upstream-bugs.md`).
 
 ## Local development
 
@@ -122,6 +123,8 @@ large documents:
   York Times Company" line where it had one. Code copied from another project needs its notice in
   `THIRD_PARTY_LICENSES.txt`.
 - **Tests with every change**, in the three browsers, and the full suite green.
+- **The agent skill** (`skills/react-wordgard/SKILL.md`) follows the API: a change to the API,
+  its rules or its error messages updates it, and its examples must compile.
 - **The changelog**: a user-visible change (the API, behaviour, a fix, the peer ranges) adds a
   line to `CHANGELOG.md` under `## Unreleased`, in Wordgard's format: one sentence per paragraph,
   under `### Breaking changes`, `### Bug fixes` or `### New features`.

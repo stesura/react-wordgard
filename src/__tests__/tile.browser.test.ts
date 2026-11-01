@@ -1,4 +1,4 @@
-// R1's "done when": React's tree draws the same DOM as Wordgard's own renderer
+// React's tree draws the same DOM as Wordgard's own renderer
 // and answers the tile queries the same way.
 import { createElement, forwardRef, useState } from "react";
 import { flushSync } from "react-dom";

@@ -22,6 +22,11 @@ Peer dependencies: `wordgard` 0.6 (`~0.6.2`: react-wordgard reaches into Wordgar
 only its patches), `react` and `react-dom` 18 or 19. An app must have one copy of `wordgard`, the
 one react-wordgard uses. With TypeScript, Wordgard's own typings need `skipLibCheck`.
 
+With an AI coding agent: the package ships a skill for building editors with Wordgard and
+react-wordgard, `skills/react-wordgard/SKILL.md` (in `node_modules/react-wordgard/`). Point your
+agent to it, or copy the `react-wordgard` folder into your project's `.claude/skills/` for Claude
+Code.
+
 ## Usage
 
 ```tsx

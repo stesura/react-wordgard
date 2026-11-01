@@ -8,3 +8,13 @@ node_modules
 
 # Screenshots Vitest's browser mode takes of failing tests
 .vitest/
+
+# The maintainer's plans and notes, and agent instructions, kept locally
+CLAUDE.md
+/.claude/
+/docs/react-wordgard-plan.md
+/docs/executed/
+/docs/partially-executed/
+/docs/stesura-node-views-audit.md
+/docs/virtualization-feasibility.md
+/docs/wordgard-upstream-asks.md
