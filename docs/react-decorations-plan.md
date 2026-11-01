@@ -75,7 +75,7 @@ shapes shouldn't have a content hole"), and a holed shape makes an atomic plot n
 ### The component's props, as react-prosemirror's
 
 ```ts
-type NodeViewComponentProps = AllHTMLAttributes<HTMLElement> & {
+type ShapeViewComponentProps = AllHTMLAttributes<HTMLElement> & {
   nodeProps: {
     node: Node;              // Wordgard's node: its tag, param and marks
     getPos: () => number;    // as useWidgetPos
@@ -87,10 +87,13 @@ type NodeViewComponentProps = AllHTMLAttributes<HTMLElement> & {
 ```
 
 The refs are typed `any`, as react-prosemirror's are, so `forwardRef<HTMLTableCellElement>` and
-`useMergedDOMRefs(ref, contentDOMRef)` keep typing. The names (`NodeViewComponentProps`,
-`nodeProps`, `contentDOMRef`) are react-prosemirror's, so a Stesura node view keeps its signature; what changes is what's inside `node` (Wordgard's model) and
-the registration (a tag decoration instead of `nodeViews`). `decorations` and `innerDecorations`
-are ProseMirror's: left out until a case needs a Wordgard equivalent.
+`useMergedDOMRefs(ref, contentDOMRef)` keep typing. Wordgard has no node views, so the props type
+is named after the decoration (`ShapeViewComponentProps`, next to `WidgetViewComponentProps`;
+decided by the user, 2026-11-01), but the fields keep react-prosemirror's names (`nodeProps`,
+`contentDOMRef`, `children`, `ref`): a Stesura node view keeps its body; what changes is the props
+type's name, what's inside `node` (Wordgard's model) and the registration (a tag decoration
+instead of `nodeViews`). `decorations` and `innerDecorations` are ProseMirror's: left out until a
+case needs a Wordgard equivalent.
 
 The content goes where `contentDOMRef` points, else in the root (react-prosemirror's rule; Stesura's
 `useStesuraNodeView` merges `contentDOMRef` into the root ref by default).
@@ -115,7 +118,7 @@ them (`Tag.widget` start and end, `placeWidgets`).
 The build reuses a node's old tile when its view is the same object (`sameNodeView`, `viewTiles`
 in `src/tile.ts`). A React shape can re-render with different chrome while its view is the same
 (from editor state, `useEditorState`, or a context, inside the flush), so that shortcut must not
-hold for it: `ReactNodeView`'s layout effect marks its root after every commit (a `WeakSet` of
+hold for it: `ShapeView`'s layout effect marks its root after every commit (a `WeakSet` of
 roots), inside the flush or not, and the build rebuilds marked nodes. Every rebuild, inside or
 outside the flush, keeps `tileViews` and `viewTiles` in step, and replaces the tile in its parent
 by splicing `children` and setting `parent` (a synced parent's `addChild` throws), as
@@ -123,7 +126,7 @@ by splicing `children` and setting `parent` (a synced parent's `addChild` throws
 
 ### The component's own commits
 
-Wrapped in our `ReactNodeView` (react-prosemirror's name), the component re-renders inside
+Wrapped in our `ShapeView` (react-prosemirror's `ReactNodeView`), the component re-renders inside
 Wordgard's flush (the build rebuilds it, above) or on its own: state, context, a store. Its own
 commits are handled in two places:
 
@@ -137,7 +140,7 @@ commits are handled in two places:
    committing straight into the structure. Unfiltered, those records would mark the node Dirty,
    our `restore` would reset the root to the fallback `Elt`'s attributes and `sync()` would undo
    React's chrome; so `restore` also skips React shapes' elements.
-2. **The tiles, in a layout effect.** `ReactNodeView`'s layout effect, without dependencies, runs
+2. **The tiles, in a layout effect.** `ShapeView`'s layout effect, without dependencies, runs
    in the same commit; outside the flush (`editor.flushing` false) it rebuilds this node's tiles
    over React's DOM, keeping the content's tiles (the same views, the same DOM). A child
    component's commit that changes the structure without the shape re-rendering is rebuilt from
@@ -172,7 +175,7 @@ Limits, as in react-prosemirror: moving `{children}` under another element remou
   is a nested `Wrapper` tile (`resolve` walks wrappers); chrome in a mark or wrapper is a `Point`
   widget tile without `NodeInner`. The wrapper branch of the build gets the same DOM-driven walk.
 
-### Hooks node views use
+### Hooks React decorations use
 
 react-prosemirror's, adapted (Stesura's counts in `docs/open-points.md`, "Hooks"):
 
@@ -186,8 +189,10 @@ react-prosemirror's, adapted (Stesura's counts in `docs/open-points.md`, "Hooks"
 - `useSelectNode`, `useIsNodeSelected`: from the node selection (Wordgard's point source and the
   `wg-selected-node` class).
 - `useEditorEventListener(type, fn)`: one `Wordgard.domEventHandler` in the editor's config at
-  creation, dispatching to the hooks registered. Its precedence against keymaps to settle
-  (Stesura's section break needs keydown first).
+  creation, at the highest precedence, dispatching to the hooks registered: hook listeners run
+  before keymaps (which are `domEventHandler`s too, through `KeyBinding`), as react-prosemirror's
+  `handleDOMEvents` ran before plugins (decided by the user, 2026-11-01). Stesura's section break
+  needs keydown first.
 - `useNodePos`: react-prosemirror's name for what `useWidgetPos` does; one hook for shapes,
   wrappers, marks and widgets.
 - `useMergedDOMRefs`: back in the public API (Stesura uses it), from the removed
@@ -209,7 +214,22 @@ it's outside the content, so no mutation handling is needed. Last, after the dec
    redraw, that the rebuilt tiles give the same `posFromDOM`/`coordsAtPos` as a fresh build, and
    that typing in its content still reaches Wordgard. Stop and report if the records can't be
    told apart.
-2. **React shapes:** `reactShape`, `ReactNodeView`, the tile build, the commit handling, the flush
+   **Done (2026-11-01), it holds.** `src/__tests__/reactShape.browser.test.tsx`, six cases, pass in
+   Chromium, Firefox and WebKit: after each change Wordgard's next flush keeps the doc tile
+   (nothing to redraw), and the tiles and DOM equal a fresh editor's. Each mechanism is needed:
+   without the record sorting five cases fail, without the rebuild in the flush one, without the
+   rebuild outside it three. The full suite passes (the known WebKit timeout aside).
+   **Deviation:** no layout effect in `ShapeView`. A component re-rendering from its own state
+   commits without its parent, so `ShapeView`'s effects don't run then. The records say which
+   shapes changed instead: `sortRecords` (`src/decorations/ReactShapeType.ts`) collects the roots
+   whose structure changed, and `src/tile.ts` rebuilds them from the observer's callback, before
+   a flush (`ReactWordgard.flush`), or in the flush's build (`holdsChanged`). One mechanism for the
+   shape's own commits, its child components' and those inside the flush.
+   **Not covered yet:** an IME composition in the content while the chrome changes; chrome inside
+   the content element (`childCursor` still throws on it); the content element changing (React
+   remounting the content: the rebuild builds it from the views, untested); the root element
+   changing.
+2. **React shapes:** `reactShape`, `ShapeView`, the tile build, the commit handling, the flush
    fallback; `Tag.shape` and `Point.shape`.
 3. **React wrappers:** `reactWrapper`; `Tag.wrapper` and `Point.wrapper`.
 4. **React marks:** `reactMark`; `Decoration.Mark.shape`.

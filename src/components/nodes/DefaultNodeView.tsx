@@ -5,13 +5,15 @@
 // node's shape or inside it, are drawn by their component when they're React
 // widgets, else draw nothing: ReactDocTile puts their DOM in place.
 import React, { type ReactElement, type ReactNode, createElement, memo } from "react";
-import { Elt } from "wordgard/doc";
+import { Elt, type Node } from "wordgard/doc";
 
+import { isReactShape } from "../../decorations/ReactShapeType.js";
 import { isReactWidget } from "../../decorations/ReactWidgetType.js";
 import { type NodeView, sameNodeView, uneditable } from "../../decorations/iterDeco.js";
 import { attrsToRecord, htmlAttrsToReactProps } from "../../helpers/index.js";
 import type { DecoElt } from "../../wordgardInternals.js";
 import { ChildNodeViews } from "../ChildNodeViews.js";
+import { ShapeView } from "../ShapeView.js";
 import { WidgetView } from "../WidgetView.js";
 
 type Props = {
@@ -19,11 +21,13 @@ type Props = {
 };
 
 const renderShape = (
+  node: Node,
   shape: DecoElt,
   inEditable: boolean,
   content: ReactNode,
   key?: number
 ): ReactElement => {
+  if (isReactShape(shape)) return <ShapeView key={key} elt={shape} node={node} content={content} />;
   const { shape: elt, inEditable: inner } = uneditable(shape, inEditable);
   const props = {
     key,
@@ -36,7 +40,7 @@ const renderShape = (
     ...elt.children.map((child, i) => {
       if (child === 0) return content;
       if (typeof child == "string") return child;
-      if (child instanceof Elt) return renderShape(child, inner, content, i);
+      if (child instanceof Elt) return renderShape(node, child, inner, content, i);
       return isReactWidget(child) ? <WidgetView key={i} widget={child} /> : null;
     })
   );
@@ -51,6 +55,7 @@ export const DefaultNodeView = memo(
     // Keyed, so React keeps the content where a shape moves its hole: the tile
     // build counts on an element React kept keeping its content.
     return renderShape(
+      node,
       shape,
       true,
       node.isPlot && children ? <ChildNodeViews key="content" views={children} /> : null

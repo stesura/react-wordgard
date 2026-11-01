@@ -180,7 +180,6 @@ checks are green:
    - a short commit message and a short description;
    - if there is a next step, a handoff prompt for the next agent to take over.
 
-
 ## Why this library exists
 
 The goal is Wordgard drawn by React in one tree: every Wordgard decoration

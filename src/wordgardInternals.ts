@@ -57,6 +57,10 @@ export interface CompositionInfo {
 
 export interface DOMObserver {
   ignore<T>(f: () => T): T;
+  // The MutationObserver watching the content element, and the records it
+  // delivered that the next flush reads.
+  observer: MutationObserver;
+  queue: MutationRecord[];
 }
 
 interface DocTileClass {

@@ -28,11 +28,22 @@ Remove a point when it's done or dropped, and say so where its details are.
   them. Correct, only slower (plan, R6, "Open from the audit").
 - **A development-build profile** (`npm run bench:profile-dev`): the baseline asked for both
   builds; only production was profiled. Deferred (2026-11-01): not a priority.
-- **Passes over the doc's whole child list outside the changed range:** per keystroke, `keepSame`
-  keys every child of the doc (a `Map` of all of them), and `childViewKeys` runs over them in the
-  layout and again in `ChildNodeViews`, though a flat plot's unchanged ends are already the same
-  view objects. Restricting those to the changed middle would cut some of the linear cost left
-  besides React's comparison (chunking's part); not measured yet (`npm run bench:profile`).
+- **Keystrokes got slower at 15,000 paragraphs** (to address after the React decorations plan):
+  with inline nodes, 14.6 ms recorded in the plan's R6 status (`ed5a7fd`), 26.7 ms at `072797a`
+  and 24.2 with the React shapes spike (2026-11-01, idle machine, production build;
+  `VITE_BENCH_EDITORS=ReactWordgard npm run bench`): the spike costs nothing measurable, the
+  slowdown came in between, in `c00fa12` or `0875b0b`. Profile per keystroke
+  (`npm run bench:profile`, 29.4 ms profiled), against the breakdown after "changed sections":
+  - layout 2.9 ms (was 0.3): `keepSame` (`0875b0b`) keys every child of the doc (a `Map` of all
+    of them, `childViewKeys` twice), 1.9 ms, though a flat plot's unchanged ends are already
+    the same view objects. Run it on the changed middle only.
+  - `addChildTiles` 5.0 ms (was 1.6), of which the cursor's `skip` 2.9 ms own, once per kept
+    top-level node; the spike added a `widgetDOM` lookup there, which belongs in the rebuild
+    only.
+  - React's commit 6.5 ms (was about 2.9): unexplained; suspects are the memos `0875b0b` added
+    (`ChildNodeViews`, extra fiber layers). Profile inside React's functions.
+  - Wordgard's own selection reading 7.4 ms (was about 5): Wordgard's, maybe variance.
+  Bisecting `c00fa12` and `0875b0b` with the timing benchmark would place the React part.
 - **The timing benchmark's memory column** is unreliable after a ReactWordgard run (the next
   editor shows negative values); `npm run bench:heap` is the one to read.
 - **`useEditorMeasure`:** one registered makes every flush run a read and a write pass. Skipping

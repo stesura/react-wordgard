@@ -139,7 +139,8 @@ document, and measures the memory each loaded editor holds, at 2,500 and 15,000 
 React's production build; `npm run bench:dev` uses the development build and `npm run bench:smoke`
 checks it runs; `npm run bench:heap` breaks the memory down by class, from heap snapshots. It
 takes react-prosemirror and ProseMirror from a checkout of our fork next to this repository
-(`../react-prosemirror`, or `REACT_PROSEMIRROR_REPO`), with its dependencies installed. Run it
+(`../react-prosemirror`, or `REACT_PROSEMIRROR_REPO`), with its dependencies installed;
+`VITE_BENCH_EDITORS=ReactWordgard` runs only the editors named (comma-separated). Run it
 on an idle machine, on mains power. An editor holding over 1 GB skips the
 whole-document format: Chromium caps a page's heap at 4 GB, and react-prosemirror runs out of it
 there at 15,000 paragraphs with inline nodes.

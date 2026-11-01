@@ -5,7 +5,7 @@
 import { Wordgard } from "wordgard/editor";
 
 import { editorOf } from "./contexts/EditorContext.js";
-import { ReactDocTile, RefusedUpdate } from "./tile.js";
+import { ReactDocTile, RefusedUpdate, observeShapes, rebuildShapes } from "./tile.js";
 import { type DOMObserver, DocTile } from "./wordgardInternals.js";
 
 // Asks Wordgard for a frame: a no-op read schedules a flush.
@@ -18,6 +18,7 @@ export class ReactWordgard
   // Exists at runtime; Wordgard's typings omit it.
   declare docTile: DocTile;
   declare observer: DOMObserver;
+  declare scheduleFlush: () => void;
 
   // An editor with a React root of its own.
   static create = (spec: Wordgard.Spec) => new ReactWordgard(spec, false);
@@ -57,6 +58,12 @@ export class ReactWordgard
       DocTile.create = create;
     }
     self.editor = this;
+    // React shapes' own commits are sorted out of what Wordgard's DOM
+    // observer reads; replaced before the editor is connected and observes.
+    this.observer.observer = observeShapes(this, (records) => {
+      this.observer.queue.push(...records);
+      this.scheduleFlush();
+    });
     spec.parent?.appendChild(this.dom);
   }
 
@@ -66,6 +73,10 @@ export class ReactWordgard
   // them, so one is.
   flush() {
     const editor = editorOf(this);
+    // React shapes that committed since their records were delivered get
+    // their tiles first: Wordgard reads them before the build.
+    this.observer.queue.push(...this.observer.observer.takeRecords());
+    rebuildShapes(this);
     editor.flushing = true;
     try {
       super.flush();

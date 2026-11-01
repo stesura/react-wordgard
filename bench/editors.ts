@@ -140,12 +140,18 @@ const reactProseMirror: Mount = (html, n, parent) => {
   });
 };
 
-export const editors: [string, Mount][] = [
+const all: [string, Mount][] = [
   ["ReactWordgard", wordgard(ReactWordgard.create)],
   ["Wordgard", wordgard(Wordgard.create)],
   ["react-prosemirror", reactProseMirror],
   ["ProseMirror", proseMirror],
 ];
+
+// `VITE_BENCH_EDITORS=ReactWordgard,Wordgard` runs only the editors named.
+const only = String(import.meta.env.VITE_BENCH_EDITORS ?? "")
+  .split(",")
+  .filter(Boolean);
+export const editors = all.filter(([name]) => !only.length || only.includes(name));
 
 // The JS heap after a full garbage collection, in MB (Chromium flags in
 // vitest.config.ts).
