@@ -283,6 +283,49 @@ it's outside the content, so no mutation handling is needed. Last, after the dec
    After the fixes: 16 cases × 3 browsers pass; full suite 1910 passed, the known WebKit timeout
    aside; `npm run check` and `npm run build` clean.
 3. **React wrappers:** `reactWrapper`; `Tag.wrapper` and `Point.wrapper`.
+   **Done (2026-11-01).** Exported (`reactWrapper`, `ReactWrapperSpec`,
+   `WrapperViewComponentProps`). `src/decorations/ReactWrapperType.ts`, `src/components/WrapperView.tsx`;
+   the handles and record sorting are shared with React shapes (`ReactShapeType.ts`), and so is the
+   tile build (`reactShapeTile`). 16 new cases in `src/__tests__/reactShape.browser.test.tsx`, in
+   the three browsers: drawing and `getPos`, chrome and attributes from its own state, typing with
+   the chrome changing before the flush, a script's mutation in what it wraps (Wordgard redraws
+   it), what it wraps remounted by React, a `target` inside a plain shape, a React shape wrapped
+   (either changing, and both in one task), a `Point.wrapper`, an atom a React widget draws, a
+   native widget refused, the element warning, and from the audit: widgets in what React
+   remounts, nesting (React in React, plain around React), shapes and wrappers swapped, a
+   component not drawing its children. Deviations and what was learned:
+   - **What's wrapped is found by a ref**, not from the shape: React draws it with a ref on its
+     root (`outerRef`, through `ShapeView` and `WidgetView`), the wrapper's `wrappedRef`. A plain
+     element can't be told from chrome otherwise.
+   - **One rebuild per changed root, from the node's tile down**, not "the inner first, then the
+     outer taking its fresh tile": `rebuildShape` already rebuilds the whole node from its view,
+     keeping the content's tiles, so either order gives the same tiles.
+   - **The record sorting stops at the wrapped element.** Without it, a mutation the wrapped node's
+     own DOM gets (a script, a spellchecker) was dropped and never redrawn (tested).
+   - **Limits:** no React wrapper around a node a native widget draws (its DOM is placed after the
+     commit, and the component's `children` can't be located: throws, pointing at a React
+     widget), nor around text (throws). Around an atom, the root is made uneditable at build, as
+     Wordgard does, whether or not the component passes `contentEditable` on.
+   **Audit (Fable, 2026-11-01)**, each finding checked against the code:
+   1. **Accepted, fixed.** The rebuild outside the flush disconnected only the old content's
+      widgets, never the native widgets beside the hole in a wrapped shape React remounted (two
+      connections). Tracing it found worse: React doesn't always remount what's wrapped. Moving
+      `{children}` into a `div` when the wrapped element is a `div` makes React keep the old
+      element as the new structure, with the old widget DOM in it, which the build then read as
+      chrome (the widget drawn twice). The build now takes the old wrapped tree's widget DOM out
+      of the page, unless it's still in what's wrapped (`removeWidgetDOM`), and the rebuild
+      disconnects the whole old node tile except what it kept (`Reused.Full`). Both are
+      load-bearing (tested).
+   2. **Accepted, fixed.** A `reactShape` given to `Tag.wrapper` drew the node's content in it and
+      silently dropped the wrapped shape: it now throws ("use reactWrapper"), and a `reactWrapper`
+      given as a shape says "use reactShape".
+   3. **Accepted (tests only).** Nested React wrappers and a plain wrapper around a React one
+      worked as traced; now tested.
+   4. **Accepted, fixed.** A wrapper and the shape it wraps changing in one batch rebuilt the node
+      twice: `rebuildShapes` now rebuilds each node tile once.
+   5. **Accepted, fixed.** A wrapper whose component draws no `children` said they were "outside
+      it": it now says the component must draw them.
+   After the fixes: 32 cases × 3 browsers pass.
 4. **React marks:** `reactMark`; `Decoration.Mark.shape`.
 5. **Hooks:** the list above.
 6. **Tooltips:** `reactTooltip`.

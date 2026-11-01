@@ -20,6 +20,7 @@ import {
   spanningOf,
 } from "./DecoIterator.js";
 import { isReactWidget } from "./ReactWidgetType.js";
+import { isReactWrapper } from "./ReactWrapperType.js";
 
 export type NodeView = {
   type: "node";
@@ -407,6 +408,7 @@ export const iterDeco = (
       }
       // A text node's attributes and wrappers become spanning wrappers.
       while (shape instanceof Elt) {
+        if (isReactWrapper(shape)) throw new Error("A React wrapper can't wrap text");
         target = openWrapper(target, Elt.create(shape.tagName, shape.attrs, [0]), true).children;
         const [inner] = shape.children;
         if (inner === undefined || inner === 0 || typeof inner == "string")

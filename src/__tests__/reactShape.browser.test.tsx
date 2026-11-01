@@ -1,7 +1,8 @@
 // React shapes (docs/react-decorations-plan.md): a node drawn by a component
 // that renders its content as `children` and changes its chrome and attributes
 // on its own, from editor state inside the flush, wrapped, while the user types
-// or composes, and with chrome beside a container's content. After each
+// or composes, and with chrome beside a container's content; and React
+// wrappers, drawn around what they wrap, the same ways. After each
 // change, Wordgard's next flush must find nothing to redraw, and the tiles must
 // be what a fresh build over the same DOM gives.
 import React, { createContext, forwardRef, useContext, useLayoutEffect, useState } from "react";
@@ -15,6 +16,7 @@ import { Blockquote, Cell, Image, Paragraph, Table, TableRow } from "wordgard/ty
 import { ReactWordgard } from "../ReactWordgard.js";
 import { type ShapeViewComponentProps, reactShape } from "../decorations/ReactShapeType.js";
 import { type WidgetViewComponentProps, reactWidget } from "../decorations/ReactWidgetType.js";
+import { type WrapperViewComponentProps, reactWrapper } from "../decorations/ReactWrapperType.js";
 import { useEditorStateSelector } from "../hooks/useEditorStateSelector.js";
 import { useWordgard } from "../hooks/useWordgard.js";
 import { describeTile, docTileOf } from "../testing/tiles.js";
@@ -159,14 +161,90 @@ const cellWidgets = Decoration.Point.source.of(() =>
   ])
 );
 
+// A React wrapper: a header from its own state, a label attribute from its
+// own state, what it wraps moved into `div.deep` from its own state (React
+// remounts it), and a footer.
+const framed = { header: true, deep: false };
+type FrameControl = {
+  setHeader: (on: boolean) => void;
+  setLabel: (label: string) => void;
+  setDeep: (on: boolean) => void;
+  getPos: () => number;
+};
+const frames = new Map<Wordgard, FrameControl[]>();
+
+const Frame = forwardRef<HTMLElement, WrapperViewComponentProps>(
+  ({ nodeProps, children, ...attrs }, ref) => {
+    const wg = useWordgard();
+    const [header, setHeader] = useState(framed.header);
+    const [label, setLabel] = useState("a");
+    const [deep, setDeep] = useState(framed.deep);
+    useLayoutEffect(() => {
+      const control: FrameControl = {
+        setHeader: (on) => flushSync(() => setHeader(on)),
+        setLabel: (label) => flushSync(() => setLabel(label)),
+        setDeep: (on) => flushSync(() => setDeep(on)),
+        getPos: nodeProps.getPos,
+      };
+      frames.set(wg, [...(frames.get(wg) ?? []), control]);
+    }, [wg, nodeProps.getPos]);
+    return (
+      <section {...attrs} ref={ref} data-frame={label}>
+        {header && (
+          <header>
+            Frame <b>x</b>
+          </header>
+        )}
+        {deep ? <div className="deep">{children}</div> : children}
+        <footer>end</footer>
+      </section>
+    );
+  }
+);
+
+const FrameWrapper = reactWrapper({ component: Frame, element: "section" });
+
+// Around an inline atom: a badge from its own state. It leaves out the
+// attributes, `contenteditable` among them: the build makes it uneditable.
+const InlineFrame = forwardRef<HTMLSpanElement, WrapperViewComponentProps<HTMLSpanElement>>(
+  ({ nodeProps, children }, ref) => {
+    const wg = useWordgard();
+    const [badge, setBadge] = useState(framed.header);
+    useLayoutEffect(() => {
+      const control: FrameControl = {
+        setHeader: (on) => flushSync(() => setBadge(on)),
+        setLabel: () => {},
+        setDeep: () => {},
+        getPos: nodeProps.getPos,
+      };
+      frames.set(wg, [...(frames.get(wg) ?? []), control]);
+    }, [wg, nodeProps.getPos]);
+    return (
+      <span ref={ref}>
+        {badge && <i className="badge">*</i>}
+        {children}
+      </span>
+    );
+  }
+);
+
+const Picture = reactWidget({
+  render: () => document.createElement("img"),
+  component: forwardRef<HTMLImageElement, WidgetViewComponentProps<null>>((_, ref) => (
+    <img ref={ref} className="picture" alt="" />
+  )),
+});
+
 const editors: ReactWordgard[] = [];
 afterEach(() => {
   for (const wg of editors.splice(0)) wg.dom.remove();
   controls.clear();
   rows.clear();
   leads.clear();
+  frames.clear();
   connected.native = 0;
   Object.assign(initial, { bar: true, label: "a", exact: false });
+  Object.assign(framed, { header: true, deep: false });
 });
 
 const create = (spec: { doc?: string; state?: GardState; config?: GardState.Extension } = {}) => {
@@ -500,5 +578,277 @@ describe("React shapes", () => {
         config: [basicSchema(), image(), Decoration.Tag.shape(Image, CalloutShape)],
       })
     ).toThrow(/Leaf nodes shapes shouldn't have a content hole/);
+  });
+});
+
+const frame = (wg: Wordgard, index = 0) => {
+  const found = frames.get(wg)?.[index];
+  if (!found) throw new Error("No frame drawn");
+  return found;
+};
+
+const framedParagraphs = (extra: GardState.Extension = []) => ({
+  doc: "<p>ab</p><p>c</p>",
+  config: [basicSchema(), Decoration.Tag.wrapper(Paragraph, FrameWrapper), extra],
+});
+
+const pictureConfig = (wrapper: Elt) => ({
+  doc: '<p>a<img src="data:,">b</p>',
+  config: [
+    basicSchema(),
+    image(),
+    Decoration.Tag.shape(Image, Picture.of(null)),
+    Decoration.Tag.wrapper(Image, wrapper),
+  ],
+});
+
+describe("React wrappers", () => {
+  it("draws the component around the node, with its chrome uneditable", () => {
+    const wg = create(framedParagraphs());
+    const html = wg.contentDOM.innerHTML;
+    expect(html).toMatch(/^<section data-frame="a"><header contenteditable="false">.*<p>ab<\/p>/);
+    expect(html).not.toContain("data-wg-react");
+    expect(wg.contentDOM.querySelector("footer")?.getAttribute("contenteditable")).toBe("false");
+    expect([frame(wg, 0).getPos(), frame(wg, 1).getPos()]).toEqual([0, 4]);
+    expect(drawn(wg)).toEqual(fresh(wg));
+  });
+
+  it("keeps the tiles right when the component changes its chrome on its own", async () => {
+    const wg = create(framedParagraphs());
+    frame(wg).setHeader(false);
+    await Promise.resolve();
+    expect(wg.contentDOM.querySelectorAll("header").length).toBe(1);
+    expect(flushKeeps(wg)).toBe(true);
+    frame(wg, 1).setHeader(false);
+    await Promise.resolve();
+    framed.header = false;
+    expect(drawn(wg)).toEqual(fresh(wg));
+    expect(flushKeeps(wg)).toBe(true);
+  });
+
+  it("keeps the attributes the component sets on its own", () => {
+    const wg = create(framedParagraphs());
+    frame(wg).setLabel("b");
+    expect(flushKeeps(wg)).toBe(true);
+    expect(wg.contentDOM.querySelector("section")?.getAttribute("data-frame")).toBe("b");
+  });
+
+  it("takes the user's typing in what it wraps, with the chrome changing before the flush", async () => {
+    const wg = create(framedParagraphs());
+    typeInto(wg, textIn(wg, "section p"), 1, "x");
+    frame(wg).setHeader(false);
+    wg.flush();
+    expect(String(wg.state.doc)).toContain("axb");
+    frame(wg, 1).setHeader(false);
+    await Promise.resolve();
+    framed.header = false;
+    expect(drawn(wg)).toEqual(fresh(wg));
+  });
+
+  it("leaves Wordgard the mutations in what it wraps, which it redraws", async () => {
+    const wg = create(framedParagraphs());
+    // A script's: no beforeinput, so Wordgard puts back what the document says.
+    textIn(wg, "section p").insertData(1, "x");
+    await Promise.resolve();
+    wg.flush();
+    expect(wg.contentDOM.querySelector("section p")?.textContent).toBe("ab");
+    expect(drawn(wg)).toEqual(fresh(wg));
+  });
+
+  it("follows what it wraps when React remounts it elsewhere", async () => {
+    const wg = create(framedParagraphs());
+    frame(wg).setDeep(true);
+    await Promise.resolve();
+    expect(wg.contentDOM.querySelector("section > .deep > p")?.textContent).toBe("ab");
+    expect(flushKeeps(wg)).toBe(true);
+    typeInto(wg, textIn(wg, ".deep p"), 2, "x");
+    wg.flush();
+    expect(String(wg.state.doc)).toContain("abx");
+    frame(wg, 1).setDeep(true);
+    await Promise.resolve();
+    framed.deep = true;
+    expect(drawn(wg)).toEqual(fresh(wg));
+    frame(wg).setDeep(false);
+    frame(wg, 1).setDeep(false);
+    expect(flushKeeps(wg)).toBe(true);
+    framed.deep = false;
+    expect(drawn(wg)).toEqual(fresh(wg));
+  });
+
+  it("wraps the element its target picks, inside the node's shape", async () => {
+    const wg = create({
+      config: [
+        basicSchema(),
+        blockquote(),
+        Decoration.Tag.shape(
+          Blockquote,
+          Elt.mk("div", { class: "quote" }, [Elt.mk("blockquote", [0])])
+        ),
+        Decoration.Tag.wrapper(Blockquote, FrameWrapper, { target: "blockquote" }),
+      ],
+    });
+    expect(wg.contentDOM.querySelector("div.quote > section > blockquote > p")).not.toBeNull();
+    expect(frame(wg).getPos()).toBe(3);
+    frame(wg).setHeader(false);
+    await Promise.resolve();
+    expect(flushKeeps(wg)).toBe(true);
+    typeInto(wg, textIn(wg, "blockquote p"), 1, "x");
+    frame(wg).setDeep(true);
+    wg.flush();
+    expect(String(wg.state.doc)).toContain("bxc");
+    Object.assign(framed, { header: false, deep: true });
+    expect(drawn(wg)).toEqual(fresh(wg));
+  });
+
+  it("wraps a React shape, either changing on its own", () => {
+    const wg = create({ config: config(Decoration.Tag.wrapper(Blockquote, FrameWrapper)) });
+    expect(wg.contentDOM.querySelector("section > [data-label] > .body > p")).not.toBeNull();
+    expect([frame(wg).getPos(), control(wg).getPos()]).toEqual([3, 3]);
+    control(wg).setBar(false);
+    expect(flushKeeps(wg)).toBe(true);
+    frame(wg).setHeader(false);
+    expect(flushKeeps(wg)).toBe(true);
+    Object.assign(initial, { bar: false });
+    framed.header = false;
+    expect(drawn(wg)).toEqual(fresh(wg));
+    typeInto(wg, textIn(wg, ".body p"), 1, "x");
+    // React remounts the shape: a new component, with a control of its own.
+    frame(wg).setDeep(true);
+    control(wg, 1).setBar(true);
+    wg.flush();
+    expect(String(wg.state.doc)).toContain("bxc");
+    Object.assign(initial, { bar: true });
+    framed.deep = true;
+    expect(drawn(wg)).toEqual(fresh(wg));
+  });
+
+  it("draws a wrapper a point decoration gives one node", () => {
+    const wg = create({
+      doc: "<p>a</p><p>b</p>",
+      config: [
+        basicSchema(),
+        Decoration.Point.source.of(() =>
+          Decoration.Point.set([[Decoration.Point.wrapper(FrameWrapper), 3]])
+        ),
+      ],
+    });
+    expect(wg.contentDOM.innerHTML).toMatch(/^<p>a<\/p><section data-frame="a">.*<p>b<\/p>/);
+    frame(wg).setHeader(false);
+    expect(flushKeeps(wg)).toBe(true);
+    framed.header = false;
+    expect(drawn(wg)).toEqual(fresh(wg));
+  });
+
+  it("wraps an atom a React widget draws, uneditable", async () => {
+    const wg = create(pictureConfig(reactWrapper({ component: InlineFrame, element: "span" })));
+    const wrapper = wg.contentDOM.querySelector("p > span");
+    expect(wrapper?.getAttribute("contenteditable")).toBe("false");
+    expect(wrapper?.innerHTML).toBe(
+      '<i class="badge" contenteditable="false">*</i><img class="picture" alt="">'
+    );
+    expect(frame(wg).getPos()).toBe(2);
+    expect(drawn(wg)).toEqual(fresh(wg));
+    frame(wg).setHeader(false);
+    await Promise.resolve();
+    expect(flushKeeps(wg)).toBe(true);
+    framed.header = false;
+    expect(drawn(wg)).toEqual(fresh(wg));
+  });
+
+  it("refuses to wrap a native widget, which it couldn't place", () => {
+    expect(() =>
+      create({
+        doc: '<p>a<img src="data:,">b</p>',
+        config: [
+          basicSchema(),
+          image(),
+          Decoration.Tag.shape(Image, NativeMark.of(null)),
+          Decoration.Tag.wrapper(Image, reactWrapper({ component: InlineFrame, element: "span" })),
+        ],
+      })
+    ).toThrow(/can't wrap a native widget/);
+  });
+
+  it("connects the widgets of what React remounts once", async () => {
+    const wg = create({
+      config: [
+        basicSchema(),
+        blockquote(),
+        Decoration.Tag.shape(
+          Blockquote,
+          Elt.mk("div", [NativeMark.of(null), Elt.mk("blockquote", [0])])
+        ),
+        Decoration.Tag.wrapper(Blockquote, FrameWrapper),
+      ],
+    });
+    expect(connected.native).toBe(1);
+    frame(wg).setDeep(true);
+    await Promise.resolve();
+    expect(wg.contentDOM.querySelectorAll(".native").length).toBe(1);
+    expect(connected.native).toBe(1);
+    expect(flushKeeps(wg)).toBe(true);
+    framed.deep = true;
+    expect(drawn(wg)).toEqual(fresh(wg));
+  });
+
+  it("nests, in a React wrapper or a plain one", async () => {
+    const wg = create(
+      framedParagraphs([
+        Decoration.Tag.wrapper(Paragraph, FrameWrapper),
+        Decoration.Tag.wrapper(Paragraph, Elt.mk("aside", [0])),
+      ])
+    );
+    expect(wg.contentDOM.querySelector("aside > section > section > p")).not.toBeNull();
+    // Per paragraph, the inner wrapper's component first.
+    expect([frame(wg, 0).getPos(), frame(wg, 1).getPos()]).toEqual([0, 0]);
+    // The inner wrappers move what they wrap, the outer ones drop their header.
+    const change = async (editor: Wordgard) => {
+      for (const [i, control] of (frames.get(editor) ?? []).entries())
+        if (i % 2) control.setHeader(false);
+        else control.setDeep(true);
+      await Promise.resolve();
+    };
+    await change(wg);
+    expect(flushKeeps(wg)).toBe(true);
+    typeInto(wg, textIn(wg, ".deep p"), 1, "x");
+    wg.flush();
+    expect(String(wg.state.doc)).toContain("axb");
+    const ours = drawn(wg);
+    const theirs = create({ state: wg.state });
+    await change(theirs);
+    expect(ours).toEqual(drawn(theirs));
+  });
+
+  it("refuses a React shape as a wrapper and a React wrapper as a shape", () => {
+    expect(() => create(framedParagraphs(Decoration.Tag.wrapper(Paragraph, CalloutShape)))).toThrow(
+      /use reactWrapper/
+    );
+    expect(() =>
+      create({
+        config: [basicSchema(), blockquote(), Decoration.Tag.shape(Blockquote, FrameWrapper)],
+      })
+    ).toThrow(/use reactShape/);
+  });
+
+  it("says when the component doesn't draw what it wraps", () => {
+    const Bare = forwardRef<HTMLElement, WrapperViewComponentProps>((_, ref) => (
+      <section ref={ref} />
+    ));
+    expect(() =>
+      create(
+        framedParagraphs(
+          Decoration.Tag.wrapper(Paragraph, reactWrapper({ component: Bare, element: "section" }))
+        )
+      )
+    ).toThrow(/must draw its children/);
+  });
+
+  it("says when the component's root isn't the wrapper's element", () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    create(framedParagraphs(Decoration.Tag.wrapper(Paragraph, reactWrapper({ component: Frame }))));
+    expect(error.mock.calls.flat().join("")).toContain(
+      "drew <section> where its wrapper says <div>"
+    );
+    error.mockRestore();
   });
 });

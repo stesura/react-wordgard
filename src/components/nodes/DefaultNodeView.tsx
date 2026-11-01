@@ -3,18 +3,21 @@
 // buildNodeShape), with the plot's content in the hole. In Wordgard every node
 // type has a shape, so there's no missing `toDOM` to check for. Widgets, as a
 // node's shape or inside it, are drawn by their component when they're React
-// widgets, else draw nothing: ReactDocTile puts their DOM in place.
+// widgets, else draw nothing: ReactDocTile puts their DOM in place. React
+// shapes and wrappers in the shape are drawn by ShapeView and WrapperView.
 import React, { type ReactElement, type ReactNode, createElement, memo } from "react";
 import { Elt, type Node } from "wordgard/doc";
 
 import { isReactShape } from "../../decorations/ReactShapeType.js";
 import { isReactWidget } from "../../decorations/ReactWidgetType.js";
+import { isReactWrapper } from "../../decorations/ReactWrapperType.js";
 import { type NodeView, sameNodeView, uneditable } from "../../decorations/iterDeco.js";
 import { attrsToRecord, htmlAttrsToReactProps } from "../../helpers/index.js";
 import type { DecoElt } from "../../wordgardInternals.js";
 import { ChildNodeViews } from "../ChildNodeViews.js";
 import { ShapeView } from "../ShapeView.js";
 import { WidgetView } from "../WidgetView.js";
+import { WrapperView } from "../WrapperView.js";
 import { viewRoot } from "../../viewRoots.js";
 
 type Props = {
@@ -29,8 +32,23 @@ const renderShape = (
   key?: number,
   ref?: (dom: Element | null) => void
 ): ReactElement => {
-  if (isReactShape(shape)) return <ShapeView key={key} elt={shape} node={node} content={content} />;
   const { shape: elt, inEditable: inner } = uneditable(shape, inEditable);
+  // Wordgard fills a wrapper's hole with what it wraps, which a React shape
+  // would drop.
+  if (isReactShape(elt) && (elt.children.length != 1 || elt.children[0] !== 0))
+    throw new Error("A React shape can't wrap: use reactWrapper");
+  if (isReactShape(elt))
+    return <ShapeView key={key} elt={elt} node={node} content={content} outerRef={ref} />;
+  if (isReactWrapper(elt))
+    return (
+      <WrapperView
+        key={key}
+        elt={elt}
+        node={node}
+        wrapped={(wrappedRef) => renderWrapped(node, elt, inner, content, wrappedRef)}
+        outerRef={ref}
+      />
+    );
   const props = {
     key,
     ref,
@@ -47,6 +65,29 @@ const renderShape = (
       return isReactWidget(child) ? <WidgetView key={i} widget={child} /> : null;
     })
   );
+};
+
+// What a React wrapper wraps: its hole holds one element or widget, whose root
+// the wrapper's tiles are built down to. A native widget's DOM is placed after
+// the commit, where React drew nothing: there'd be no telling where the
+// component put its children.
+const renderWrapped = (
+  node: Node,
+  wrapper: DecoElt,
+  inEditable: boolean,
+  content: ReactNode,
+  ref: (dom: Element | null) => void
+): ReactElement => {
+  const [child, ...rest] = wrapper.children;
+  if (child === 0) throw new Error("A React wrapper isn't a shape: use reactShape");
+  if (rest.length || child === undefined || typeof child == "string")
+    throw new Error("A React wrapper's hole holds one element or widget");
+  if (child instanceof Elt) return renderShape(node, child, inEditable, content, undefined, ref);
+  if (!isReactWidget(child))
+    throw new Error(
+      `A React wrapper can't wrap a native widget: draw ${node.name} with a React widget`
+    );
+  return <WidgetView widget={child} outerRef={ref} />;
 };
 
 // Skips nodes whose layout is the same: Wordgard's documents share unchanged

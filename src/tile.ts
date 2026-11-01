@@ -21,6 +21,7 @@ import { widgetRoots } from "./contexts/WidgetContext.js";
 import { viewRoots } from "./viewRoots.js";
 import { contentOf, isReactShape, shapeOfRoot, sortRecords } from "./decorations/ReactShapeType.js";
 import { isReactWidget } from "./decorations/ReactWidgetType.js";
+import { isReactWrapper } from "./decorations/ReactWrapperType.js";
 import { DecoIterator, getDecoSet } from "./decorations/DecoIterator.js";
 import {
   type ChildView,
@@ -554,7 +555,8 @@ const shapeTile = (
   dom: Element,
   shapeContext: ShapeContext
 ): Tile => {
-  if (isReactShape(shape)) return reactShapeTile(shape, tag, length, dom, shapeContext);
+  if (isReactShape(shape) || isReactWrapper(shape))
+    return reactShapeTile(shape, tag, length, dom, shapeContext);
   const { inEditable, afterContent, keepShape, fill, context } = shapeContext;
   const { EltTile, WidgetTile } = getTileClasses();
   const previous = dom.wgTile ?? null;
@@ -627,29 +629,60 @@ const chrome = Widget.define<null>({
 // Tiles over a React shape's elements: React's attributes, not the shape's.
 const shapeTiles = new WeakSet<Tile>();
 
-// A React shape's tiles, over the DOM its component committed: walked from the
-// DOM, as the component decides its structure. The elements from the root to
-// the content element are the shape's structure, everything else is chrome.
+// A React shape's or wrapper's tiles, over the DOM its component committed:
+// walked from the DOM, as the component decides its structure. The elements
+// from the root to the content element (a wrapper: to the element it wraps)
+// are its structure, everything else is chrome.
 const reactShapeTile = (
   elt: DecoElt,
   tag: DocNode.Tag | null,
   length: number,
   dom: Element,
-  { afterContent, container, fill, context }: ShapeContext
+  shapeContext: ShapeContext
 ): Tile => {
+  const { afterContent, container, fill, context } = shapeContext;
   const { EltTile, WidgetTile } = getTileClasses();
   const handle = shapeOfRoot(dom);
-  if (!handle)
-    throw new Error("A React shape's component must forward its ref to its root element");
-  if (dom.localName != elt.tagName) warnElement(elt.tagName, dom.localName);
+  const what = isReactWrapper(elt) ? "wrapper" : "shape";
+  if (!handle || handle.wrapper != (what == "wrapper"))
+    throw new Error(`A React ${what}'s component must forward its ref to its root element`);
+  if (dom.localName != elt.tagName) warnElement(what, elt.tagName, dom.localName);
+  if (handle.wrapper && !handle.content)
+    throw new Error("A React wrapper's component must draw its children");
   const content = contentOf(handle) ?? dom;
-  if (!dom.contains(content)) throw new Error("A React shape's content element is outside it");
+  if (!dom.contains(content) || (handle.wrapper && content == dom))
+    throw new Error(
+      `A React ${what}'s ${handle.wrapper ? "children are" : "content element is"} outside it`
+    );
+  // A wrapper around an atom: uneditable, as Wordgard makes a shape without a
+  // hole.
+  const { inEditable } = uneditable(elt, shapeContext.inEditable);
+  if (!inEditable && shapeContext.inEditable) setUneditable(dom);
   // Content React remounted in another element: the widget DOM placed in the
   // old one, which React doesn't remove, comes out (to be reused from the
   // pool, or dropped), and the old content's widgets make the pool.
-  const old = dom.wgTile ? contentTile(dom.wgTile) : null;
+  const old = !handle.wrapper && dom.wgTile ? contentTile(dom.wgTile) : null;
   const moved = old && old.dom != content ? old : null;
   if (moved) for (const child of moved.children) if (widgetDOM.has(child.dom)) child.dom.remove();
+  // The same for what a wrapper wrapped: React may have remounted it, or made
+  // its element structure (same name, so React kept it, widget DOM included).
+  if (handle.wrapper && dom.wgTile) removeWidgetDOM(dom.wgTile, content);
+  // What a wrapper wraps: the node's shape or an element in it, or the widget
+  // drawing the node.
+  const wrappedTile = (element: Element, after: number): Tile => {
+    const [child] = elt.children;
+    const inside = { ...shapeContext, inEditable, afterContent: after };
+    if (child instanceof Elt) return shapeTile(child, null, 0, element, inside);
+    if (child === undefined || child === 0 || typeof child == "string" || !isReactWidget(child))
+      throw new Error("A React wrapper wraps an element or a React widget");
+    const flags = TileFlag.Point | TileFlag.NodeInner | after;
+    const keep = (old: WidgetTile) =>
+      shapeContext.keepShape && old.isNodeInner && old.widget.eq(child);
+    return reactWidgetTile(element, context, keep, (dom) => {
+      if (inEditable && !child.type.editable) setUneditable(dom);
+      return new WidgetTile(child, null, flags, dom);
+    });
+  };
   const addChrome = (tile: CompositeTile, child: ChildNode, after: number) => {
     if (!(child instanceof Element || child instanceof Text)) return;
     if (child instanceof Element) setUneditable(child);
@@ -660,7 +693,7 @@ const reactShapeTile = (
     const previous = element.wgTile ?? null;
     const tile = EltTile.of(elt, tag, flags, tag ? length : 0, element);
     shapeTiles.add(tile);
-    if (element == content) {
+    if (element == content && !handle.wrapper) {
       tile.flags |= TileFlag.PlotContent;
       // In a container, what isn't a node's or a widget's DOM is chrome, before
       // or after the content, which React draws as one run.
@@ -680,10 +713,12 @@ const reactShapeTile = (
     } else {
       let after = 0;
       for (const child of [...element.childNodes]) {
-        if (child instanceof Element && child.contains(content)) {
-          tile.addChild(
-            build(child, Elt.mk(child.localName, [0]), null, TileFlag.NodeInner | after)
-          );
+        if (handle.wrapper && child == content) {
+          tile.addChild(wrappedTile(content, after));
+          after = TileFlag.AfterContent;
+        } else if (child instanceof Element && child.contains(content)) {
+          const structure = Elt.mk(child.localName, hole ? [0] : []);
+          tile.addChild(build(child, structure, null, innerFlags | after));
           after = TileFlag.AfterContent;
         } else {
           addChrome(tile, child, after);
@@ -694,7 +729,20 @@ const reactShapeTile = (
       tile.length = tile.children.reduce((sum, ch) => sum + ch.length, tile.boundary * 2);
     return synced(tile);
   };
-  return build(dom, elt, tag, (tag ? 0 : TileFlag.NodeInner) | afterContent);
+  // Without a hole (a wrapper around an atom), Wordgard's flags for a shape
+  // without content.
+  const hole = elt.hasContent;
+  const innerFlags = TileFlag.NodeInner | (hole ? 0 : TileFlag.Point);
+  const flags = tag ? (hole ? 0 : TileFlag.Atom) : innerFlags;
+  return build(dom, elt, tag, flags | afterContent);
+};
+
+// Takes the widget DOM under `tile` out of the page, unless it's in `keep`.
+const removeWidgetDOM = (tile: Tile, keep: Element) => {
+  for (const child of tile.children) {
+    if (!widgetDOM.has(child.dom)) removeWidgetDOM(child, keep);
+    else if (!keep.contains(child.dom)) child.dom.remove();
+  }
 };
 
 // A plot whose content is blocks: no text, so no browser edits in its content
@@ -703,9 +751,15 @@ const isContainer = (node: DocNode) => node.isPlot && !node.isTextblock && !node
 
 // Whether a React shape's content is text, from the node its tile was built
 // for (records only come once it's built).
-const holdsText = (root: Element) => {
+// The node tile a React shape's or wrapper's root is drawn in.
+const nodeTileOf = (root: Element) => {
   let tile = root.wgTile;
   while (tile && !tile.tag) tile = tile.parent ?? undefined;
+  return tile;
+};
+
+const holdsText = (root: Element) => {
+  const tile = nodeTileOf(root);
   const view = tile && tileViews.get(tile);
   return !view || !isContainer(view.node);
 };
@@ -722,14 +776,15 @@ const isChromeTile = (tile: Tile) =>
 
 const warned = new Set<string>();
 
-// A React shape whose component's root isn't the element its Elt names:
-// `target` selectors match the Elt, and plain Wordgard draws it.
-const warnElement = (expected: string, found: string) => {
-  const key = `${expected}>${found}`;
+// A React shape or wrapper whose component's root isn't the element its Elt
+// names: `target` selectors match the Elt, and plain Wordgard draws it.
+const warnElement = (what: "shape" | "wrapper", expected: string, found: string) => {
+  const key = `${what}:${expected}>${found}`;
   if (warned.has(key)) return;
   warned.add(key);
+  const define = what == "shape" ? "reactShape" : "reactWrapper";
   console.error(
-    `A React shape's component drew <${found}> where its shape says <${expected}>: give reactShape the element its component draws`
+    `A React ${what}'s component drew <${found}> where its ${what} says <${expected}>: give ${define} the element its component draws`
   );
 };
 
@@ -1112,12 +1167,12 @@ const contentTile = (tile: Tile): Tile | null => {
 // after its component committed on its own: the content's tiles are kept when
 // the content element is the same, built again from their views when React
 // remounted it.
-const rebuildShape = (root: Element, wg: Wordgard) => {
-  let old = root.isConnected ? root.wgTile : undefined;
-  while (old && !old.tag) old = old.parent ?? undefined;
-  const view = old && tileViews.get(old);
-  const parent = old?.parent;
-  if (!old || !view || !parent || !(view.shape instanceof Elt)) return;
+const rebuildShape = (old: Tile, wg: Wordgard) => {
+  const view = tileViews.get(old);
+  const parent = old.parent;
+  // Gone with content an earlier rebuild found remounted.
+  if (!old.dom.isConnected) return;
+  if (!view || !parent || !(view.shape instanceof Elt)) return;
   const entry = rootOf(wg.contentDOM);
   const length = entry.last?.state.doc.length;
   const context: BuildContext = {
@@ -1144,6 +1199,7 @@ const rebuildShape = (root: Element, wg: Wordgard) => {
         if (isChromeTile(child)) continue;
         if (widgetDOM.has(child.dom)) cursor.place(child.dom);
         else if (cursor.next() != child.dom) throw new Error("A React shape's content moved");
+        context.reused.set(child, Reused.Full);
         tile.addChild(child);
       }
     } else if (node.isPlot && children) {
@@ -1167,9 +1223,10 @@ const rebuildShape = (root: Element, wg: Wordgard) => {
   tileViews.set(tile, view);
   viewTiles.set(view, tile);
   for (const stray of context.strays) if (!context.taken.has(stray)) stray.remove();
+  // What wasn't kept is disconnected: the content React remounted, and the
+  // widgets around it in a wrapped shape React remounted.
   if (wg.connected) {
-    if (oldContent && contentTile(tile)?.dom != oldContent.dom)
-      for (const child of oldContent.children) child.disconnect(context.reused);
+    old.disconnect(context.reused);
     for (const widget of context.toConnect) widget.connect();
   }
 };
@@ -1223,7 +1280,14 @@ export const rebuildShapes = (wg: Wordgard) => {
   const found = shapeObservers.get(wg);
   if (!found || editorOf(wg).flushing || !roots.has(wg.contentDOM)) return;
   if (!found.changed.size) return;
-  for (const root of found.changed) rebuildShape(root, wg);
+  // A node holding several changed roots (a React wrapper and the shape it
+  // wraps) is rebuilt once, whole.
+  const nodes = new Set<Tile>();
+  for (const root of found.changed) {
+    const tile = root.isConnected ? nodeTileOf(root) : undefined;
+    if (tile) nodes.add(tile);
+  }
+  for (const tile of nodes) rebuildShape(tile, wg);
   found.changed.clear();
   found.discard();
 };

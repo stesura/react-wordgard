@@ -27,8 +27,8 @@ component in the app's React tree.
 | `src/changes.ts` | Helpers over Wordgard's change sections (kept, redrawn, replaced), indexed once per update. |
 | `src/reactKeys.ts` | React keys per plot's children, mapped through changes. |
 | `src/composition.ts` | Keeping an IME composition's text node alive through the flush. |
-| `src/components/` | What React renders: `DocNodeView`, `ChildNodeViews`, `DefaultNodeView`, `MarkView`, `TextNodeView`, `WidgetView`, `ShapeView`, the hack nodes; `WordgardEditor` and `WordgardDoc` host the editor. |
-| `src/decorations/ReactWidgetType.ts`, `ReactShapeType.ts` | React widgets and React shapes: Wordgard widgets and shapes registered as drawn by a component. |
+| `src/components/` | What React renders: `DocNodeView`, `ChildNodeViews`, `DefaultNodeView`, `MarkView`, `TextNodeView`, `WidgetView`, `ShapeView`, `WrapperView`, the hack nodes; `WordgardEditor` and `WordgardDoc` host the editor. |
+| `src/decorations/ReactWidgetType.ts`, `ReactShapeType.ts`, `ReactWrapperType.ts` | React widgets, shapes and wrappers: Wordgard widgets and `Elt`s registered as drawn by a component. |
 | `src/contexts/EditorContext.ts`, `src/hooks/` | The state store, effects and measures the hooks use. |
 | `src/wordgardInternals.ts` | The only file typing Wordgard's internals (with two `@ts-expect-error` in `ReactWordgard.ts`). |
 
@@ -181,6 +181,30 @@ removed), as Wordgard's flush does inside `ignore`, and the rebuild detaches the
 Wordgard can't reach it again. This is react-prosemirror's design adapted: it switched ProseMirror's observer off
 and handled all typing itself; Wordgard needs its observer for typing, so only React's own
 mutations are filtered out.
+
+## React wrappers (plan step 3)
+
+A **React wrapper** (`reactWrapper({component, element})`) is the same idea for `Tag.wrapper` and
+`Point.wrapper`: a real `Elt` with a hole, registered by the reserved attribute. Wordgard fills the
+hole with what it wraps (the node's shape, or the element `target` picks in it), so the wrapper's
+`Elt` holds one child. The component gets `WrapperViewComponentProps`: a React shape's props
+without `contentDOMRef` (`nodeProps` with `node` and `getPos`, `children`, `ref`, attributes).
+
+`DefaultNodeView` draws what's wrapped with a ref on its root (`outerRef`, through `ShapeView`
+and `WidgetView` too), so the wrapper's handle knows the wrapped element as a shape's knows its
+content element. The tile build is a React shape's (`reactShapeTile`), walking down to the
+wrapped element instead of the content element: the elements on the way are structure, the rest
+chrome, and the wrapped element gets the tiles of the `Elt` or React widget it draws. The record
+sorting stops at a wrapped element, as at a content element: what happens in it is the wrapped
+node's (Wordgard's mutations, or an inner React shape's). A wrapper around a React shape is
+rebuilt once, from the node's tile down, whichever of the two changed. When the component moves
+its `children`, React may remount what's wrapped, or keep its element as new structure when the
+names match; either way, native widget DOM the old wrapped tree held comes out before the walk, as
+for a shape's remounted content, and the rebuild disconnects what it didn't keep.
+
+Limits: a React wrapper can't wrap a node a native widget draws (React drew nothing there, so the
+component's `children` can't be found; draw the node with a React widget), nor text. Around an
+atom, the wrapper's root is made uneditable, as Wordgard makes a shape without a hole.
 
 ## Decisions, and where they're argued
 

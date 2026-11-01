@@ -10,6 +10,11 @@ export {
   type WidgetViewComponentProps,
   reactWidget,
 } from "./decorations/ReactWidgetType.js";
+export {
+  type ReactWrapperSpec,
+  type WrapperViewComponentProps,
+  reactWrapper,
+} from "./decorations/ReactWrapperType.js";
 export { useEditorEffect } from "./hooks/useEditorEffect.js";
 export { useEditorEventCallback } from "./hooks/useEditorEventCallback.js";
 export { type EditorMeasure, useEditorMeasure } from "./hooks/useEditorMeasure.js";

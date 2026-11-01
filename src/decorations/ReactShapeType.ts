@@ -34,7 +34,7 @@ export type ReactShapeSpec<E extends Element = HTMLElement> = {
   element?: string;
 };
 
-const reserved = "data-wg-react";
+export const reserved = "data-wg-react";
 
 type DrawProps = {
   attrs: HTMLProps<HTMLElement>;
@@ -56,7 +56,7 @@ export const reactShape = <E extends Element = HTMLElement>({
   return Elt.mk(element, { [reserved]: id }, [0]);
 };
 
-const idOf = (elt: Elt<unknown>) => Attributes.get(elt.attrs, reserved);
+export const idOf = (elt: Elt<unknown>) => Attributes.get(elt.attrs, reserved);
 
 export const isReactShape = (elt: Elt<unknown>) => {
   const id = idOf(elt);
@@ -80,30 +80,35 @@ export const drawShape = (elt: Elt<unknown>, props: DrawProps) => {
   return draw(props);
 };
 
-// A drawn React shape: its root element and the element its content is in
-// (the root without a `contentDOMRef`).
+// A drawn React shape or wrapper: its root element, and the element its
+// content is in (a shape's root without a `contentDOMRef`) or, for a wrapper,
+// the element it wraps.
 export type ShapeHandle = {
   root: Element | null;
   content: Element | null;
+  wrapper: boolean;
 };
 
 const roots = new WeakMap<Element, ShapeHandle>();
 const contents = new WeakMap<Element, ShapeHandle>();
+const wrapped = new WeakSet<Element>();
 // Every element that was a shape's content element: typing never adds or
 // removes one, React moving a shape's content does.
 const everContent = new WeakSet<Element>();
 
 export const shapeOfRoot = (dom: Element) => roots.get(dom);
 
-export const contentOf = (handle: ShapeHandle) => handle.content ?? handle.root;
+export const contentOf = (handle: ShapeHandle) =>
+  handle.content ?? (handle.wrapper ? null : handle.root);
+
+const rootRef = (handle: ShapeHandle) => (dom: Element | null) => {
+  if (handle.root) roots.delete(handle.root);
+  handle.root = dom;
+  if (dom) roots.set(dom, handle);
+};
 
 export const createShapeHandle = () => {
-  const handle: ShapeHandle = { root: null, content: null };
-  const ref = (dom: Element | null) => {
-    if (handle.root) roots.delete(handle.root);
-    handle.root = dom;
-    if (dom) roots.set(dom, handle);
-  };
+  const handle: ShapeHandle = { root: null, content: null, wrapper: false };
   const contentDOMRef = (dom: Element | null) => {
     if (handle.content) contents.delete(handle.content);
     handle.content = dom;
@@ -112,18 +117,39 @@ export const createShapeHandle = () => {
       everContent.add(dom);
     }
   };
-  return { handle, ref, contentDOMRef };
+  return { handle, ref: rootRef(handle), contentDOMRef };
 };
 
-// The React shape whose chrome or structure `node` is in: the first shape
-// root found going up, unless a shape's content element comes first.
+export const createWrapperHandle = () => {
+  const handle: ShapeHandle = { root: null, content: null, wrapper: true };
+  const wrappedRef = (dom: Element | null) => {
+    if (handle.content) wrapped.delete(handle.content);
+    handle.content = dom;
+    if (dom) wrapped.add(dom);
+  };
+  return { handle, ref: rootRef(handle), wrappedRef };
+};
+
+// The position of the node a React shape or wrapper draws, from its tile: the
+// root's, or the one around it when wrapped.
+export const nodePos = (handle: ShapeHandle) => () => {
+  let tile = handle.root?.isConnected ? handle.root.wgTile : undefined;
+  while (tile && !tile.tag) tile = tile.parent ?? undefined;
+  if (!tile) throw new Error("This React shape or wrapper isn't drawn");
+  return tile.posBefore;
+};
+
+// The React shape or wrapper whose chrome or structure `node` is in: the
+// first root found going up, unless a shape's content element or a wrapped
+// element comes first.
 const shapeAround = (node: Node | null): ShapeHandle | null => {
   for (let cur = node; cur; cur = cur.parentNode) {
     if (!(cur instanceof Element)) continue;
     if (contents.has(cur)) return null;
     const root = roots.get(cur);
-    // A root without a content element holds the content itself.
+    // A shape's root without a content element holds the content itself.
     if (root) return root.content ? root : null;
+    if (wrapped.has(cur)) return null;
   }
   return null;
 };
@@ -134,7 +160,7 @@ const contentShape = (dom: Element) => {
   return handle && contentOf(handle) == dom ? handle : null;
 };
 
-// The React shape whose root, or an element inside it, `node` is.
+// The React shape or wrapper whose root, or an element inside it, `node` is.
 const shapeOf = (node: Node | null) => {
   for (let cur = node; cur; cur = cur.parentNode) {
     const handle = cur instanceof Element ? roots.get(cur) : undefined;
@@ -152,7 +178,8 @@ const movesContent = (record: MutationRecord) =>
 // its content go (Wordgard would take them for edits), and the shapes whose
 // structure changed (an element added or removed between the root and the
 // content, or beside the content in a container's content element) are
-// collected, for their tiles to be rebuilt. In a container (blocks, no text),
+// collected, for their tiles to be rebuilt. The same for a React wrapper, what
+// it wraps standing for the content. In a container (blocks, no text),
 // the browser's typing never adds or removes children of the content element
 // itself, so those records are React's too; `inline` says whether a shape's
 // content is text. Typing in an empty textblock in the same task as a commit
