@@ -82,8 +82,8 @@ export `ReactWordgard`; Wordgard's copied tests use `create`.
 
 ## V6: checks before publishing
 
-- **Timing benchmark** on an idle machine on mains power (`npm run bench`), its table in the plan's
-  R6 section, against the numbers there.
+- **Timing benchmark** on an idle machine on mains power: done, the user confirmed (2026-11-01)
+  the run whose numbers are in the plan's R6 status was idle and on mains.
 - **The flaky WebKit test:** `tile.browser.test.ts`, "maps coordinates the same way", times out at
   15 s on a loaded machine. Give it a longer timeout if it still fails on an idle one.
 - **CI** (`.github/workflows/check.yml`) green on a push, with all three browsers, on React 18

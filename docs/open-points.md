@@ -1,4 +1,4 @@
-# react-wordgard: open points (2026-10-31)
+# react-wordgard: open points (2026-11-01)
 
 Everything still open after R0 to R6, in one place. The steps to a first release are planned in
 `docs/partially-executed/v0-release-plan.md`. Each point says where its details are; most
@@ -22,14 +22,17 @@ Remove a point when it's done or dropped, and say so where its details are.
 
 ## Performance (R6)
 
-- **The timing benchmark on an idle machine on mains power** (`npm run bench`): the numbers in the
-  plan come from a machine not confirmed idle.
 - **Chunking parked** (not for v0): about 3 ms per keystroke at 15,000 paragraphs, nothing at load
   or when formatting the whole document.
 - **Updates that take the slow path:** two edits in one transaction re-walk every plot between
   them. Correct, only slower (plan, R6, "Open from the audit").
 - **A development-build profile** (`npm run bench:profile-dev`): the baseline asked for both
-  builds; only production was profiled.
+  builds; only production was profiled. Deferred (2026-11-01): not a priority.
+- **Passes over the doc's whole child list outside the changed range:** per keystroke, `keepSame`
+  keys every child of the doc (a `Map` of all of them), and `childViewKeys` runs over them in the
+  layout and again in `ChildNodeViews`, though a flat plot's unchanged ends are already the same
+  view objects. Restricting those to the changed middle would cut some of the linear cost left
+  besides React's comparison (chunking's part); not measured yet (`npm run bench:profile`).
 - **The timing benchmark's memory column** is unreliable after a ReactWordgard run (the next
   editor shows negative values); `npm run bench:heap` is the one to read.
 - **`useEditorMeasure`:** one registered makes every flush run a read and a write pass. Skipping
@@ -49,12 +52,11 @@ Remove a point when it's done or dropped, and say so where its details are.
 
 ## Features not offered yet
 
-- **React shapes** (R4 slice 6): a React component as a node's shape, owning the element around
-  editable content. Only if a case needs it; it would need an `EltTile` subclass that ignores the
-  component's own commits outside the flush.
-- **Hooks** (plan, R5): node-selected state (`useIsNodeSelected`, `useSelectNode`), composition
-  state (`useIsComposingIn`), focus state. An event listener hook isn't needed: Wordgard's
-  `Wordgard.domEventHandler` in `config` covers it.
+- **React shapes, wrappers, marks and tooltips, with the node view hooks** (`useStopEvent`,
+  `useIgnoreMutation`, `useSelectNode`, `useIsNodeSelected`, `useEditorEventListener`,
+  `useNodePos`, `useMergedDOMRefs`): the library's purpose (CLAUDE.md), planned in
+  `docs/react-decorations-plan.md`. Next.
+- **Hooks** (plan, R5): composition state (`useIsComposingIn`), focus state.
 - **Several editors in one paginated layout** (headers, footers, notes): one flush per editor, or
   coordinated flushes so pagination measures them together.
 - **Server-side rendering:** a static view, or Wordgard's HTML serializer.

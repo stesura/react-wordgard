@@ -133,15 +133,51 @@ Each tile sets `dom.wgTile = this` (declared on DOM `Node` in `dom.ts`).
 
 - `Widget` / `Widget.Type` (`define({render(value, wg), eq, connect, disconnect,
   propagateEvent, inFlow, editable})`). Non-editable by default (`contenteditable=false`).
-- Per-type ("tag") decorations, as facets: `Decoration.Tag.shape` (+`.derived`), `.wrapper`,
-  `.widget(type, "before"|"after"|"start"|"end")` (+`.derived`), `.attribute`.
-  `Decoration.Mark.shape` overrides a mark's shape.
+- `Decoration.Shape = Widget | Elt<string | Widget>`: a node draws as one widget, or as an
+  element tree whose children may be widgets and one content hole (`0`). A widget never holds
+  the content: Wordgard has no node views; a node's interactive parts are widgets *beside* the
+  hole, inside the shape.
+- Per-type ("tag") decorations, as facets: `Decoration.Tag.shape(type, shape | (tag) => shape,
+  {atom?})`, `.wrapper(type, elt with a hole, {target?})`, `.widget(type,
+  "before"|"after"|"start"|"end", widget | (tag) => widget)`, `.attribute(type, attr, value |
+  (tag) => value, {target?})`. Function forms are cached **by tag** and must be pure: they see
+  the node's tag only (type, param, marks), not its position, parent or children. `atom` is
+  needed when a shape function changes whether the plot draws as an atom. `Decoration.Mark.shape`
+  overrides a mark's shape.
+- `.derived` (`Tag.shape.derived`, `Tag.widget.derived`): `(state) => shape | (tag) => shape`.
+  Wordgard tracks the state slots read (`GardState.Facet.derive`) in the outer function and
+  redraws the type's nodes when they change; reads inside the returned tag function aren't
+  tracked. Avoid depending on the document or selection: a changed shape costs work across a big
+  document.
+- `target` (on `Tag.wrapper`, `Tag.attribute`, `Point.attributes`, `Point.wrapper`): a CSS subset
+  (tag name and classes, `img.x.y`) picking an element inside the node's shape. Without it,
+  attributes go on the outer element (on a wrapper element when the node draws as a widget).
+- Wrappers (`Tag.wrapper`, `Point.wrapper`): an `Elt<string | Widget>` with a hole, filled with
+  the node's shape or the element `target` picks (`Elt.wrap` → `modifyBySelector`, then
+  `wrapper.fill([elt])`). They wrap elements only: the content hole can't be targeted, so no
+  wrapper puts an element between a node's element and its content (for `td > 0`, it lands
+  outside the `td`). For that, the base shape needs the inner element, or a `Point.shape`
+  replaces the shape. A wrapper may hold widgets (chrome around a node).
+- Several attribute decorations on one element merge (`Attributes.merge`, `doc/shape.ts`): `class`
+  values join with a space, `style` values with `;`, other attributes: the later wins.
 - Point decorations (`PointSet`, `Decoration.Point.source`): `widget(w, {side, trackMode})`,
-  `attributes`, `shape` (replace the next node's shape), `wrapper`. The node selection is a
-  built-in point source adding class `wg-selected-node`.
+  `attributes(attrs, {target?})` (on the node after the point), `shape` (replace the next node's
+  shape), `wrapper(elt, {target?})`. The node selection is a built-in point source adding class
+  `wg-selected-node`.
 - Range decorations (`RangeSet`, `Decoration.Range.source`): `wrapper(tag, {rank, spanning,
   attributes, scope, query, inclusive})`, `attribute`. Scope: `atom` (default), `inlineatom`,
   `all`.
+- Point and range sources are functions of the state, **called on every update**: keep big sets
+  in a state field and map them.
+- **`decoratePlots({type, points?, ranges?, refresh?})`** (`editor/plotdeco.ts`): per-plot
+  decorations, computed from the plot itself (its attributes and children), positions relative
+  to its content start. Kept in a state field registered as a point/range source, so React draws
+  them like any other. On a doc change, it recomputes the decorations of every matching plot the
+  changed ranges touch, **the whole plot** (the outermost match): cheap for a table or a callout,
+  linear in its size for a plot spanning most of the document (a section). `refresh(tr)` forces
+  recomputing, for all plots or those a predicate picks. This is Wordgard's way to pass a
+  parent's information to its descendants (attributes, shapes, widget values), or to shape a
+  node from its children.
 - **`DecoIterator.walk(from, inclusiveStart, to, walker)`** emits `enter(plot, shape, wrappers)`,
   `leave()`, `node(node, shape, wrappers, partial)`, `nodePart`, `widget(widget, side)`.
   `tagShape(tag, active)` = base shape (text → `Widget.editableText`), then mark attributes

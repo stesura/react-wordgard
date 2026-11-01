@@ -378,7 +378,8 @@ Starts only once the API (R5) is settled and stable (decided 2026-10-31).
 - **Status:** partly done (2026-10-31): the baseline, changed sections only, and Wordgard's first
   draw; chunking parked. `npm run bench` then, at 15,000 paragraphs with inline nodes:
   keystroke 14.6 ms (Wordgard 9.6, react-prosemirror 98.6), load 965 ms (504), formatting the
-  whole document 2,831 ms (1,124), on this machine, not confirmed idle.
+  whole document 2,831 ms (1,124), on the user's machine, idle and on mains power (confirmed by
+  the user, 2026-11-01).
 - **Formatting the whole document (done 2026-10-31):** its profile (`npm run bench:profile` now
   profiles it too) showed the cost wasn't React's: such an update has a change section per run
   of text, and five helpers walked the sections from the start once per node, quadratic in the
