@@ -125,8 +125,16 @@ Code that depends on one of these points here: `grep -rn wordgard-upstream-bugs 
   `editor.d.ts(196,38): Namespace 'Decoration.Mark' has no exported member 'Type'`. Inside
   `namespace Decoration.Mark`, `Mark.Type<V>` resolves to the namespace, not to `wordgard/doc`'s
   `Mark`.
+- **Cause:** the declaration bundling, not the source. `src/editor/decoration.ts` already imports
+  `Mark as Mark_` and writes `Mark_.Type<V>`; `rollup-plugin-dts` merges the alias into the plain
+  `Mark` import of the bundled `editor.d.ts`, where the nested namespace shadows it. Same family as
+  Wordgard's forum issue #6 (`isTextblock` missing on `Plot`): names reused across nested
+  namespaces, which the bundled declarations don't keep apart. Replacing namespaces with
+  `export * as …` modules, suggested there, would avoid it but changes the API; Marijn keeps
+  namespaces to nest classes.
 - **What we do:** nothing; every consumer of Wordgard needs `skipLibCheck` (our README says so).
-- **Fix:** qualify the reference (an import alias for the doc's `Mark`).
+- **Fix:** keep the alias through the bundling, or import the doc's `Mark` under a name no
+  namespace in the file uses (e.g. `DocMark`), so merging can't recreate the clash.
 
 ## 10. Event handlers are recomputed only when the plugins change
 
@@ -147,6 +155,40 @@ Code that depends on one of these points here: `grep -rn wordgard-upstream-bugs 
 - **What we do:** the README and our accessibility test use
   `Wordgard.contentAttributes.of({ "aria-label": … })`.
 - **Fix:** `contentAttributes` in `label` (`editor/editor.ts`).
+
+## 12. Typing at a block-level cursor goes wrong in Chrome and WebKit (2026-11-01)
+
+Expected everywhere: a new default textblock holding the text, between the two blocks. That's what
+Firefox does, and what `insertText` does when dispatched directly at the gap, in every browser.
+
+- **Between two blocks with content** (two code blocks, or two plots marked
+  `cursorBarrier: true`): `<p>before</p><pre>one</pre><pre>two</pre><p>after</p>`, cursor between
+  the code blocks (13, `Doc`, `wg-cursor-h`), type `h`. Chrome (by hand) and, under Playwright,
+  Chromium and WebKit: the `h` goes into the block below (`htwo`). Firefox: a paragraph `h`
+  between them. Same on ReactWordgard.
+- **Between two block leaves:** plain Wordgard, `[basicSchema(), figure()]`,
+  `<p>before</p><figure><img src="…"></figure><figure><img src="…"></figure><p>after</p>`.
+  Put the cursor between the figures (cursor 9, `Doc`, drawn as `wg-cursor-h`; DOM selection
+  `wg-content@2`), however it gets there, and type `h`. Same on ReactWordgard.
+  - Chrome (by hand): nothing is inserted.
+  - Firefox: a paragraph `h` between the figures, as expected.
+  - Under Playwright, Chromium 156.0.8078.4 and headless Chrome 156.0.8078.79: `beforeinput` and
+    `input` fire and the `h` lands at the document's start (`hbefore`). Not reproduced by hand.
+  - Playwright's WebKit on Windows: `keydown` and `keypress` only, no `beforeinput`, nothing
+    happens. Likely the same issue; not checked in Safari.
+
+  `Command.dispatch(wg, insertText, {from: 9, to: 9, insert: "x", …})` inserts the paragraph in
+  all of them.
+- **Cause (likely):** Chromium and WebKit can't hold a caret between two block elements (DOM
+  selection in `wg-content` itself): they move the edit into the nearest text (the block below, when
+  it has some) or drop it. Wordgard trusts the browser's input there instead of running
+  `insertText` itself from the key.
+- **What we do:** nothing in the view. `src/__tests__/blockCursor.browser.test.ts` types at both
+  gaps on Wordgard and ReactWordgard: it passes in Firefox and is expected to fail (`it.fails`) in
+  Chromium and WebKit, so a fixed Wordgard makes it fail there.
+- **Once fixed:** make the test a plain `it` in every browser, then check by hand in Chrome and
+  Safari (Playwright's key events aren't real typing).
+- **Fix:** handle text keys (`keydown`/`keypress`) at a block-level cursor with `insertText`.
 
 ## Requests
 

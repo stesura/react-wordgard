@@ -1,0 +1,291 @@
+body {
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+  color: #1f2937;
+}
+
+main {
+  margin: auto;
+  width: 80%;
+  max-width: 700px;
+}
+
+.word-count {
+  color: #6b7280;
+  font-size: 0.85em;
+}
+
+/* Callouts, after Stesura's callout.css. */
+.callout {
+  --callout-border: #2563eb;
+  --callout-bg: #eff6ff;
+  --callout-title: #1d4ed8;
+  margin: 1em 0;
+  padding: 8px 12px;
+  border-inline-start: 4px solid var(--callout-border);
+  background: var(--callout-bg);
+}
+.callout[data-kind="tip"] {
+  --callout-border: #16a34a;
+  --callout-bg: #f0fdf4;
+  --callout-title: #15803d;
+}
+.callout[data-kind="warning"] {
+  --callout-border: #d97706;
+  --callout-bg: #fffbeb;
+  --callout-title: #b45309;
+}
+.callout[data-kind="danger"] {
+  --callout-border: #dc2626;
+  --callout-bg: #fef2f2;
+  --callout-title: #b91c1c;
+}
+.callout-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--callout-title);
+  font-weight: 600;
+  user-select: none;
+}
+.callout-title input {
+  font: inherit;
+  color: inherit;
+  border: 0;
+  border-radius: 3px;
+  padding: 0 4px;
+  background: #ffffffb0;
+  outline: 1px solid currentColor;
+}
+.callout-body > :first-child {
+  margin-top: 4px;
+}
+.callout-body > :last-child {
+  margin-bottom: 0;
+}
+.callout-kind {
+  position: relative;
+}
+.callout-kind > button {
+  border: 0;
+  border-radius: 4px;
+  padding: 0 2px;
+  background: none;
+  cursor: pointer;
+}
+.callout-kind > button:hover {
+  background: #0000000d;
+}
+
+/* Popovers and floating menus. */
+.popover,
+.text-menu,
+.mention-menu,
+.link-card,
+.mention-card {
+  z-index: 10;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px #0000001f;
+  font-size: 14px;
+  font-weight: normal;
+  color: #1f2937;
+}
+.popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+}
+.popover button {
+  border: 0;
+  border-radius: 4px;
+  padding: 4px 8px;
+  background: none;
+  text-align: start;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.popover button:hover,
+.popover button[aria-checked="true"] {
+  background: #f3f4f6;
+}
+
+.text-menu {
+  position: absolute;
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  transform: translateY(calc(-100% - 8px));
+}
+.text-menu button {
+  min-width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+}
+.text-menu button:hover {
+  background: #f3f4f6;
+}
+.text-menu button[aria-pressed="true"] {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+.text-menu button[title="Bold"] {
+  font-weight: bold;
+}
+.text-menu button[title="Italic"] {
+  font-style: italic;
+}
+.text-menu button[title="Underline"] {
+  text-decoration: underline;
+}
+.text-menu button[title="Strikethrough"] {
+  text-decoration: line-through;
+}
+.text-menu button[title="Highlight"] {
+  background-image: linear-gradient(transparent 60%, #fde68a 60%);
+}
+
+.mention-menu {
+  position: absolute;
+  margin: 4px 0 0;
+  padding: 4px;
+  list-style: none;
+}
+.mention-menu li {
+  padding: 4px 8px;
+  white-space: nowrap;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.mention-menu li[aria-selected="true"] {
+  background: #f3f4f6;
+}
+.mention-menu span,
+.mention-card span {
+  color: #6b7280;
+}
+
+/* Mentions. */
+.mention {
+  position: relative;
+  padding: 0 3px;
+  border-radius: 4px;
+  background: #ede9fe;
+  color: #6d28d9;
+}
+.mention.wg-selected-node {
+  outline: 2px solid #8b5cf6;
+}
+.mention-card {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
+/* Links. */
+a {
+  position: relative;
+}
+.link-card {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 4px 10px;
+  white-space: nowrap;
+  user-select: none;
+}
+.link-card button {
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+}
+
+/* Resizable figures, after Stesura's resize frame. */
+figure.resizable {
+  margin: 1em 0;
+}
+/* The frame's outline shows the selection, around the image only. */
+figure.resizable.wg-selected-node {
+  outline: none;
+}
+.resize-frame {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
+.resize-frame img {
+  max-width: 100%;
+}
+figure.active .resize-frame {
+  outline: 2px solid #3b82f6;
+}
+.resize-handle {
+  position: absolute;
+  display: none;
+  width: 10px;
+  height: 10px;
+  margin: -5px;
+  border: 1.5px solid #3b82f6;
+  border-radius: 50%;
+  background: white;
+  touch-action: none;
+}
+figure.active .resize-handle {
+  display: block;
+}
+.resize-handle.top-left {
+  top: 0;
+  left: 0;
+  cursor: nwse-resize;
+}
+.resize-handle.top-right {
+  top: 0;
+  right: 0;
+  cursor: nesw-resize;
+}
+.resize-handle.left {
+  top: 50%;
+  left: 0;
+  cursor: ew-resize;
+}
+.resize-handle.right {
+  top: 50%;
+  right: 0;
+  cursor: ew-resize;
+}
+.resize-handle.bottom-left {
+  bottom: 0;
+  left: 0;
+  cursor: nesw-resize;
+}
+.resize-handle.bottom-right {
+  bottom: 0;
+  right: 0;
+  cursor: nwse-resize;
+}
+.resize-label {
+  position: absolute;
+  right: 0;
+  bottom: -26px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #3b82f6;
+  color: white;
+  font-size: 11px;
+  line-height: 1.6;
+}

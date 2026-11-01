@@ -1,26 +1,49 @@
 // Adapted from Wordgard's demo (demo/demo.ts in its repo), on react-wordgard's
-// components, with only the schema parts React renders so far. Images and
-// tables come as bare schema elements, without their extensions' decorations
-// (resizing, cell selection). Images are drawn by a React widget.
+// components, with every kind of React decoration: a shape (the callout), a
+// widget drawing a block node (the resizable figure) and an inline one (the
+// mention, the inline image), and a mark shape (the link). Tables come as bare
+// schema elements, without their extension's cell selection.
+import "./main.css";
+
 import React, { StrictMode, forwardRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Decoration, type Wordgard, menuBar } from "wordgard/editor";
+import { Command, Menu, toggleBlock } from "wordgard/command";
+import { Decoration, Wordgard, dropCursor, menuBar } from "wordgard/editor";
 import { history } from "wordgard/history";
 import {
   alignment,
+  backgroundColor,
   blockDoc,
   blockquote,
   bulletList,
+  code,
   codeBlock,
+  color,
+  emphasis,
   heading,
   horizontalRule,
-  inlineMarks,
   lineBreak,
+  link,
   orderedList,
   paragraph,
+  strikethrough,
+  strong,
+  subscript,
+  superscript,
+  underline,
 } from "wordgard/schema";
 import { GardState } from "wordgard/state";
-import { CaptionedFigure, Cell, HeaderCell, Image, Table, TableRow } from "wordgard/types";
+import {
+  CaptionedFigure,
+  Cell,
+  Figure,
+  HeaderCell,
+  Image,
+  ImageSize,
+  Link,
+  Table,
+  TableRow,
+} from "wordgard/types";
 
 import {
   WordgardDoc,
@@ -29,18 +52,20 @@ import {
   useEditorEffect,
   useEditorStateSelector,
 } from "../src/index.js";
+import { MentionMenu } from "./MentionMenu.js";
+import { TextMenu } from "./TextMenu.js";
+import { CalloutShape } from "./decorations/Callout.js";
+import { ResizableFigure } from "./decorations/Figure.js";
+import { LinkShape } from "./decorations/Link.js";
+import { MentionWidget } from "./decorations/Mention.js";
+import { doc } from "./doc.js";
+import { Callout, CalloutKind, CalloutTitle, Mention } from "./schema.js";
 
 declare global {
   interface Window {
     wg?: Wordgard;
   }
 }
-
-const image =
-  "data:image/svg+xml," +
-  encodeURIComponent(
-    '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="24"><rect width="40" height="24" rx="4" fill="#6af"/></svg>'
-  );
 
 // An image drawn by React, with state of its own: hovering outlines it.
 const ImageView = forwardRef<HTMLImageElement, { value: string }>(({ value }, ref) => {
@@ -60,11 +85,19 @@ const ReactImage = createWidgetType({
   component: ImageView,
 });
 
+const calloutButton = Menu.Button.define({
+  run: Command.bind(toggleBlock, Callout),
+  label: "Callout",
+  description: "Toggle a callout",
+  enable: (state) => !state.readOnly,
+  parent: Menu.Group.insert,
+});
+
 const WordCount = () => {
   const words = useEditorStateSelector(
     (state) => state.doc.textContent().split(/\s+/).filter(Boolean).length
   );
-  return <p>{words} words</p>;
+  return <p className="word-count">{words} words</p>;
 };
 
 // The editor, for the console.
@@ -75,20 +108,6 @@ const Expose = () => {
   return null;
 };
 
-const doc = `<h2>Demo content</h2>
-<p>A <em>paragraph</em> with <strong>strong <em>and emphasized</em></strong> text,
-<a href="https://wordgard.net">a link</a>, <code>code</code>,
-<span style="color: crimson">colored <span style="background-color: khaki">and highlighted</span></span> text.</p>
-<p style="text-align: center">A centered paragraph.</p>
-<blockquote><p>A quote.</p></blockquote>
-<ul><li><p>A bullet</p></li><li><p>Another</p></li></ul>
-<ol><li><p>A numbered item</p></li></ol>
-<pre>some code</pre>
-<p>A line<br>break, and an image: <img src="${image}"></p>
-<hr>
-<table><tbody><tr><th>Head</th><th>Other</th></tr><tr><td>A <em>cell</em></td><td>Another</td></tr></tbody></table>
-<figure><img src="${image}"><figcaption>A captioned figure</figcaption></figure>`;
-
 const config = [
   blockDoc(),
   paragraph(),
@@ -97,14 +116,49 @@ const config = [
   bulletList(),
   orderedList(),
   codeBlock(),
-  inlineMarks(),
+  // inlineMarks() without link.tooltip: LinkShape draws the link's card.
+  strong(),
+  emphasis(),
+  GardState.schemaElement.of(Link),
+  link.button,
+  link.keyBinding,
+  link.pasteOver,
+  code(),
+  underline(),
+  strikethrough(),
+  superscript(),
+  subscript(),
+  color(),
+  backgroundColor(),
   alignment(),
   lineBreak(),
   horizontalRule(),
-  GardState.schemaElement.of([Image, CaptionedFigure, Table, TableRow, Cell, HeaderCell]),
+  GardState.schemaElement.of([
+    Callout,
+    CalloutKind,
+    CalloutTitle,
+    Mention,
+    Image,
+    Figure,
+    ImageSize,
+    CaptionedFigure,
+    Table,
+    TableRow,
+    Cell,
+    HeaderCell,
+  ]),
   history(),
   menuBar(),
+  dropCursor(),
+  calloutButton,
+  Wordgard.contentAttributes.of({ "aria-label": "Demo document" }),
+  Decoration.Tag.shape(Callout, CalloutShape),
+  Decoration.Tag.shape(Figure, (tag) =>
+    ResizableFigure.of({ src: tag.param, width: tag.mark(ImageSize) })
+  ),
+  Decoration.Tag.shape(Mention, (tag) => MentionWidget.of(tag.param)),
   Decoration.Tag.shape(Image, (tag) => ReactImage.of(tag.param)),
+  Decoration.Mark.shape(Link, LinkShape),
 ];
 
 const root = document.getElementById("editor");
@@ -114,8 +168,10 @@ createRoot(root).render(
   <StrictMode>
     <WordgardEditor doc={doc} config={config}>
       <Expose />
-      <WordCount />
       <WordgardDoc />
+      <TextMenu />
+      <MentionMenu />
+      <WordCount />
     </WordgardEditor>
   </StrictMode>
 );
