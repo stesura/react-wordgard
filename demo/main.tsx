@@ -25,7 +25,7 @@ import { CaptionedFigure, Cell, HeaderCell, Image, Table, TableRow } from "wordg
 import {
   WordgardDoc,
   WordgardEditor,
-  reactWidget,
+  createWidgetType,
   useEditorEffect,
   useEditorStateSelector,
 } from "../src/index.js";
@@ -55,7 +55,7 @@ const ImageView = forwardRef<HTMLImageElement, { value: string }>(({ value }, re
     />
   );
 });
-const ReactImage = reactWidget({
+const ReactImage = createWidgetType({
   render: (src) => Object.assign(document.createElement("img"), { src }),
   component: ImageView,
 });

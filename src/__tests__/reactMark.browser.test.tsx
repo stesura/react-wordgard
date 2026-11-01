@@ -12,7 +12,7 @@ import type { GardState } from "wordgard/state";
 import { Color, Link } from "wordgard/types";
 
 import { ReactWordgard } from "../ReactWordgard.js";
-import { type MarkViewComponentProps, reactMark } from "../decorations/ReactMarkType.js";
+import { type MarkViewComponentProps, createMarkShape } from "../decorations/ReactMarkType.js";
 import { useEditorStateSelector } from "../hooks/useEditorStateSelector.js";
 import { useWordgard } from "../hooks/useWordgard.js";
 import { composeIn, drawn, flushKeeps, textIn, typeInto } from "../testing/editing.js";
@@ -103,7 +103,7 @@ const CursorView = forwardRef<HTMLSpanElement, MarkViewComponentProps<HTMLSpanEl
 const linkConfig = (extra: GardState.Extension = []) => [
   basicSchema(),
   image(),
-  Decoration.Mark.shape(Link, reactMark({ component: LinkView, element: "a" })),
+  Decoration.Mark.shape(Link, createMarkShape({ component: LinkView, element: "a" })),
   extra,
 ];
 
@@ -284,7 +284,7 @@ describe("React marks", () => {
       config: [
         basicSchema(),
         color(),
-        Decoration.Mark.shape(Color, reactMark({ component: ColorView })),
+        Decoration.Mark.shape(Color, createMarkShape({ component: ColorView })),
       ],
     });
     expect(wg.contentDOM.innerHTML).toBe('<p>a<span class="color" data-color="red">bc</span>d</p>');
@@ -296,7 +296,10 @@ describe("React marks", () => {
 
   it("rebuilds a mark the editor state changes in a flush that only moves the selection", () => {
     const wg = create({
-      config: [basicSchema(), Decoration.Mark.shape(Link, reactMark({ component: CursorView }))],
+      config: [
+        basicSchema(),
+        Decoration.Mark.shape(Link, createMarkShape({ component: CursorView })),
+      ],
     });
     expect(wg.contentDOM.querySelector(".here")).toBeNull();
     wg.dispatch({ selection: { anchor: 3 } });
@@ -308,7 +311,10 @@ describe("React marks", () => {
   it("says when the component's root isn't the mark's element", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     create({
-      config: [basicSchema(), Decoration.Mark.shape(Link, reactMark({ component: LinkView }))],
+      config: [
+        basicSchema(),
+        Decoration.Mark.shape(Link, createMarkShape({ component: LinkView })),
+      ],
     });
     expect(error.mock.calls.flat().join("")).toContain("drew <a> where its mark says <span>");
     error.mockRestore();

@@ -29,7 +29,7 @@ export type ShapeViewComponentProps<E extends Element = HTMLElement> =
     children: ReactNode;
   } & RefAttributes<E>;
 
-export type ReactShapeSpec<E extends Element = HTMLElement> = {
+export type ShapeSpec<E extends Element = HTMLElement> = {
   component: ComponentType<ShapeViewComponentProps<E>>;
   // The component's root element: `target` selectors match it, and plain
   // Wordgard draws it. `span` for an inline node.
@@ -47,10 +47,10 @@ type DrawProps = {
 
 const draws = new Map<string, (props: DrawProps) => ReactElement>();
 
-export const reactShape = <E extends Element = HTMLElement>({
+export const createShape = <E extends Element = HTMLElement>({
   component,
   element = "div",
-}: ReactShapeSpec<E>): Elt => {
+}: ShapeSpec<E>): Elt => {
   const id = String(draws.size + 1);
   draws.set(id, ({ attrs, nodeProps, children, ref }) =>
     createElement(component, { ...attrs, ref, nodeProps, children })

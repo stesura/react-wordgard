@@ -1,5 +1,11 @@
 # React decorations: plan (2026-11-01)
 
+**Renamed (2026-11-01, before 0.1.0 was published):** `reactWidget`, `reactShape`,
+`reactWrapper` and `reactMark` are now `createWidgetType`, `createShape`, `createWrapper` and
+`createMarkShape` (their spec types `WidgetTypeSpec`, `ShapeSpec`, `WrapperSpec`,
+`MarkShapeSpec`): the names say, in Wordgard's terms, what each call returns. This plan keeps the
+old names, as written at the time.
+
 **Executed (2026-11-01):** steps 1 to 5 and 7 done; step 6 (tooltips) dropped, the reason at the
 step.
 

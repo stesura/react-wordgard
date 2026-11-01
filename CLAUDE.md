@@ -4,7 +4,8 @@ react-wordgard: a skeleton for a React view over Wordgard (`wordgard` on npm),
 derived from react-prosemirror. The plan is `docs/react-wordgard-plan.md`.
 
 - Layout: the Wordgard view is at the root of `src/`. `src/index.ts` exports
-  the public API (components, `reactWidget`, hooks); `ReactWordgard` and the
+  the public API (components, `createWidgetType`, `createShape`, `createWrapper`,
+  `createMarkShape`, hooks); `ReactWordgard` and the
   tile code stay internal.
 
 - Package manager: npm. Node 22.12 or later.

@@ -1,5 +1,11 @@
 # react-wordgard: a React view for Wordgard (plan, 2026-10-30)
 
+**Renamed (2026-11-01, before 0.1.0 was published):** `reactWidget`, `reactShape`,
+`reactWrapper` and `reactMark` are now `createWidgetType`, `createShape`, `createWrapper` and
+`createMarkShape` (their spec types `WidgetTypeSpec`, `ShapeSpec`, `WrapperSpec`,
+`MarkShapeSpec`): the names say, in Wordgard's terms, what each call returns. This plan keeps the
+old names, as written at the time.
+
 **Status:** R1 done; R2 mostly done; R3 done for what can be tested here; R4 done (its slice 6,
 React shapes, as `docs/executed/react-decorations-plan.md`); R5 done (2026-10-31, see Progress): React renders every node and mark Wordgard's schemas
 define, and every decoration, Wordgard's native widgets included, with stable keys and kept tiles,

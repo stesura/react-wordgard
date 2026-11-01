@@ -27,7 +27,7 @@ export type WrapperViewComponentProps<E extends Element = HTMLElement> =
     children: ReactNode;
   } & RefAttributes<E>;
 
-export type ReactWrapperSpec<E extends Element = HTMLElement> = {
+export type WrapperSpec<E extends Element = HTMLElement> = {
   component: ComponentType<WrapperViewComponentProps<E>>;
   // The component's root element: `target` selectors match it, and plain
   // Wordgard draws it. `span` around an inline node.
@@ -44,10 +44,10 @@ type DrawProps = {
 // Keyed apart from React shapes' ids, which share the attribute.
 const draws = new Map<string, (props: DrawProps) => ReactElement>();
 
-export const reactWrapper = <E extends Element = HTMLElement>({
+export const createWrapper = <E extends Element = HTMLElement>({
   component,
   element = "div",
-}: ReactWrapperSpec<E>): Elt => {
+}: WrapperSpec<E>): Elt => {
   const id = `w${draws.size + 1}`;
   draws.set(id, ({ attrs, nodeProps, children, ref }) =>
     createElement(component, { ...attrs, ref, nodeProps, children })

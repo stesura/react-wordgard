@@ -32,7 +32,7 @@ export type WidgetViewComponentProps<Param, E extends Element = HTMLElement> = O
   value: Param;
 } & RefAttributes<E>;
 
-export type ReactWidgetSpec<Param, E extends Element = HTMLElement> = Widget.Spec<Param> & {
+export type WidgetTypeSpec<Param, E extends Element = HTMLElement> = Widget.Spec<Param> & {
   component: ComponentType<WidgetViewComponentProps<Param, E>>;
 };
 
@@ -44,8 +44,8 @@ type Draw = (
 
 const components = new WeakMap<Widget.Type<unknown>, Draw>();
 
-export const reactWidget = <Param, E extends Element = HTMLElement>(
-  spec: ReactWidgetSpec<Param, E>
+export const createWidgetType = <Param, E extends Element = HTMLElement>(
+  spec: WidgetTypeSpec<Param, E>
 ): Widget.Type<Param> => {
   const { propagateEvent } = spec;
   // Its components' useStopEvent first, then the spec's.

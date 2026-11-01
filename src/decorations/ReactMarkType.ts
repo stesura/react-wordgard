@@ -30,7 +30,7 @@ export type MarkViewComponentProps<E extends Element = HTMLElement> =
     children: ReactNode;
   } & RefAttributes<E>;
 
-export type ReactMarkSpec<E extends Element = HTMLElement> = {
+export type MarkShapeSpec<E extends Element = HTMLElement> = {
   component: ComponentType<MarkViewComponentProps<E>>;
   // The component's root element, which plain Wordgard draws.
   element?: string;
@@ -47,10 +47,10 @@ type DrawProps = {
 const draws = new Map<string, (props: DrawProps) => ReactElement>();
 
 // Generic in the mark's parameter so it fits any mark type's shape.
-export const reactMark = <Param, E extends Element = HTMLElement>({
+export const createMarkShape = <Param, E extends Element = HTMLElement>({
   component,
   element = "span",
-}: ReactMarkSpec<E>): Shape.Element<Param> => {
+}: MarkShapeSpec<E>): Shape.Element<Param> => {
   const id = `m${draws.size + 1}`;
   draws.set(id, ({ attrs, markProps, children, ref }) =>
     createElement(component, { ...attrs, ref, markProps, children })

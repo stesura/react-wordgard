@@ -14,9 +14,9 @@ import { GardState } from "wordgard/state";
 import { Blockquote, Cell, Image, Paragraph, Table, TableRow } from "wordgard/types";
 
 import { ReactWordgard } from "../ReactWordgard.js";
-import { type ShapeViewComponentProps, reactShape } from "../decorations/ReactShapeType.js";
-import { type WidgetViewComponentProps, reactWidget } from "../decorations/ReactWidgetType.js";
-import { type WrapperViewComponentProps, reactWrapper } from "../decorations/ReactWrapperType.js";
+import { type ShapeViewComponentProps, createShape } from "../decorations/ReactShapeType.js";
+import { type WidgetViewComponentProps, createWidgetType } from "../decorations/ReactWidgetType.js";
+import { type WrapperViewComponentProps, createWrapper } from "../decorations/ReactWrapperType.js";
 import { useEditorStateSelector } from "../hooks/useEditorStateSelector.js";
 import { useWordgard } from "../hooks/useWordgard.js";
 import { composeIn, drawn, flushKeeps, textIn, typeInto } from "../testing/editing.js";
@@ -65,7 +65,7 @@ const Callout = forwardRef<HTMLDivElement, ShapeViewComponentProps<HTMLDivElemen
   }
 );
 
-const CalloutShape = reactShape({ component: Callout });
+const CalloutShape = createShape({ component: Callout });
 
 // Stesura's exact rows: a row tells its cells, through a context, to clip
 // their content in an extra element, so React remounts the content there.
@@ -136,8 +136,8 @@ const tableDoc = "<table><tbody><tr><td>a</td><td>b</td></tr></tbody></table>";
 const tableConfig = [
   basicSchema(),
   GardState.schemaElement.of([Table, TableRow, Cell]),
-  Decoration.Tag.shape(TableRow, reactShape({ component: RowView, element: "tr" })),
-  Decoration.Tag.shape(Cell, reactShape({ component: CellView, element: "td" })),
+  Decoration.Tag.shape(TableRow, createShape({ component: RowView, element: "tr" })),
+  Decoration.Tag.shape(Cell, createShape({ component: CellView, element: "td" })),
 ];
 
 // Widgets in a cell's content, native and React, counting connections.
@@ -147,7 +147,7 @@ const NativeMark = Widget.define<null>({
   connect: () => connected.native++,
   disconnect: () => connected.native--,
 });
-const ReactMark = reactWidget({
+const ReactMark = createWidgetType({
   render: () => document.createElement("i"),
   component: forwardRef<HTMLElement, WidgetViewComponentProps<null>>((_, ref) => (
     <i ref={ref} className="react" />
@@ -201,7 +201,7 @@ const Frame = forwardRef<HTMLElement, WrapperViewComponentProps>(
   }
 );
 
-const FrameWrapper = reactWrapper({ component: Frame, element: "section" });
+const FrameWrapper = createWrapper({ component: Frame, element: "section" });
 
 // Around an inline atom: a badge from its own state. It leaves out the
 // attributes, `contenteditable` among them: the build makes it uneditable.
@@ -227,7 +227,7 @@ const InlineFrame = forwardRef<HTMLSpanElement, WrapperViewComponentProps<HTMLSp
   }
 );
 
-const Picture = reactWidget({
+const Picture = createWidgetType({
   render: () => document.createElement("img"),
   component: forwardRef<HTMLImageElement, WidgetViewComponentProps<null>>((_, ref) => (
     <img ref={ref} className="picture" alt="" />
@@ -478,7 +478,7 @@ describe("React shapes", () => {
         blockquote(),
         Decoration.Tag.shape(
           Blockquote,
-          reactShape({ component: QuoteView, element: "blockquote" })
+          createShape({ component: QuoteView, element: "blockquote" })
         ),
       ],
     });
@@ -506,7 +506,7 @@ describe("React shapes", () => {
       config: [
         basicSchema(),
         blockquote(),
-        Decoration.Tag.shape(Blockquote, reactShape({ component: Callout, element: "section" })),
+        Decoration.Tag.shape(Blockquote, createShape({ component: Callout, element: "section" })),
       ],
     });
     expect(error.mock.calls.flat().join("")).toContain("drew <div> where its shape says <section>");
@@ -682,7 +682,7 @@ describe("React wrappers", () => {
   });
 
   it("wraps an atom a React widget draws, uneditable", async () => {
-    const wg = create(pictureConfig(reactWrapper({ component: InlineFrame, element: "span" })));
+    const wg = create(pictureConfig(createWrapper({ component: InlineFrame, element: "span" })));
     const wrapper = wg.contentDOM.querySelector("p > span");
     expect(wrapper?.getAttribute("contenteditable")).toBe("false");
     expect(wrapper?.innerHTML).toBe(
@@ -705,7 +705,7 @@ describe("React wrappers", () => {
           basicSchema(),
           image(),
           Decoration.Tag.shape(Image, NativeMark.of(null)),
-          Decoration.Tag.wrapper(Image, reactWrapper({ component: InlineFrame, element: "span" })),
+          Decoration.Tag.wrapper(Image, createWrapper({ component: InlineFrame, element: "span" })),
         ],
       })
     ).toThrow(/can't wrap a native widget/);
@@ -763,13 +763,13 @@ describe("React wrappers", () => {
 
   it("refuses a React shape as a wrapper and a React wrapper as a shape", () => {
     expect(() => create(framedParagraphs(Decoration.Tag.wrapper(Paragraph, CalloutShape)))).toThrow(
-      /use reactWrapper/
+      /use createWrapper/
     );
     expect(() =>
       create({
         config: [basicSchema(), blockquote(), Decoration.Tag.shape(Blockquote, FrameWrapper)],
       })
-    ).toThrow(/use reactShape/);
+    ).toThrow(/use createShape/);
   });
 
   it("says when the component doesn't draw what it wraps", () => {
@@ -779,7 +779,7 @@ describe("React wrappers", () => {
     expect(() =>
       create(
         framedParagraphs(
-          Decoration.Tag.wrapper(Paragraph, reactWrapper({ component: Bare, element: "section" }))
+          Decoration.Tag.wrapper(Paragraph, createWrapper({ component: Bare, element: "section" }))
         )
       )
     ).toThrow(/must draw its children/);
@@ -787,7 +787,9 @@ describe("React wrappers", () => {
 
   it("says when the component's root isn't the wrapper's element", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    create(framedParagraphs(Decoration.Tag.wrapper(Paragraph, reactWrapper({ component: Frame }))));
+    create(
+      framedParagraphs(Decoration.Tag.wrapper(Paragraph, createWrapper({ component: Frame })))
+    );
     expect(error.mock.calls.flat().join("")).toContain(
       "drew <section> where its wrapper says <div>"
     );

@@ -123,7 +123,7 @@ build gives it a tile flagged `Composition`, as Wordgard's `ContentUpdate.compos
 ## Widgets
 
 A **native widget** (`Widget.define`) is Wordgard's: its DOM comes from `render`, kept by the build
-(`widgetDOM`) and placed among React's nodes. A **React widget** (`reactWidget`) is a real Wordgard
+(`widgetDOM`) and placed among React's nodes. A **React widget** (`createWidgetType`) is a real Wordgard
 `Widget.Type` whose `render` is the fallback plain Wordgard draws; the React view draws its
 component instead, in the editor's tree, with the app's contexts. Its root element (the forwarded
 ref) is the widget's DOM. Widgets are uneditable, and Wordgard ignores mutations inside them, so a
@@ -170,7 +170,7 @@ whether its node is selected (`useIsNodeSelected`, `useSelectNode`), and the set
 
 ## React shapes (plan steps 1 and 2, `docs/executed/react-decorations-plan.md`)
 
-A **React shape** (`reactShape({component, element})`) is a real Wordgard `Elt` with a content hole
+A **React shape** (`createShape({component, element})`) is a real Wordgard `Elt` with a content hole
 (`<div data-wg-react="1">[0]`), registered as drawn by a component. Wordgard reasons about the
 `Elt` (whether the node is an atom, where its content goes, `target` selectors, merging
 attributes); React draws the component. The registration is a reserved attribute because Wordgard
@@ -215,7 +215,7 @@ mutations are filtered out.
 
 ## React wrappers (plan step 3)
 
-A **React wrapper** (`reactWrapper({component, element})`) is the same idea for `Tag.wrapper` and
+A **React wrapper** (`createWrapper({component, element})`) is the same idea for `Tag.wrapper` and
 `Point.wrapper`: a real `Elt` with a hole, registered by the reserved attribute. Wordgard fills the
 hole with what it wraps (the node's shape, or the element `target` picks in it), so the wrapper's
 `Elt` holds one child. The component gets `WrapperViewComponentProps`: a React shape's props
@@ -239,7 +239,7 @@ atom, the wrapper's root is made uneditable, as Wordgard makes a shape without a
 
 ## React marks (plan step 4)
 
-A **React mark** (`reactMark({component, element})`, `span` by default) is a mark's element shape
+A **React mark** (`createMarkShape({component, element})`, `span` by default) is a mark's element shape
 (`Shape.Element`) carrying the reserved attribute, for `Decoration.Mark.shape` or a mark type's
 own spec. A React mark replacing an attribute-shaped mark makes it element-shaped, so spanning. The
 component gets `MarkViewComponentProps`, react-prosemirror's: `markProps` (`mark`, `getPos`,

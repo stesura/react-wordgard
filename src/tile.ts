@@ -882,7 +882,7 @@ const warnElement = (what: "shape" | "wrapper" | "mark", expected: string, found
   const key = `${what}:${expected}>${found}`;
   if (warned.has(key)) return;
   warned.add(key);
-  const define = { shape: "reactShape", wrapper: "reactWrapper", mark: "reactMark" }[what];
+  const define = { shape: "createShape", wrapper: "createWrapper", mark: "createMarkShape" }[what];
   console.error(
     `A React ${what}'s component drew <${found}> where its ${what} says <${expected}>: give ${define} the element its component draws`
   );

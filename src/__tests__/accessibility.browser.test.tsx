@@ -10,9 +10,9 @@ import type { GardState } from "wordgard/state";
 import { Blockquote, Image, Link } from "wordgard/types";
 
 import { ReactWordgard } from "../ReactWordgard.js";
-import { type MarkViewComponentProps, reactMark } from "../decorations/ReactMarkType.js";
-import { type ShapeViewComponentProps, reactShape } from "../decorations/ReactShapeType.js";
-import { type WidgetViewComponentProps, reactWidget } from "../decorations/ReactWidgetType.js";
+import { type MarkViewComponentProps, createMarkShape } from "../decorations/ReactMarkType.js";
+import { type ShapeViewComponentProps, createShape } from "../decorations/ReactShapeType.js";
+import { type WidgetViewComponentProps, createWidgetType } from "../decorations/ReactWidgetType.js";
 
 // A callout as the README advises: its decorative icon hidden, its control
 // labelled.
@@ -36,7 +36,7 @@ const LinkView = forwardRef<HTMLAnchorElement, MarkViewComponentProps<HTMLAnchor
   )
 );
 
-const Picture = reactWidget({
+const Picture = createWidgetType({
   render: () => document.createElement("img"),
   component: forwardRef<HTMLImageElement, WidgetViewComponentProps<null>>(
     ({ value: _, ...attrs }, ref) => <img {...attrs} ref={ref} src="data:," alt="A picture" />
@@ -55,8 +55,8 @@ const plain: GardState.Extension = [
 ];
 const decorated: GardState.Extension = [
   plain,
-  Decoration.Tag.shape(Blockquote, reactShape({ component: Callout, element: "aside" })),
-  Decoration.Mark.shape(Link, reactMark({ component: LinkView, element: "a" })),
+  Decoration.Tag.shape(Blockquote, createShape({ component: Callout, element: "aside" })),
+  Decoration.Mark.shape(Link, createMarkShape({ component: LinkView, element: "a" })),
   Decoration.Tag.shape(Image, Picture.of(null)),
 ];
 

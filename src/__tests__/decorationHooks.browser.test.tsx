@@ -10,9 +10,9 @@ import { GardSelection, GardState } from "wordgard/state";
 import { Blockquote, Image, Link } from "wordgard/types";
 
 import { ReactWordgard } from "../ReactWordgard.js";
-import { type MarkViewComponentProps, reactMark } from "../decorations/ReactMarkType.js";
-import { type ShapeViewComponentProps, reactShape } from "../decorations/ReactShapeType.js";
-import { type WidgetViewComponentProps, reactWidget } from "../decorations/ReactWidgetType.js";
+import { type MarkViewComponentProps, createMarkShape } from "../decorations/ReactMarkType.js";
+import { type ShapeViewComponentProps, createShape } from "../decorations/ReactShapeType.js";
+import { type WidgetViewComponentProps, createWidgetType } from "../decorations/ReactWidgetType.js";
 import { useEditorEventListener } from "../hooks/useEditorEventListener.js";
 import { useIgnoreMutation } from "../hooks/useIgnoreMutation.js";
 import { useIsNodeSelected } from "../hooks/useIsNodeSelected.js";
@@ -93,7 +93,7 @@ const PictureView = forwardRef<HTMLImageElement, WidgetViewComponentProps<null>>
 
 // The node's attributes (the selected class) on its root, its mounts counted.
 const mounts = { picture: 0 };
-const Picture = reactWidget({
+const Picture = createWidgetType({
   render: () => document.createElement("img"),
   component: forwardRef<HTMLSpanElement, WidgetViewComponentProps<null>>(
     ({ value, ...attrs }, ref) => {
@@ -129,9 +129,9 @@ const config: GardState.Extension = [
   basicSchema(),
   blockquote(),
   image(),
-  Decoration.Tag.shape(Blockquote, reactShape({ component: QuoteView, element: "blockquote" })),
+  Decoration.Tag.shape(Blockquote, createShape({ component: QuoteView, element: "blockquote" })),
   Decoration.Tag.shape(Image, Picture.of(null)),
-  Decoration.Mark.shape(Link, reactMark({ component: LinkView, element: "a" })),
+  Decoration.Mark.shape(Link, createMarkShape({ component: LinkView, element: "a" })),
   recordHandled,
 ];
 

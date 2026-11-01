@@ -55,7 +55,7 @@ const renderShape = (
   // Wordgard fills a wrapper's hole with what it wraps, which a React shape
   // would drop.
   if (isReactShape(elt) && (elt.children.length != 1 || elt.children[0] !== 0))
-    throw new Error("A React shape can't wrap: use reactWrapper");
+    throw new Error("A React shape can't wrap: use createWrapper");
   if (isReactShape(elt))
     return (
       <ShapeView
@@ -109,7 +109,7 @@ const renderWrapped = (
   ref: (dom: Element | null) => void
 ): ReactElement => {
   const [child, ...rest] = wrapper.children;
-  if (child === 0) throw new Error("A React wrapper isn't a shape: use reactShape");
+  if (child === 0) throw new Error("A React wrapper isn't a shape: use createShape");
   if (rest.length || child === undefined || typeof child == "string")
     throw new Error("A React wrapper's hole holds one element or widget");
   if (child instanceof Elt) return renderShape(draw, child, inEditable, undefined, ref);
