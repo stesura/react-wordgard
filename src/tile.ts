@@ -9,7 +9,14 @@
 import { type ReactElement, createElement } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
-import { type Attributes, type Node as DocNode, Elt, Leaf, type Plot } from "wordgard/doc";
+import {
+  type Attributes,
+  type Node as DocNode,
+  Elt,
+  Leaf,
+  type Mark,
+  type Plot,
+} from "wordgard/doc";
 import { Widget, type Wordgard } from "wordgard/editor";
 import type { GardState } from "wordgard/state";
 
@@ -22,6 +29,7 @@ import { viewRoots } from "./viewRoots.js";
 import { contentOf, isReactShape, shapeOfRoot, sortRecords } from "./decorations/ReactShapeType.js";
 import { isReactWidget } from "./decorations/ReactWidgetType.js";
 import { isReactWrapper } from "./decorations/ReactWrapperType.js";
+import { markOfTile, markTiles } from "./decorations/ReactMarkType.js";
 import { DecoIterator, getDecoSet } from "./decorations/DecoIterator.js";
 import {
   type ChildView,
@@ -483,6 +491,14 @@ const addChildTiles = (
       const element = elementOf(dom, "a wrapper");
       context.rendered.wrappers.set(element, key);
       const wrapperKept = kept && !!element.wgTile;
+      if (view.mark) {
+        const fill = (tile: CompositeTile, content: ChildCursor, contentKept: boolean) =>
+          addChildTiles(tile, plot, view.children, content, context, pool, pos, contentKept);
+        const tile = reactMarkTile(view, view.mark, flags, element, context, fill, wrapperKept);
+        markViews.set(tile, { view, plot });
+        add(tile);
+        continue;
+      }
       const tile = EltTile.of(view.elt, null, flags, 0, element);
       const content = childCursor(element);
       addChildTiles(tile, plot, view.children, content, context, pool, pos, wrapperKept);
@@ -629,6 +645,73 @@ const chrome = Widget.define<null>({
 // Tiles over a React shape's elements: React's attributes, not the shape's.
 const shapeTiles = new WeakSet<Tile>();
 
+const addChromeTile = (tile: CompositeTile, child: ChildNode, flags: number) => {
+  if (!(child instanceof Element || child instanceof Text)) return;
+  if (child instanceof Element) setUneditable(child);
+  const { WidgetTile } = getTileClasses();
+  tile.addChild(synced(new WidgetTile(chrome, null, flags, child)));
+};
+
+type MarkChildView = Extract<ChildView, { type: "wrapper" }>;
+
+// The view and plot each React mark's tile was built for, and the tile holding
+// its content.
+const markViews = new WeakMap<Tile, { view: MarkChildView; plot: Plot }>();
+const markContents = new WeakMap<Tile, Tile>();
+
+// A React mark's tiles, over the DOM its component committed: a wrapper tile
+// for its root, and for each element down to its content element, as Wordgard's
+// `resolve` walks nested wrappers. Everything else is chrome, a point widget
+// beside the content. The content element holds only the content: its text
+// couldn't be told from chrome's. `fill` adds the content's tiles, `kept` when
+// React kept that element.
+const reactMarkTile = (
+  view: MarkChildView,
+  mark: Mark,
+  flags: number,
+  dom: Element,
+  context: BuildContext,
+  fill: (tile: CompositeTile, content: ChildCursor, kept: boolean) => void,
+  kept: boolean
+): Tile => {
+  const { EltTile } = getTileClasses();
+  const handle = shapeOfRoot(dom);
+  if (!handle || handle.wrapper)
+    throw new Error("A React mark's component must forward its ref to its root element");
+  if (dom.localName != view.elt.tagName) warnElement("mark", view.elt.tagName, dom.localName);
+  const content = contentOf(handle) ?? dom;
+  if (!dom.contains(content)) throw new Error("A React mark's content element is outside it");
+  // Content React remounted in another element: its widget DOM, which React
+  // doesn't remove, comes out, to be reused from the pool or dropped.
+  const old = dom.wgTile && markContents.get(dom.wgTile);
+  const moved = !!old && old.dom != content;
+  if (old && moved) removeWidgetDOM(old, content);
+  let contentTile: Tile | null = null;
+  const build = (element: Element, elt: DecoElt, flags: number): Tile => {
+    const tile = EltTile.of(elt, null, flags, 0, element);
+    shapeTiles.add(tile);
+    markTiles.add(tile);
+    if (element == content) {
+      const cursor = childCursor(element);
+      fill(tile, cursor, kept && !moved);
+      finish(cursor, context);
+      contentTile = tile;
+    } else {
+      for (const child of [...element.childNodes]) {
+        if (child instanceof Element && child.contains(content))
+          tile.addChild(build(child, Elt.mk(child.localName, [0]), TileFlag.Wrapper));
+        else addChromeTile(tile, child, TileFlag.Point);
+      }
+    }
+    tile.length = tile.children.reduce((sum, ch) => sum + ch.length, 0);
+    return synced(tile);
+  };
+  const tile = build(dom, view.elt, flags);
+  markOfTile.set(tile, mark);
+  if (contentTile) markContents.set(tile, contentTile);
+  return tile;
+};
+
 // A React shape's or wrapper's tiles, over the DOM its component committed:
 // walked from the DOM, as the component decides its structure. The elements
 // from the root to the content element (a wrapper: to the element it wraps)
@@ -683,12 +766,8 @@ const reactShapeTile = (
       return new WidgetTile(child, null, flags, dom);
     });
   };
-  const addChrome = (tile: CompositeTile, child: ChildNode, after: number) => {
-    if (!(child instanceof Element || child instanceof Text)) return;
-    if (child instanceof Element) setUneditable(child);
-    const flags = TileFlag.Point | TileFlag.NodeInner | after;
-    tile.addChild(synced(new WidgetTile(chrome, null, flags, child)));
-  };
+  const addChrome = (tile: CompositeTile, child: ChildNode, after: number) =>
+    addChromeTile(tile, child, TileFlag.Point | TileFlag.NodeInner | after);
   const build = (element: Element, elt: DecoElt, tag: DocNode.Tag | null, flags: number): Tile => {
     const previous = element.wgTile ?? null;
     const tile = EltTile.of(elt, tag, flags, tag ? length : 0, element);
@@ -776,13 +855,13 @@ const isChromeTile = (tile: Tile) =>
 
 const warned = new Set<string>();
 
-// A React shape or wrapper whose component's root isn't the element its Elt
+// A React shape, wrapper or mark whose component's root isn't the element its Elt
 // names: `target` selectors match the Elt, and plain Wordgard draws it.
-const warnElement = (what: "shape" | "wrapper", expected: string, found: string) => {
+const warnElement = (what: "shape" | "wrapper" | "mark", expected: string, found: string) => {
   const key = `${what}:${expected}>${found}`;
   if (warned.has(key)) return;
   warned.add(key);
-  const define = what == "shape" ? "reactShape" : "reactWrapper";
+  const define = { shape: "reactShape", wrapper: "reactWrapper", mark: "reactMark" }[what];
   console.error(
     `A React ${what}'s component drew <${found}> where its ${what} says <${expected}>: give ${define} the element its component draws`
   );
@@ -1129,6 +1208,9 @@ export class ReactDocTile extends DocTile {
     const previous = entry.composition;
     if (keepsAll(changes) && !info && !previous) {
       flushSync(() => editor.publish(state));
+      // React decorations drawing from the state committed there, and no build
+      // follows to take their changes.
+      rebuildRoots(takeShapeChanges(wg), wg);
       return this;
     }
     checkRenderable(state.doc);
@@ -1163,19 +1245,11 @@ const contentTile = (tile: Tile): Tile | null => {
   return null;
 };
 
-// Builds a React shape's node tile again over React's DOM, outside the flush,
-// after its component committed on its own: the content's tiles are kept when
-// the content element is the same, built again from their views when React
-// remounted it.
-const rebuildShape = (old: Tile, wg: Wordgard) => {
-  const view = tileViews.get(old);
-  const parent = old.parent;
-  // Gone with content an earlier rebuild found remounted.
-  if (!old.dom.isConnected) return;
-  if (!view || !parent || !(view.shape instanceof Elt)) return;
+// What a rebuild outside the flush builds with.
+const rebuildContext = (wg: Wordgard): BuildContext => {
   const entry = rootOf(wg.contentDOM);
   const length = entry.last?.state.doc.length;
-  const context: BuildContext = {
+  return {
     keys: entry.store.keys,
     rendered: entry.rendered,
     composition: entry.composition,
@@ -1190,21 +1264,61 @@ const rebuildShape = (old: Tile, wg: Wordgard) => {
     dirty: new Set(),
     changedShapes: new Set(),
   };
+};
+
+// Puts the content's old tiles in `tile` when React kept its element: they're
+// over the same DOM, in the same order.
+const keepContent = (
+  old: Tile,
+  tile: CompositeTile,
+  cursor: ChildCursor,
+  context: BuildContext
+) => {
+  for (const child of old.children) {
+    if (isChromeTile(child)) continue;
+    if (widgetDOM.has(child.dom)) cursor.place(child.dom);
+    else if (cursor.next() != child.dom) throw new Error("A React decoration's content moved");
+    context.reused.set(child, Reused.Full);
+    tile.addChild(child);
+  }
+};
+
+// Puts a rebuilt tile in the old one's place, and connects and disconnects as
+// the build does.
+const replaceTile = (old: Tile, tile: Tile, context: BuildContext) => {
+  const { parent } = old;
+  if (!parent) return;
+  parent.children[parent.children.indexOf(old)] = tile;
+  tile.parent = parent;
+  // Wordgard finds a tile from its DOM and checks the tree owns it: the old one
+  // and its DOM, now React's elsewhere, are out of the tree.
+  old.parent = null;
+  for (const stray of context.strays) if (!context.taken.has(stray)) stray.remove();
+  // What wasn't kept is disconnected: the content React remounted, and the
+  // widgets around it in a wrapped shape React remounted.
+  if (context.wg.connected) {
+    old.disconnect(context.reused);
+    for (const widget of context.toConnect) widget.connect();
+  }
+};
+
+// Builds a React shape's node tile again over React's DOM, outside the flush,
+// after its component committed on its own: the content's tiles are kept when
+// the content element is the same, built again from their views when React
+// remounted it.
+const rebuildShape = (old: Tile, wg: Wordgard) => {
+  const view = tileViews.get(old);
+  // Gone with content an earlier rebuild found remounted.
+  if (!old.dom.isConnected) return;
+  if (!view || !old.parent || !(view.shape instanceof Elt)) return;
+  const context = rebuildContext(wg);
   const { node, shape, children } = view;
   const oldContent = contentTile(old);
   const contentStart = old.posBefore + 1;
   const fill = (tile: CompositeTile, cursor: ChildCursor, pool: WidgetPool) => {
-    if (oldContent && oldContent.dom == tile.dom) {
-      for (const child of oldContent.children) {
-        if (isChromeTile(child)) continue;
-        if (widgetDOM.has(child.dom)) cursor.place(child.dom);
-        else if (cursor.next() != child.dom) throw new Error("A React shape's content moved");
-        context.reused.set(child, Reused.Full);
-        tile.addChild(child);
-      }
-    } else if (node.isPlot && children) {
+    if (oldContent && oldContent.dom == tile.dom) keepContent(oldContent, tile, cursor, context);
+    else if (node.isPlot && children)
       addChildTiles(tile, node, children, cursor, context, pool, contentStart, false);
-    }
   };
   const tag = node.isPlot ? node.tag : node;
   const tile = shapeTile(shape, tag, node.length, elementOf(old.dom, node.name), {
@@ -1215,20 +1329,38 @@ const rebuildShape = (old: Tile, wg: Wordgard) => {
     fill,
     context,
   });
-  parent.children[parent.children.indexOf(old)] = tile;
-  tile.parent = parent;
-  // Wordgard finds a tile from its DOM and checks the tree owns it: the old one
-  // and its DOM, now React's elsewhere, are out of the tree.
-  old.parent = null;
   tileViews.set(tile, view);
   viewTiles.set(view, tile);
-  for (const stray of context.strays) if (!context.taken.has(stray)) stray.remove();
-  // What wasn't kept is disconnected: the content React remounted, and the
-  // widgets around it in a wrapped shape React remounted.
-  if (wg.connected) {
-    old.disconnect(context.reused);
-    for (const widget of context.toConnect) widget.connect();
-  }
+  replaceTile(old, tile, context);
+};
+
+// The same for a React mark's tile.
+const rebuildMark = (old: Tile, wg: Wordgard) => {
+  const found = markViews.get(old);
+  const mark = markOfTile.get(old);
+  if (!old.dom.isConnected || !found || !mark || !old.parent) return;
+  const { view, plot } = found;
+  const context = rebuildContext(wg);
+  const oldContent = markContents.get(old);
+  const pos = old.posBefore;
+  const fill = (tile: CompositeTile, cursor: ChildCursor) => {
+    if (oldContent && oldContent.dom == tile.dom) keepContent(oldContent, tile, cursor, context);
+    else
+      addChildTiles(
+        tile,
+        plot,
+        view.children,
+        cursor,
+        context,
+        widgetPool(oldContent ?? null),
+        pos,
+        false
+      );
+  };
+  const flags = old.flags & (TileFlag.Wrapper | TileFlag.Spanning);
+  const tile = reactMarkTile(view, mark, flags, elementOf(old.dom, "a mark"), context, fill, false);
+  markViews.set(tile, found);
+  replaceTile(old, tile, context);
 };
 
 // Each ReactWordgard's DOM observer's MutationObserver, replaced so records
@@ -1280,14 +1412,21 @@ export const rebuildShapes = (wg: Wordgard) => {
   const found = shapeObservers.get(wg);
   if (!found || editorOf(wg).flushing || !roots.has(wg.contentDOM)) return;
   if (!found.changed.size) return;
-  // A node holding several changed roots (a React wrapper and the shape it
-  // wraps) is rebuilt once, whole.
-  const nodes = new Set<Tile>();
-  for (const root of found.changed) {
-    const tile = root.isConnected ? nodeTileOf(root) : undefined;
-    if (tile) nodes.add(tile);
-  }
-  for (const tile of nodes) rebuildShape(tile, wg);
+  rebuildRoots(found.changed, wg);
   found.changed.clear();
   found.discard();
+};
+
+// A node holding several changed roots (a React wrapper and the shape it
+// wraps) is rebuilt once, whole. A React mark's tile is rebuilt on its own.
+const rebuildRoots = (changed: ReadonlySet<Element>, wg: Wordgard) => {
+  const tiles = new Set<Tile>();
+  for (const root of changed) {
+    const mark = root.wgTile && markOfTile.has(root.wgTile) ? root.wgTile : undefined;
+    const tile = root.isConnected ? (mark ?? nodeTileOf(root)) : undefined;
+    if (tile) tiles.add(tile);
+  }
+  for (const tile of tiles)
+    if (markOfTile.has(tile)) rebuildMark(tile, wg);
+    else rebuildShape(tile, wg);
 };

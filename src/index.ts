@@ -1,6 +1,11 @@
 export { WordgardDoc } from "./components/WordgardDoc.js";
 export { WordgardEditor } from "./components/WordgardEditor.js";
 export {
+  type MarkViewComponentProps,
+  type ReactMarkSpec,
+  reactMark,
+} from "./decorations/ReactMarkType.js";
+export {
   type ReactShapeSpec,
   type ShapeViewComponentProps,
   reactShape,

@@ -19,8 +19,7 @@ import { type WidgetViewComponentProps, reactWidget } from "../decorations/React
 import { type WrapperViewComponentProps, reactWrapper } from "../decorations/ReactWrapperType.js";
 import { useEditorStateSelector } from "../hooks/useEditorStateSelector.js";
 import { useWordgard } from "../hooks/useWordgard.js";
-import { describeTile, docTileOf } from "../testing/tiles.js";
-import { TileFlag } from "../wordgardInternals.js";
+import { composeIn, drawn, flushKeeps, textIn, typeInto } from "../testing/editing.js";
 
 // What the components start with, and their setters, by editor, innermost
 // first.
@@ -270,48 +269,9 @@ const row = (wg: Wordgard) => {
   return found;
 };
 
-// The tiles and DOM a fresh editor builds for the same state, with the
-// components starting where `wg`'s are. A composition's flag is left out: a
-// fresh editor has none.
-const tilesOf = (wg: Wordgard) =>
-  JSON.stringify(describeTile(docTileOf(wg), wg.contentDOM)).replace(
-    /"flags":(\d+)/g,
-    (_, flags) => `"flags":${Number(flags) & ~TileFlag.Composition}`
-  );
-const drawn = (wg: Wordgard) => ({ tiles: tilesOf(wg), html: wg.contentDOM.innerHTML });
+// What a fresh editor draws for the same state, its components starting where
+// `wg`'s are.
 const fresh = (wg: Wordgard) => drawn(create({ state: wg.state }));
-
-// A flush with nothing to redraw keeps the doc tile.
-const flushKeeps = (wg: Wordgard) => {
-  const tile = docTileOf(wg);
-  wg.flush();
-  return docTileOf(wg) == tile;
-};
-
-// Types `text` at `offset` in a text node as the browser does: Wordgard
-// computes the change from `beforeinput` and lets the browser's edit through.
-const typeInto = (wg: Wordgard, text: Text, offset: number, data: string) => {
-  wg.focus();
-  const range = new StaticRange({
-    startContainer: text,
-    startOffset: offset,
-    endContainer: text,
-    endOffset: offset,
-  });
-  document.getSelection()?.setBaseAndExtent(text, offset, text, offset);
-  const init = { inputType: "insertText", data };
-  const before = new InputEvent("beforeinput", init);
-  before.getTargetRanges = () => [range];
-  wg.contentDOM.dispatchEvent(before);
-  text.insertData(offset, data);
-  wg.contentDOM.dispatchEvent(new InputEvent("input", init));
-};
-
-const textIn = (wg: Wordgard, selector: string) => {
-  const text = wg.contentDOM.querySelector(selector)?.firstChild;
-  if (!(text instanceof Text)) throw new Error(`No text in ${selector}`);
-  return text;
-};
 
 describe("React shapes", () => {
   it("draws the component, with the content in its content element", () => {
@@ -410,36 +370,18 @@ describe("React shapes", () => {
 
   it("keeps a composition in its content while the chrome changes", () => {
     const wg = create();
-    wg.focus();
-    const fire = (event: Event) => wg.contentDOM.dispatchEvent(event);
     const sel = document.getSelection();
     const node = textIn(wg, ".body p");
-    const compose = (offset: number, text: string) => {
-      fire(new CompositionEvent("compositionupdate"));
-      const range = new StaticRange({
-        startContainer: node,
-        startOffset: offset,
-        endContainer: node,
-        endOffset: offset,
-      });
-      const init = { inputType: "insertCompositionText", data: text, isComposing: true };
-      const before = new InputEvent("beforeinput", init);
-      before.getTargetRanges = () => [range];
-      fire(before);
-      node.insertData(offset, text);
-      sel?.collapse(node, offset + text.length);
-      fire(new InputEvent("input", init));
-    };
-    fire(new CompositionEvent("compositionstart"));
-    compose(1, "-");
+    const composition = composeIn(wg, node);
+    composition.update(1, "-");
     wg.flush();
     control(wg).setBar(false);
     expect(sel?.focusNode).toBe(node);
-    compose(2, "*");
+    composition.update(2, "*");
     wg.flush();
     expect(sel?.focusNode).toBe(node);
     expect(node.isConnected).toBe(true);
-    fire(new CompositionEvent("compositionend"));
+    composition.end();
     wg.flush();
     expect(String(wg.state.doc)).toContain("b-*c");
     initial.bar = false;

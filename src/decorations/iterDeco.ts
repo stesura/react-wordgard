@@ -4,7 +4,7 @@
 // React to render and ReactDocTile to build tiles over. Each plot is laid out
 // on its own; a plot that kept its identity outside the ranges an update
 // redraws keeps its previous layout.
-import { Attributes, Elt, Leaf, type Mark, type Node, type Plot } from "wordgard/doc";
+import { Attributes, Elt, Leaf, Mark, type Node, type Plot } from "wordgard/doc";
 import { type Decoration, Widget } from "wordgard/editor";
 
 import { isKept, pointMapper, samePlace, unchangedEnds } from "../changes.js";
@@ -15,10 +15,12 @@ import {
   type DecoIterator,
   type DecoWalker,
   type WrapperSource,
+  documentMark,
   renderMarkWrapper,
   renderWrapper,
   spanningOf,
 } from "./DecoIterator.js";
+import { isReactMark } from "./ReactMarkType.js";
 import { isReactWidget } from "./ReactWidgetType.js";
 import { isReactWrapper } from "./ReactWrapperType.js";
 
@@ -33,13 +35,14 @@ export type NodeView = {
 };
 
 // `key` is set on wrappers that must keep the element React committed: those
-// around a composition.
+// around a composition. `mark` is a React mark's, from the document.
 type WrapperChildView = {
   type: "wrapper";
   elt: DecoElt;
   spanning: boolean;
   children: ChildView[];
   key?: string;
+  mark?: Mark;
 };
 
 // A point widget. React draws a React widget, and nothing for the others:
@@ -71,6 +74,7 @@ export type WrapperView = {
   readonly elt: DecoElt;
   readonly spanning: boolean;
   readonly key?: string;
+  readonly mark?: Mark;
 };
 
 // Where a composition sits in a plot's content, as offsets in it, and the
@@ -89,7 +93,13 @@ export type CompositionLayout = {
 export const cursorWrappers = (marks: Mark.Set): WrapperView[] =>
   marks
     .filter((mark) => mark.type.element)
-    .map((mark) => ({ elt: renderMarkWrapper(mark), spanning: mark.type.spanning }));
+    .map((mark) => wrapperView(renderMarkWrapper(mark), mark.type.spanning, mark));
+
+// A React mark's component gets its mark, and draws only runs of it.
+const wrapperView = (elt: DecoElt, spanning: boolean, mark: Mark | undefined): WrapperView =>
+  mark && isReactMark(elt) ? { elt, spanning, mark: documentMark(mark) } : { elt, spanning };
+
+const sameMark = (a: Mark | undefined, b: Mark | undefined) => a == b || (!!a && !!b && a.eq(b));
 
 // buildNodeShape's rule: in editable content, the outermost element without a
 // content hole becomes uneditable, unless it's a void element, and so does
@@ -126,6 +136,7 @@ const sameView = (view: ChildView, other: ChildView): boolean => {
         view.key == other.key &&
         view.spanning == other.spanning &&
         view.elt.eq(other.elt) &&
+        sameMark(view.mark, other.mark) &&
         view.children.length == other.children.length &&
         view.children.every((child, i) => {
           const match = other.children[i];
@@ -164,7 +175,12 @@ const keepSame = (before: readonly ChildView[], after: ChildView[]): readonly Ch
     const match = old.get(key);
     let found = view;
     if (match && sameView(match, view)) found = match;
-    else if (match?.type == "wrapper" && view.type == "wrapper" && match.elt.eq(view.elt))
+    else if (
+      match?.type == "wrapper" &&
+      view.type == "wrapper" &&
+      match.elt.eq(view.elt) &&
+      sameMark(match.mark, view.mark)
+    )
       found = { ...view, children: [...keepSame(match.children, view.children)] };
     if (found != before[i]) changed = true;
     return found;
@@ -177,15 +193,22 @@ const isPoint = (view: ChildView | undefined) => view?.type == "buffer" || view?
 // A spanning wrapper continues the previous sibling when it draws the same
 // element, taking in the points between them (ContentUpdate.enterSpanning,
 // minus a Wordgard bug: docs/wordgard-upstream-bugs.md).
-const openWrapper = (views: ChildView[], elt: DecoElt, spanning: boolean) => {
+const openWrapper = (views: ChildView[], { elt, spanning, mark }: WrapperView) => {
   let i = views.length - 1;
   while (isPoint(views[i])) i--;
   const prev = views[i];
-  if (spanning && prev?.type == "wrapper" && prev.spanning && prev.elt.eq(elt)) {
+  if (
+    spanning &&
+    prev?.type == "wrapper" &&
+    prev.spanning &&
+    prev.elt.eq(elt) &&
+    sameMark(prev.mark, mark)
+  ) {
     prev.children.push(...views.splice(i + 1));
     return prev;
   }
   const wrapper: WrapperChildView = { type: "wrapper", elt, spanning, children: [] };
+  if (mark) wrapper.mark = mark;
   views.push(wrapper);
   return wrapper;
 };
@@ -308,7 +331,9 @@ const pointKeys = (context: LayoutContext, old: Layout | undefined, oldStart: nu
 };
 
 const sources = (wrappers: readonly WrapperSource[]): WrapperView[] =>
-  wrappers.map((src) => ({ elt: renderWrapper(src), spanning: spanningOf(src) }));
+  wrappers.map((src) =>
+    wrapperView(renderWrapper(src), spanningOf(src), src instanceof Mark ? src : undefined)
+  );
 
 // A plot's content, from position `start`, for plots whose shape has a hole.
 export const iterDeco = (
@@ -373,9 +398,9 @@ export const iterDeco = (
   }
   const wrapped = (wrappers: readonly WrapperView[]) => {
     let target = views;
-    for (const { elt, spanning, key } of wrappers) {
-      const wrapper = openWrapper(target, elt, spanning);
-      if (key) wrapper.key = key;
+    for (const view of wrappers) {
+      const wrapper = openWrapper(target, view);
+      if (view.key) wrapper.key = view.key;
       target = wrapper.children;
     }
     return target;
@@ -409,7 +434,8 @@ export const iterDeco = (
       // A text node's attributes and wrappers become spanning wrappers.
       while (shape instanceof Elt) {
         if (isReactWrapper(shape)) throw new Error("A React wrapper can't wrap text");
-        target = openWrapper(target, Elt.create(shape.tagName, shape.attrs, [0]), true).children;
+        const elt = Elt.create(shape.tagName, shape.attrs, [0]);
+        target = openWrapper(target, { elt, spanning: true }).children;
         const [inner] = shape.children;
         if (inner === undefined || inner === 0 || typeof inner == "string")
           throw new Error("Unexpected text shape");

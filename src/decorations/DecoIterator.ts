@@ -9,6 +9,8 @@
 // - Decoration sets come from the DecoSet, not from calling sources again, and
 //   range sets are split into layers a cursor can seek into.
 // - `nodeWrappers` without wrappers returns a shared empty array, as upstream.
+// - It records the document's mark behind a mark of an overridden shape
+//   (`documentMark`), for React marks.
 // The internal classes and facets come from src/wordgardInternals.ts.
 import { Attributes, Elt, Leaf, type Mark, type Node, type Plot, type Pos } from "wordgard/doc";
 import { Decoration, Widget } from "wordgard/editor";
@@ -198,6 +200,12 @@ export const renderMarkWrapper = memo((mark: Mark): DecoElt => {
   return Elt.create(shape.name, shape.attrs(mark.value), [0]);
 });
 
+// The document's mark a wrapper draws: `Decoration.Mark.shape` draws one of
+// a type it clones.
+const documentMarks = new WeakMap<Mark, Mark>();
+
+export const documentMark = (mark: Mark) => documentMarks.get(mark) ?? mark;
+
 export const renderWrapper = (src: WrapperSource): DecoElt =>
   src instanceof getDecorationInternals().WrapperRangeDecoration ? src.elt : renderMarkWrapper(src);
 
@@ -302,7 +310,11 @@ export class DecoIterator {
     const wrappers: WrapperSource[] = [];
     for (const mark of tag.marks) {
       const shape = this.markShapes.get(mark.type) || mark.type;
-      if (shape.element) wrappers.push(shape == mark.type ? mark : shape.of(mark.value));
+      if (shape.element) {
+        const drawn = shape == mark.type ? mark : shape.of(mark.value);
+        if (drawn != mark) documentMarks.set(drawn, mark);
+        wrappers.push(drawn);
+      }
     }
     for (const val of active) {
       if (

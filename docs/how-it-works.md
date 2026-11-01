@@ -27,8 +27,8 @@ component in the app's React tree.
 | `src/changes.ts` | Helpers over Wordgard's change sections (kept, redrawn, replaced), indexed once per update. |
 | `src/reactKeys.ts` | React keys per plot's children, mapped through changes. |
 | `src/composition.ts` | Keeping an IME composition's text node alive through the flush. |
-| `src/components/` | What React renders: `DocNodeView`, `ChildNodeViews`, `DefaultNodeView`, `MarkView`, `TextNodeView`, `WidgetView`, `ShapeView`, `WrapperView`, the hack nodes; `WordgardEditor` and `WordgardDoc` host the editor. |
-| `src/decorations/ReactWidgetType.ts`, `ReactShapeType.ts`, `ReactWrapperType.ts` | React widgets, shapes and wrappers: Wordgard widgets and `Elt`s registered as drawn by a component. |
+| `src/components/` | What React renders: `DocNodeView`, `ChildNodeViews`, `DefaultNodeView`, `MarkView`, `TextNodeView`, `WidgetView`, `ShapeView`, `WrapperView`, `ReactMarkView`, the hack nodes; `WordgardEditor` and `WordgardDoc` host the editor. |
+| `src/decorations/ReactWidgetType.ts`, `ReactShapeType.ts`, `ReactWrapperType.ts`, `ReactMarkType.ts` | React widgets, shapes, wrappers and marks: Wordgard widgets, `Elt`s and mark shapes registered as drawn by a component. |
 | `src/contexts/EditorContext.ts`, `src/hooks/` | The state store, effects and measures the hooks use. |
 | `src/wordgardInternals.ts` | The only file typing Wordgard's internals (with two `@ts-expect-error` in `ReactWordgard.ts`). |
 
@@ -160,7 +160,8 @@ plot holding blocks), chrome may also sit in the content element, before or afte
 the content's DOM there is all elements React drew for nodes, mark wrappers and widgets
 (`viewRoots`), so anything else is chrome. A textblock's content element must hold only the
 content: its text can't be told from chrome text. A shape the editor state changes is rebuilt in
-the flush's build; one the component changes on its own, below.
+the flush's build, or, in a flush with nothing to redraw (the selection moved), right after
+React's commit there; one the component changes on its own, below.
 
 **The component's own commits.** A component re-rendering from its own state, a context or a store
 commits outside Wordgard's flush. Wordgard's observer would read that as a user edit, mark the node
@@ -205,6 +206,29 @@ for a shape's remounted content, and the rebuild disconnects what it didn't keep
 Limits: a React wrapper can't wrap a node a native widget draws (React drew nothing there, so the
 component's `children` can't be found; draw the node with a React widget), nor text. Around an
 atom, the wrapper's root is made uneditable, as Wordgard makes a shape without a hole.
+
+## React marks (plan step 4)
+
+A **React mark** (`reactMark({component, element})`, `span` by default) is a mark's element shape
+(`Shape.Element`) carrying the reserved attribute, for `Decoration.Mark.shape` or a mark type's
+own spec. A React mark replacing an attribute-shaped mark makes it element-shaped, so spanning. The
+component gets `MarkViewComponentProps`, react-prosemirror's: `markProps` (`mark`, `getPos`,
+`contentDOMRef`), `children`, `ref`.
+
+`mark` is the document's: `Decoration.Mark.shape` hands Wordgard's walker a mark of a type it
+clones, so our `DecoIterator` copy records the document's mark behind it (`documentMark`). The
+layout's wrapper views carry it, and a run merges into the previous one only when the marks are
+equal as well as the elements (a React mark's element is the same for every value), so each
+component draws one run of one mark. `MarkView` draws a React mark through `ReactMarkView`.
+
+**Tiles.** The root is the wrapper tile (spanning as the mark is); each element down to the content
+element (`contentDOMRef`, else the root) is a nested wrapper tile, which Wordgard's `resolve` walks;
+everything else is chrome, a point widget. The content element holds only the content (inline
+text can't be told from chrome text). A composition inside a React mark sees its elements as one
+wrapper, the root's, with the mark (`domWrappers`). The record sorting is a React shape's (the mark
+registers the same handle); when a mark's structure changes outside the flush, its wrapper tile is
+rebuilt (`rebuildMark`), keeping the content's tiles or building them again from the views where
+React remounted the content, with its leftover widget DOM taken out first.
 
 ## Decisions, and where they're argued
 

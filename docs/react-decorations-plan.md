@@ -327,6 +327,53 @@ it's outside the content, so no mutation handling is needed. Last, after the dec
       it": it now says the component must draw them.
    After the fixes: 32 cases × 3 browsers pass.
 4. **React marks:** `reactMark`; `Decoration.Mark.shape`.
+   **Done (2026-11-01).** Exported (`reactMark`, `ReactMarkSpec`, `MarkViewComponentProps`).
+   `src/decorations/ReactMarkType.ts`, `src/components/marks/ReactMarkView.tsx`; `MarkView`
+   dispatches to it. 13 cases in `src/__tests__/reactMark.browser.test.tsx`, in the three
+   browsers: drawing, `getPos` and the document's mark; chrome and attributes from its own state;
+   typing with the chrome changing before the flush; content React remounts (with a widget in it,
+   drawn and connected once); a composition while the chrome changes; one component around a run
+   holding another mark and an inline node; one per mark where values differ; the new mark after
+   a change; an attribute-shaped mark made a React wrapper; chrome from the editor state in a
+   selection-only flush; the element warning. Each mechanism
+   below fails a test when disabled. The editing helpers the React decoration tests share moved
+   to `src/testing/editing.ts`. Deviations and what was learned:
+   - **The document's mark:** `Decoration.Mark.shape` clones the mark type, and Wordgard's walker
+     gives a mark of the clone. Our `DecoIterator` copy records the document's mark behind it, so
+     `markProps.mark.type` is the schema's type.
+   - **Runs:** a React mark's element is the same for every value (only the reserved attribute),
+     so runs merge, and views are kept, only when the marks are equal too. Plain Wordgard merges
+     equal elements; it can't tell, as it draws no component.
+   - **Rebuild:** a React mark's wrapper tile is rebuilt on its own (`rebuildMark`), not the node
+     around it, whose rebuild keeps its content's tiles as they are. The rebuild code is shared
+     (`rebuildContext`, `keepContent`, `replaceTile`).
+   - **Compositions:** the wrappers around a composition are read from the tiles; a React mark's
+     elements count as one wrapper, its root's, carrying the mark, and are React's, not the
+     browser's.
+   - **Content element:** holds only the content, as a textblock's: chrome there would be text
+     that can't be told from the content's. `childCursor` throws on extra nodes.
+   **Not done:** the cursor's marks (`wrapCursor`, typing with marks and no text yet) are drawn
+   from the mark's own type, not a `Decoration.Mark.shape` override, as Wordgard's
+   `ContentUpdate.composition` does: a React mark set by override isn't drawn around the buffer.
+   **Audit (Fable, 2026-11-01)**, each finding checked against the code:
+   1. **Accepted, fixed.** A flush with nothing to redraw (the selection moved) publishes the state
+      without a build: a React mark, shape or wrapper drawing from the state (a link's toolbar
+      while the cursor is in it) committed new chrome there, collected but never rebuilt, as
+      `rebuildShapes` doesn't run in the flush. The chrome had no tile, and wasn't uneditable,
+      until something next took the records. That branch now rebuilds what the commit changed
+      (`rebuildRoots`). It predates marks (React shapes had it too). Tested; the test fails
+      without the fix.
+   2. **Rejected.** `holdsText` takes a React mark drawn in the document's content (around blocks)
+      for one holding text. A conforming component never changes its content element's children
+      outside the flush (the content element holds only the content), so the records it decides
+      on can't come from React; treating them as typing is the safe default, and no test could
+      fail on it.
+   3. **Observation.** The tests compare with a fresh ReactWordgard; Fable cross-checked a React
+      link against plain Wordgard (`domAtPos`, `posAtDOM`, `coordsAtPos`, the DOM selection read
+      back): the same, the chrome aside. Its other probes (a run split by a lower-ranked React
+      mark, nested React marks, a mark in a React shape remounting its content, a mark at the
+      paragraph's end) passed.
+   After the fix: 13 cases × 3 browsers pass.
 5. **Hooks:** the list above.
 6. **Tooltips:** `reactTooltip`.
 7. **Docs:** the README (API, limits, migrating a react-prosemirror node view), CLAUDE.md,

@@ -11,6 +11,7 @@ import {
   type WrapperView,
   cursorWrappers,
 } from "./decorations/iterDeco.js";
+import { markOfTile, markTiles } from "./decorations/ReactMarkType.js";
 import { type CompositionInfo, TileFlag, getTileClasses } from "./wordgardInternals.js";
 
 // What React last rendered into a text node, under which key.
@@ -60,12 +61,12 @@ const plotAround = (doc: Plot, from: number, to: number) => {
   }
 };
 
-// An element React put there: one of its wrappers, or what holds a plot's
-// content.
+// An element React put there: one of its wrappers, a React mark's element, or
+// what holds a plot's content.
 const isReacts = (dom: Node, rendered: Rendered) =>
   (dom instanceof Element && rendered.wrappers.has(dom)) ||
   !!dom.wgTile?.isDoc ||
-  !!(dom.wgTile && dom.wgTile.flags & TileFlag.PlotContent);
+  !!(dom.wgTile && (dom.wgTile.flags & TileFlag.PlotContent || markTiles.has(dom.wgTile)));
 
 // The outermost node around `target` that React didn't put there.
 const browserMade = (target: Text, rendered: Rendered) => {
@@ -76,13 +77,17 @@ const browserMade = (target: Text, rendered: Rendered) => {
 };
 
 // The wrappers `node` sits in, outermost first, as the tiles over them say
-// (ContentUpdate.composition walks up to the node), with React's keys.
+// (ContentUpdate.composition walks up to the node), with React's keys. A React
+// mark's elements are one wrapper, its root's.
 const domWrappers = (node: ChildNode, rendered: Rendered) => {
   const wrappers: WrapperView[] = [];
   for (let dom = node.parentNode; dom instanceof Element; dom = dom.parentNode) {
     const tile = dom.wgTile;
     if (!(tile instanceof getTileClasses().EltTile) || !(tile.flags & TileFlag.Wrapper)) break;
-    wrappers.unshift({ elt: tile.elt, spanning: tile.isSpanning, key: rendered.wrappers.get(dom) });
+    const mark = markOfTile.get(tile);
+    if (markTiles.has(tile) && !mark) continue;
+    const key = rendered.wrappers.get(dom);
+    wrappers.unshift({ elt: tile.elt, spanning: tile.isSpanning, key, ...(mark && { mark }) });
   }
   return wrappers;
 };

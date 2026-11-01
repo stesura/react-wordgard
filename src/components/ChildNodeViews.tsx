@@ -26,7 +26,7 @@ export const renderChildViews = (views: readonly ChildView[]) =>
       case "text":
         return <TextNodeView key={key} text={view.text} />;
       case "wrapper":
-        return <MarkView key={key} elt={view.elt} views={view.children} />;
+        return <MarkView key={key} elt={view.elt} views={view.children} mark={view.mark} />;
       case "buffer":
         return <SeparatorHackView key={key} />;
       case "composition":
