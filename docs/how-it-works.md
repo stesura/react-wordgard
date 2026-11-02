@@ -168,21 +168,22 @@ whether its node is selected (`useIsNodeSelected`, `useSelectNode`), and the set
 
 ## React shapes
 
-A **React shape** (`createShape({component})`) is a real Wordgard `Elt`
+A **React shape** (`createShape(component)`) is a real Wordgard `Elt`
 (`<blockquote data-wg-react="1">[0]`), registered as drawn by a component. Wordgard reasons about
 the `Elt` (whether the node is an atom, where its content goes, `target` selectors, merging
 attributes); React draws the component. The registration is a reserved attribute because Wordgard
 copies `Elt`s when it adds attributes or wraps them, and every copy keeps their attributes.
-`createShape` returns a React shape type: `.shape(type)` is a `Tag.shape` whose function builds the
-`Elt` from the node type's own `NodeShape`, for each tag (Wordgard caches it by tag): the outer
-element's tag and attributes, and a hole unless the type draws an atom. `.of(element, {atom})` is
-the `Elt` itself, for `Point.shape`, which applies to whatever node follows.
+`createShape` returns a function of the tag, a form `Tag.shape` takes (Wordgard caches its result
+by tag): it builds the `Elt` from the tag's node type's own `NodeShape`, the outer element's tag
+and attributes, and a hole unless the type draws an atom. So the config reads as Wordgard's own,
+`Decoration.Tag.shape(Image, ImageShape)`, and the type is never passed twice. `.of(element,
+{atom})` is the `Elt` itself, for `Point.shape`, which applies to whatever node follows.
 
 **The root's tag.** Wordgard applies decorations to the `Elt` before anything is drawn: `target`
 selectors match its tags, wrappers and attributes go on its elements. So the tag has to be known up
 front, and the component can't say it: its root exists only once it has rendered, which needs the
 node, its content and the editor's contexts, and may differ per node (a heading's level). The node
-type already says it, per node, so `.shape(type)` takes it from there. The component must draw that
+type already says it, per node, so the shape takes it from there. The component must draw that
 element and keep it; `reactShapeTile` (and the wrapper and mark builds) log an error, once per
 mismatch, when a committed root's tag differs (`warnElement`). react-prosemirror never needed
 this: a node view replaces `toDOM`, ProseMirror builds its view description from whatever DOM the
@@ -230,7 +231,7 @@ mutations are filtered out.
 
 ## React wrappers
 
-A **React wrapper** (`createWrapper({component, element})`) is the same idea for `Tag.wrapper` and
+A **React wrapper** (`createWrapper(component, {element})`) is the same idea for `Tag.wrapper` and
 `Point.wrapper`: a real `Elt` with a hole, registered by the reserved attribute. Wordgard fills the
 hole with what it wraps (the node's shape, or the element `target` picks in it), so the wrapper's
 `Elt` holds one child. The component gets `WrapperComponentProps`: a React shape's props
@@ -254,7 +255,7 @@ atom, the wrapper's root is made uneditable, as Wordgard makes a shape without a
 
 ## React marks
 
-A **React mark** (`createMarkShape({component, element})`, `span` by default) is a mark's element shape
+A **React mark** (`createMarkShape(component, {element})`, `span` by default) is a mark's element shape
 (`Shape.Element`) carrying the reserved attribute, for `Decoration.Mark.shape` or a mark type's
 own spec. A React mark replacing an attribute-shaped mark makes it element-shaped, so spanning. The
 component gets `MarkComponentProps`, react-prosemirror's: `markProps` (`mark`, `getPos`,

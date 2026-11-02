@@ -126,9 +126,9 @@ const config: GardState.Extension = [
   basicSchema(),
   blockquote(),
   image(),
-  createShape({ component: QuoteView }).shape(Blockquote),
+  Decoration.Tag.shape(Blockquote, createShape(QuoteView)),
   Decoration.Tag.shape(Image, Picture.of(null)),
-  Decoration.Mark.shape(Link, createMarkShape({ component: LinkView, element: "a" })),
+  Decoration.Mark.shape(Link, createMarkShape(LinkView, { element: "a" })),
   recordHandled,
 ];
 

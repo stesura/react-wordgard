@@ -2,8 +2,9 @@
 // shape plain Wordgard draws, registered as drawn by a component, which renders
 // the content as `children`. Wordgard resolves decorations on the Elt before
 // React renders (`target` selectors match its tag), so its tag is known up
-// front: the node type's own outer element, per node (a heading's level). Without
-// a hole, as for the type's own shape, it draws an atom. Wordgard copies an Elt
+// front: `createShape` gives `Decoration.Tag.shape` a function of the tag, which
+// takes it from the tag's node type, per node (a heading's level). Without a
+// hole, as for the type's own shape, it draws an atom. Wordgard copies an Elt
 // when it adds attributes or wraps it, so the registration is a reserved
 // attribute, which every copy keeps; React never renders it. The props follow
 // react-prosemirror's node views (`nodeProps`, `contentDOMRef`, a forwarded
@@ -18,9 +19,7 @@ import {
   type RefCallback,
   createElement,
 } from "react";
-import { Attributes, Node as DocNode, Elt } from "wordgard/doc";
-import { Decoration } from "wordgard/editor";
-import type { GardState } from "wordgard/state";
+import { Attributes, type Node as DocNode, Elt } from "wordgard/doc";
 
 import { ignoresMutation } from "../contexts/DecorationContext.js";
 
@@ -34,16 +33,11 @@ export type ShapeComponentProps<E extends Element = HTMLElement> =
     children: ReactNode;
   } & RefAttributes<E>;
 
-export type ShapeSpec<E extends Element = HTMLElement> = {
-  component: ComponentType<ShapeComponentProps<E>>;
-};
-
-export type ReactShapeType = {
-  // Nodes of `type` drawn by the component, its root the type's own outer
-  // element (tag and attributes), an atom where the type's shape is.
-  shape: (type: DocNode.Type.Ref<unknown>) => GardState.Extension;
-  // The shape with `element` for its root: for Decoration.Point.shape, which
-  // applies to whichever node follows, or a root other than the type's.
+// For Decoration.Tag.shape: a node's shape, its root the node type's own outer
+// element (tag and attributes), an atom where the type's shape is. `of` gives
+// the shape with `element` for its root: for Decoration.Point.shape, which
+// applies to whichever node follows, or a root other than the type's.
+export type ReactShape = ((tag: DocNode.Tag) => Elt) & {
   of: (element: string, options?: { atom?: boolean }) => Elt;
 };
 
@@ -58,25 +52,23 @@ type DrawProps = {
 
 const draws = new Map<string, (props: DrawProps) => ReactElement>();
 
-export const createShape = <E extends Element = HTMLElement>({
-  component,
-}: ShapeSpec<E>): ReactShapeType => {
+export const createShape = <E extends Element = HTMLElement>(
+  component: ComponentType<ShapeComponentProps<E>>
+): ReactShape => {
   const id = String(draws.size + 1);
   draws.set(id, ({ attrs, nodeProps, children, ref }) =>
     createElement(component, { ...attrs, ref, nodeProps, children })
   );
   const shapeElt = (element: string, attrs: Attributes, atom: boolean) =>
     Elt.create(element, Attributes.merge(attrs, [reserved, id]), atom ? [] : [0]);
-  return {
-    shape: (type) => {
-      const { shape } = DocNode.Type.get(type);
-      return Decoration.Tag.shape(type, (tag) => {
-        const outer = shape.create(tag.param);
-        return shapeElt(outer.tagName, outer.attrs, shape.atom);
-      });
-    },
-    of: (element, { atom = false } = {}) => shapeElt(element, [], atom),
+  const forTag = (tag: DocNode.Tag) => {
+    const { shape } = tag.type;
+    const outer = shape.create(tag.param);
+    return shapeElt(outer.tagName, outer.attrs, shape.atom);
   };
+  return Object.assign(forTag, {
+    of: (element: string, { atom = false } = {}) => shapeElt(element, [], atom),
+  });
 };
 
 export const idOf = (elt: Elt<unknown>) => Attributes.get(elt.attrs, reserved);

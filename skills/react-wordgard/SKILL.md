@@ -114,9 +114,9 @@ node again only when it changed, or from the component's own state, contexts and
 
 | Need                                                         | Factory                                   | Passed to                                                                        |
 | ------------------------------------------------------------ | ----------------------------------------- | -------------------------------------------------------------------------------- |
-| A node, with content or an atom (callout, image, mention)    | `createShape({ component })`              | `MyShape.shape(Type)`; `MyShape.of(element)` for `Decoration.Point.shape`        |
-| An element around a node or part of its shape                | `createWrapper({ component, element })`   | `Decoration.Tag.wrapper(Type, wrapper, { target? })`, `Decoration.Point.wrapper` |
-| A mark's element (link, comment highlight)                   | `createMarkShape({ component, element })` | `Decoration.Mark.shape(MarkType, shape)`                                         |
+| A node, with content or an atom (callout, image, mention)    | `createShape(component)`                  | `Decoration.Tag.shape(Type, shape)`; `shape.of(element)` for `Point.shape`       |
+| An element around a node or part of its shape                | `createWrapper(component, { element })`   | `Decoration.Tag.wrapper(Type, wrapper, { target? })`, `Decoration.Point.wrapper` |
+| A mark's element (link, comment highlight)                   | `createMarkShape(component, { element })` | `Decoration.Mark.shape(MarkType, shape)`                                         |
 | A widget at a position or beside a node (placeholder, badge) | `createWidgetType({ component, … })`      | `Decoration.Point.widget(MyType.of(value), { side })`, `Decoration.Tag.widget`   |
 
 ```tsx
@@ -131,35 +131,51 @@ import {
   createShape,
 } from "react-wordgard";
 
-const Callout = forwardRef<HTMLQuoteElement, ShapeComponentProps<HTMLQuoteElement>>(
-  ({ nodeProps: { contentDOMRef }, children, ...attrs }, ref) => (
-    <blockquote {...attrs} ref={ref}>
-      <span aria-hidden="true">!</span>
-      <div ref={contentDOMRef}>{children}</div>
-    </blockquote>
-  )
+const CalloutShape = createShape(
+  forwardRef<HTMLQuoteElement, ShapeComponentProps<HTMLQuoteElement>>(function Callout(
+    { nodeProps: { contentDOMRef }, children, ...attrs },
+    ref
+  ) {
+    return (
+      <blockquote {...attrs} ref={ref}>
+        <span aria-hidden="true">!</span>
+        <div ref={contentDOMRef}>{children}</div>
+      </blockquote>
+    );
+  })
 );
 
-const LinkMark = forwardRef<HTMLAnchorElement, MarkComponentProps<HTMLAnchorElement>>(
-  ({ markProps: { mark, contentDOMRef }, children }, ref) => (
-    <a ref={ref} href={String(mark.value)}>
-      <span ref={contentDOMRef}>{children}</span>
-    </a>
-  )
+const LinkMark = createMarkShape(
+  forwardRef<HTMLAnchorElement, MarkComponentProps<HTMLAnchorElement>>(function LinkMark(
+    { markProps: { mark, contentDOMRef }, children, ...attrs },
+    ref
+  ) {
+    return (
+      <a {...attrs} ref={ref} href={String(mark.value)}>
+        <span ref={contentDOMRef}>{children}</span>
+      </a>
+    );
+  }),
+  { element: "a" }
 );
 
 // An atom: no content, everything it draws is chrome.
-const Picture = forwardRef<HTMLImageElement, ShapeComponentProps<HTMLImageElement>>(
-  ({ nodeProps, children, ...attrs }, ref) => <img {...attrs} ref={ref} />
+const PictureShape = createShape(
+  forwardRef<HTMLImageElement, ShapeComponentProps<HTMLImageElement>>(function Picture(
+    { nodeProps, children, ...attrs },
+    ref
+  ) {
+    return <img {...attrs} ref={ref} />;
+  })
 );
 
 export const config = [
   basicSchema(),
   blockquote(),
   image(),
-  createShape({ component: Callout }).shape(Blockquote),
-  Decoration.Mark.shape(Link, createMarkShape({ component: LinkMark, element: "a" })),
-  createShape({ component: Picture }).shape(Image),
+  Decoration.Tag.shape(Blockquote, CalloutShape),
+  Decoration.Mark.shape(Link, LinkMark),
+  Decoration.Tag.shape(Image, PictureShape),
 ];
 ```
 
@@ -169,8 +185,8 @@ mark, as an attribute. Check the parameter types of the node and mark types you 
 
 ### The component's contract
 
-- **The root is the element the decoration says, and stays that element.** For `.shape(Type)`,
-  that's the node type's own outer element, per node (`h1` to `h6` for a heading); for `.of`,
+- **The root is the element the decoration says, and stays that element.** For a shape, that's
+  the node type's own outer element, per node (`h1` to `h6` for a heading); for `.of`,
   `createWrapper` and `createMarkShape`, their `element` (`div` for wrappers, `span` for marks, by
   default). Wordgard applies decorations to the shape before React draws (`target` selectors
   match its tag), so the tag can't come from the component. Re-render freely, but don't swap the
@@ -221,20 +237,20 @@ mark, as an attribute. Check the parameter types of the node and mark types you 
 
 ## Migrating react-prosemirror node views
 
-| react-prosemirror                                                                                                       | react-wordgard                                                               |
-| ----------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `<ProseMirror state dispatchTransaction>`                                                                               | `<WordgardEditor doc config>`, uncontrolled; changes via `wg.dispatch`       |
-| `<ProseMirrorDoc />`                                                                                                    | `<WordgardDoc />`                                                            |
-| `nodeViews`                                                                                                             | `createShape({ component }).shape(Type)` in `config`, atoms included         |
-| `markViews`                                                                                                             | `createMarkShape` with `Decoration.Mark.shape`                               |
-| `NodeViewComponentProps`                                                                                                | `ShapeComponentProps` (same `nodeProps`, `contentDOMRef`, `children`, `ref`) |
-| `node.attrs`                                                                                                            | `node.tag.param` (or `node.param` for a leaf)                                |
-| `view` in callbacks                                                                                                     | `wg`                                                                         |
-| `ProseMirror-selectednode`, `selectedCell`                                                                              | `wg-selected-node`, `wg-selected-cell`                                       |
-| `useNodePos()` returning a number                                                                                       | `useNodePos()` returning a function                                          |
-| `useEditorEffect` for same-paint layout                                                                                 | `useEditorLayoutEffect`                                                      |
-| `useStopEvent`, `useIgnoreMutation`, `useSelectNode`, `useIsNodeSelected`, `useEditorEventListener`, `useMergedDOMRefs` | the same names, the editor first in callbacks                                |
-| `innerDecorations`, `useIsComposingIn`, `useIsEditorStatic`                                                             | none                                                                         |
+| react-prosemirror                                                                                                       | react-wordgard                                                                   |
+| ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `<ProseMirror state dispatchTransaction>`                                                                               | `<WordgardEditor doc config>`, uncontrolled; changes via `wg.dispatch`           |
+| `<ProseMirrorDoc />`                                                                                                    | `<WordgardDoc />`                                                                |
+| `nodeViews`                                                                                                             | `Decoration.Tag.shape(Type, createShape(component))` in `config`, atoms included |
+| `markViews`                                                                                                             | `createMarkShape` with `Decoration.Mark.shape`                                   |
+| `NodeViewComponentProps`                                                                                                | `ShapeComponentProps` (same `nodeProps`, `contentDOMRef`, `children`, `ref`)     |
+| `node.attrs`                                                                                                            | `node.tag.param` (or `node.param` for a leaf)                                    |
+| `view` in callbacks                                                                                                     | `wg`                                                                             |
+| `ProseMirror-selectednode`, `selectedCell`                                                                              | `wg-selected-node`, `wg-selected-cell`                                           |
+| `useNodePos()` returning a number                                                                                       | `useNodePos()` returning a function                                              |
+| `useEditorEffect` for same-paint layout                                                                                 | `useEditorLayoutEffect`                                                          |
+| `useStopEvent`, `useIgnoreMutation`, `useSelectNode`, `useIsNodeSelected`, `useEditorEventListener`, `useMergedDOMRefs` | the same names, the editor first in callbacks                                    |
+| `innerDecorations`, `useIsComposingIn`, `useIsEditorStatic`                                                             | none                                                                             |
 
 ProseMirror's model maps to Wordgard's in its migration guide:
 https://wordgard.net/docs/prosemirror/

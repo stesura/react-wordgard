@@ -34,23 +34,22 @@ Code.
 ## Usage
 
 ```tsx
-import { Wordgard } from "wordgard/editor";
+import { Decoration, Wordgard } from "wordgard/editor";
+// `image()` adds images to the schema; `Image` is their node type, which decorations name.
 import { basicSchema, image } from "wordgard/schema";
 import { Image } from "wordgard/types";
-import {
-  type ShapeComponentProps,
-  WordgardDoc,
-  WordgardEditor,
-  createShape,
-  useEditorStateSelector,
-} from "react-wordgard";
+import { WordgardDoc, WordgardEditor, createShape, useEditorStateSelector } from "react-wordgard";
 
-// An image drawn by a React component. Its root is the node type's element, an <img>, and gets
-// the ref and the node's attributes: its `src` and `alt`, the selected node's class.
-function ImageShape({ nodeProps, children, ref, ...attrs }: ShapeComponentProps<HTMLImageElement>) {
+// An image's shape, drawn by a React component. Its root is the node type's element, an <img>,
+// and gets the ref and the node's attributes: its `src` and `alt`, the selected node's class.
+const ImageShape = createShape<HTMLImageElement>(function ImageShape({
+  nodeProps,
+  children,
+  ref,
+  ...attrs
+}) {
   return <img {...attrs} ref={ref} />;
-}
-const ReactImage = createShape({ component: ImageShape });
+});
 
 function WordCount() {
   const words = useEditorStateSelector((state) => state.doc.textContent().split(/\s+/).length);
@@ -64,7 +63,7 @@ export function Editor() {
       config={[
         basicSchema(),
         image(),
-        ReactImage.shape(Image),
+        Decoration.Tag.shape(Image, ImageShape),
         Wordgard.contentAttributes.of({ "aria-label": "Document" }),
       ]}
     >
@@ -81,10 +80,13 @@ same goes for every React decoration:
 ```tsx
 import { forwardRef } from "react";
 
-const ImageShape = forwardRef<HTMLImageElement, ShapeComponentProps<HTMLImageElement>>(
-  function ImageShape({ nodeProps, children, ...attrs }, ref) {
+const ImageShape = createShape(
+  forwardRef<HTMLImageElement, ShapeComponentProps<HTMLImageElement>>(function ImageShape(
+    { nodeProps, children, ...attrs },
+    ref
+  ) {
     return <img {...attrs} ref={ref} />;
-  }
+  })
 );
 ```
 
@@ -138,20 +140,15 @@ which you pass to Wordgard's decorations:
 ```tsx
 import { Decoration } from "wordgard/editor";
 import { Blockquote, Link } from "wordgard/types";
-import {
-  type MarkComponentProps,
-  type ShapeComponentProps,
-  createMarkShape,
-  createShape,
-} from "react-wordgard";
+import { createMarkShape, createShape } from "react-wordgard";
 
 // A blockquote drawn as a callout: a decorative icon, then the content.
-function Callout({
+const CalloutShape = createShape<HTMLQuoteElement>(function Callout({
   nodeProps: { contentDOMRef },
   children,
   ref,
   ...attrs
-}: ShapeComponentProps<HTMLQuoteElement>) {
+}) {
   return (
     <blockquote {...attrs} ref={ref}>
       <span aria-hidden="true">💡</span>
@@ -160,35 +157,33 @@ function Callout({
       </div>
     </blockquote>
   );
-}
+});
 
 // A link, its target the mark's value.
-function LinkMark({
-  markProps: { mark, contentDOMRef },
-  children,
-  ref,
-  ...attrs
-}: MarkComponentProps<HTMLAnchorElement>) {
-  return (
-    <a {...attrs} ref={ref} href={String(mark.value)}>
-      <span ref={contentDOMRef}>{children}</span>
-    </a>
-  );
-}
-
-const ReactCallout = createShape({ component: Callout });
+const LinkMark = createMarkShape<HTMLAnchorElement>(
+  function LinkMark({ markProps: { mark, contentDOMRef }, children, ref, ...attrs }) {
+    return (
+      <a {...attrs} ref={ref} href={String(mark.value)}>
+        <span ref={contentDOMRef}>{children}</span>
+      </a>
+    );
+  },
+  { element: "a" }
+);
 
 const config = [
-  ReactCallout.shape(Blockquote),
-  Decoration.Mark.shape(Link, createMarkShape({ component: LinkMark, element: "a" })),
+  Decoration.Tag.shape(Blockquote, CalloutShape),
+  Decoration.Mark.shape(Link, LinkMark),
 ];
 ```
 
-- `createShape({ component })` returns a React shape type. `type.shape(nodeType)`, in `config`,
-  draws the type's nodes with the component, its root the node type's own outer element: its tag,
-  for each node (a heading's level gives `h1` to `h6`), and its attributes. The component gets
-  `nodeProps` (`node`, `getPos`, `contentDOMRef`), `children` (the content), a `ref` for its root,
-  and the attributes as props. The content goes in the `contentDOMRef` element, else in the root.
+- `createShape(component)` returns a node's shape for `Decoration.Tag.shape`: the type's nodes are
+  drawn by the component, its root the node type's own outer element, its tag for each node (a
+  heading's level gives `h1` to `h6`) and its attributes. (It's a function of the node's tag, a
+  form `Decoration.Tag.shape` takes.) The component gets `nodeProps` (`node`, `getPos`,
+  `contentDOMRef`), `children` (the content), a `ref` for its root, and the attributes as props.
+  The content goes in the `contentDOMRef` element, else in the root. Define the component inline,
+  as a named function, and its props are typed for you.
 - Only the outer element comes from the node type: the elements inside a structure shape (a
   figure's `img`, a table's `tbody`) are the component's to draw, from `nodeProps.node`. Wordgard
   puts attributes aimed at them (`ImageAlt`'s and `ImageSize`'s on a figure) on the root, and a
@@ -196,19 +191,21 @@ const config = [
 - Where the node type draws an atom (a leaf: an image, a mention; a plot whose shape has no
   hole), so does its React shape: `children` is empty, everything the component draws is chrome,
   and a `contentDOMRef` throws.
-- `type.of(element, { atom? })` is the shape with `element` for its root, for
+- `shape.of(element, { atom? })` is the shape with `element` for its root, for
   `Decoration.Point.shape` (which applies to whatever node follows, so no type says the element)
-  or a root other than the type's: `Decoration.Tag.shape(Blockquote, ReactCallout.of("aside"))`.
+  or a root other than the type's: `Decoration.Tag.shape(Blockquote, CalloutShape.of("aside"))`.
   With `atom: true`, it has no hole: a leaf needs it (Wordgard refuses a hole in a leaf's shape),
   and it draws a plot as an atom.
-- `createWrapper({ component, element })`, for `Decoration.Tag.wrapper` and
+- `createWrapper(component, { element? })`, for `Decoration.Tag.wrapper` and
   `Decoration.Point.wrapper`: the same props without `contentDOMRef`; `children` is what it
   wraps (the node's shape, or the element its `target` picks). `element` is its root, `div` by
   default: a wrapper is an element the node type doesn't have.
-- `createMarkShape({ component, element })`, for `Decoration.Mark.shape` or a mark type's own
+- `createMarkShape(component, { element? })`, for `Decoration.Mark.shape` or a mark type's own
   `shape`: `markProps` (`mark`, the document's, `getPos`, `contentDOMRef`), `children`, `ref`. One
-  component draws each run of an equal mark. `element` is its root, `span` by default. A React
-  mark replacing an attribute-shaped mark makes it element-shaped.
+  component draws each run of an equal mark. `element` is its root, `span` by default: Wordgard's
+  mark shape is a fixed spec, also a mark type's own `shape` before the type exists, so the
+  element can't come from the mark type. A React mark replacing an attribute-shaped mark makes it
+  element-shaped.
 - The root is the element the decoration says, and stays that element. Wordgard applies
   decorations to a shape before anything is drawn (`target` selectors match its tag, attributes
   merge onto its elements), so the tag has to be known up front; React draws the element. In
@@ -272,25 +269,25 @@ moving from ProseMirror's concepts to Wordgard's (see Wordgard's
 [ProseMirror migration guide](https://wordgard.net/docs/prosemirror/)). What changes on the React
 side:
 
-| react-prosemirror                                 | react-wordgard                                                                                                                            |
-| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `<ProseMirror state={…} dispatchTransaction={…}>` | `<WordgardEditor doc={…} config={…}>`, uncontrolled: the editor owns its state, changes go through `wg.dispatch`                          |
-| `<ProseMirrorDoc />`                              | `<WordgardDoc />`                                                                                                                         |
-| `plugins` prop                                    | Wordgard extensions in `config`; to change them later, compartments or `GardState.appendConfig`                                           |
-| `nodeViews` prop and node view components         | Tag decorations: `createShape({ component }).shape(NodeType)` for any node, atoms included; `createWrapper` with `Decoration.Tag.wrapper` |
-| `markViews` prop and mark view components         | `createMarkShape` with `Decoration.Mark.shape`                                                                                            |
-| `widget()` decorations with a component           | `Decoration.Point.widget(MyReactWidget.of(value))`                                                                                        |
-| `getPos` prop, `useNodePos`                       | `nodeProps.getPos`, `useNodePos()` (a function, not the position)                                                                         |
-| `useStopEvent`                                    | the same name, for events in a React decoration's chrome or a React widget                                                                |
-| `useIgnoreMutation`                               | the same name; chrome's and React widgets' mutations never reach Wordgard anyway                                                          |
-| `useEditorState`, `useEditorStateSelector`        | the same names, with the state of the last flush                                                                                          |
-| `useEditorEffect`                                 | the same name: runs after the editor's update; what it sets shows a frame later (below)                                                   |
-| `useIsNodeSelected`, `useSelectNode`              | the same names                                                                                                                            |
-| `useMergedDOMRefs`                                | the same name                                                                                                                             |
-| `useEditorEventCallback`                          | the same name, getting the editor                                                                                                         |
-| `useEditorEventListener`                          | the same name, before Wordgard's handlers and keymaps, for a fixed set of event types                                                     |
-| `useLayoutGroupEffect`                            | `useEditorEffect`; `useEditorLayoutEffect` to measure, then write on the same paint                                                       |
-| `reactKeys()` plugin                              | not needed: keys come from the changes Wordgard gives the view                                                                            |
+| react-prosemirror                                 | react-wordgard                                                                                                                                        |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<ProseMirror state={…} dispatchTransaction={…}>` | `<WordgardEditor doc={…} config={…}>`, uncontrolled: the editor owns its state, changes go through `wg.dispatch`                                      |
+| `<ProseMirrorDoc />`                              | `<WordgardDoc />`                                                                                                                                     |
+| `plugins` prop                                    | Wordgard extensions in `config`; to change them later, compartments or `GardState.appendConfig`                                                       |
+| `nodeViews` prop and node view components         | Tag decorations: `Decoration.Tag.shape(NodeType, createShape(component))` for any node, atoms included; `createWrapper` with `Decoration.Tag.wrapper` |
+| `markViews` prop and mark view components         | `createMarkShape` with `Decoration.Mark.shape`                                                                                                        |
+| `widget()` decorations with a component           | `Decoration.Point.widget(MyReactWidget.of(value))`                                                                                                    |
+| `getPos` prop, `useNodePos`                       | `nodeProps.getPos`, `useNodePos()` (a function, not the position)                                                                                     |
+| `useStopEvent`                                    | the same name, for events in a React decoration's chrome or a React widget                                                                            |
+| `useIgnoreMutation`                               | the same name; chrome's and React widgets' mutations never reach Wordgard anyway                                                                      |
+| `useEditorState`, `useEditorStateSelector`        | the same names, with the state of the last flush                                                                                                      |
+| `useEditorEffect`                                 | the same name: runs after the editor's update; what it sets shows a frame later (below)                                                               |
+| `useIsNodeSelected`, `useSelectNode`              | the same names                                                                                                                                        |
+| `useMergedDOMRefs`                                | the same name                                                                                                                                         |
+| `useEditorEventCallback`                          | the same name, getting the editor                                                                                                                     |
+| `useEditorEventListener`                          | the same name, before Wordgard's handlers and keymaps, for a fixed set of event types                                                                 |
+| `useLayoutGroupEffect`                            | `useEditorEffect`; `useEditorLayoutEffect` to measure, then write on the same paint                                                                   |
+| `reactKeys()` plugin                              | not needed: keys come from the changes Wordgard gives the view                                                                                        |
 
 Not offered: `useIsComposingIn`, `useIsEditorStatic`.
 
@@ -306,8 +303,8 @@ A react-prosemirror node view keeps its body: the props keep their names (`nodeP
   Wordgard applies decorations to the shape before anything is drawn, so it needs the tag first.
 - `node.attrs` becomes the node's parameter (`node.tag.param` for a node with content, `node.param`
   for a leaf), and `view` becomes `wg`, Wordgard's editor.
-- Registration: `createShape({ component }).shape(NodeType)` in the editor's `config` instead of
-  `nodeViews`.
+- Registration: `Decoration.Tag.shape(NodeType, createShape(component))` in the editor's `config`
+  instead of `nodeViews`.
 - Class names: `ProseMirror-selectednode` is `wg-selected-node`, a selected cell's class
   `wg-selected-cell`.
 - `useNodePos()` returns a function giving the position, not the position.

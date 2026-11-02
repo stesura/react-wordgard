@@ -6,7 +6,9 @@
 
 The component props types drop "View": `ShapeComponentProps`, `WrapperComponentProps`, `MarkComponentProps` and `WidgetComponentProps`.
 
-`createShape` no longer takes an `element` and returns a React shape type instead of a shape: `type.shape(nodeType)` draws the type's nodes, the root the node type's own outer element for each node, and `type.of(element)` is the shape for `Decoration.Point.shape`.
+`createShape` takes the component alone, no `element`: its shape, for `Decoration.Tag.shape`, takes the root from the node type's own outer element for each node, and `shape.of(element)` gives one for `Decoration.Point.shape`.
+
+`createWrapper` and `createMarkShape` take the component first, then `{ element }`, and `createMarkShape` has no mark parameter type.
 
 ### New features
 

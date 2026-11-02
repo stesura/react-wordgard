@@ -103,7 +103,7 @@ const CursorView = forwardRef<HTMLSpanElement, MarkComponentProps<HTMLSpanElemen
 const linkConfig = (extra: GardState.Extension = []) => [
   basicSchema(),
   image(),
-  Decoration.Mark.shape(Link, createMarkShape({ component: LinkView, element: "a" })),
+  Decoration.Mark.shape(Link, createMarkShape(LinkView, { element: "a" })),
   extra,
 ];
 
@@ -281,11 +281,7 @@ describe("React marks", () => {
   it("turns an attribute-shaped mark into a wrapper", () => {
     const wg = create({
       doc: '<p>a<span style="color: red">bc</span>d</p>',
-      config: [
-        basicSchema(),
-        color(),
-        Decoration.Mark.shape(Color, createMarkShape({ component: ColorView })),
-      ],
+      config: [basicSchema(), color(), Decoration.Mark.shape(Color, createMarkShape(ColorView))],
     });
     expect(wg.contentDOM.innerHTML).toBe('<p>a<span class="color" data-color="red">bc</span>d</p>');
     typeInto(wg, textIn(wg, ".color"), 1, "x");
@@ -296,10 +292,7 @@ describe("React marks", () => {
 
   it("rebuilds a mark the editor state changes in a flush that only moves the selection", () => {
     const wg = create({
-      config: [
-        basicSchema(),
-        Decoration.Mark.shape(Link, createMarkShape({ component: CursorView })),
-      ],
+      config: [basicSchema(), Decoration.Mark.shape(Link, createMarkShape(CursorView))],
     });
     expect(wg.contentDOM.querySelector(".here")).toBeNull();
     wg.dispatch({ selection: { anchor: 3 } });
@@ -311,10 +304,7 @@ describe("React marks", () => {
   it("says when the component's root isn't the mark's element", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     create({
-      config: [
-        basicSchema(),
-        Decoration.Mark.shape(Link, createMarkShape({ component: LinkView })),
-      ],
+      config: [basicSchema(), Decoration.Mark.shape(Link, createMarkShape(LinkView))],
     });
     expect(error.mock.calls.flat().join("")).toContain("drew <a> where its mark says <span>");
     error.mockRestore();

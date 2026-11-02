@@ -15,7 +15,7 @@ import {
   type RefCallback,
   createElement,
 } from "react";
-import type { Elt, Mark, Shape } from "wordgard/doc";
+import type { Elt, Mark } from "wordgard/doc";
 
 import type { Tile } from "../wordgardInternals.js";
 import { idOf, reserved } from "./ReactShapeType.js";
@@ -29,9 +29,10 @@ export type MarkComponentProps<E extends Element = HTMLElement> = AllHTMLAttribu
   children: ReactNode;
 } & RefAttributes<E>;
 
-export type MarkShapeSpec<E extends Element = HTMLElement> = {
-  component: ComponentType<MarkComponentProps<E>>;
-  // The component's root element, which plain Wordgard draws.
+export type MarkShapeOptions = {
+  // The component's root element, which plain Wordgard draws. Wordgard's mark
+  // shape is a static spec, also a mark type's own `shape` before the type
+  // exists, so the element can't come from the mark type.
   element?: string;
 };
 
@@ -45,11 +46,14 @@ type DrawProps = {
 // Keyed apart from React shapes' and wrappers' ids, which share the attribute.
 const draws = new Map<string, (props: DrawProps) => ReactElement>();
 
-// Generic in the mark's parameter so it fits any mark type's shape.
-export const createMarkShape = <Param, E extends Element = HTMLElement>({
-  component,
-  element = "span",
-}: MarkShapeSpec<E>): Shape.Element<Param> => {
+// A Shape.Element with no function of the mark's value, so it fits any mark
+// type's.
+type MarkShape = { element: string; attributes: Record<string, string> };
+
+export const createMarkShape = <E extends Element = HTMLElement>(
+  component: ComponentType<MarkComponentProps<E>>,
+  { element = "span" }: MarkShapeOptions = {}
+): MarkShape => {
   const id = `m${draws.size + 1}`;
   draws.set(id, ({ attrs, markProps, children, ref }) =>
     createElement(component, { ...attrs, ref, markProps, children })

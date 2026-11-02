@@ -59,7 +59,7 @@ const CalloutView = forwardRef<HTMLElement, ShapeComponentProps>(
   }
 );
 
-export const CalloutShape = createShape({ component: CalloutView });
+export const CalloutShape = createShape(CalloutView);
 
 const KindPicker = ({
   kind,

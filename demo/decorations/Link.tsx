@@ -33,4 +33,4 @@ const LinkView = forwardRef<HTMLAnchorElement, MarkComponentProps<HTMLAnchorElem
   }
 );
 
-export const LinkShape = createMarkShape({ component: LinkView, element: "a" });
+export const LinkShape = createMarkShape(LinkView, { element: "a" });
