@@ -17,6 +17,10 @@ Wordgard's own API: its docs (https://wordgard.net/docs/) and its typings in
 `wordgard/schema`, `wordgard/types`, `wordgard/command`). react-wordgard's: its README and
 `node_modules/react-wordgard/dist/index.d.ts`. Read them rather than guessing a signature.
 
+**New to Wordgard, or porting ProseMirror code?** Read `references/wordgard.md`, next to this file:
+Wordgard's model (plots, leaves, tags, marks on tags), changes, configuration, commands and the
+editor, each against its ProseMirror counterpart, with the traps.
+
 ## Setup
 
 ```sh

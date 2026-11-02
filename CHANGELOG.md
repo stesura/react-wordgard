@@ -32,4 +32,4 @@ A component keeps its state through a mark change on its node, a retag of the no
 
 `useNodePos`, `useStopEvent`, `useIgnoreMutation`, `useIsNodeSelected`, `useSelectNode` and `useMergedDOMRefs` give React decorations what react-prosemirror's node views had; `useStopEvent` is asked for events in a decoration's chrome, on its own elements and in React widgets, never in its content.
 
-The package ships a skill for AI coding agents, `skills/react-wordgard/SKILL.md`, on building editors with Wordgard and react-wordgard.
+The package ships a skill for AI coding agents, `skills/react-wordgard/SKILL.md`, on building editors with Wordgard and react-wordgard, with a reference on Wordgard's model for ProseMirror developers.
