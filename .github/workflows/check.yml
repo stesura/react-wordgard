@@ -17,8 +17,25 @@ permissions:
   contents: read
 
 jobs:
-  check:
+  # The Playwright version the lockfile pins, for the image the checks run in.
+  playwright:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: version
+        run: echo "version=$(node -p "require('./package-lock.json').packages['node_modules/playwright'].version")" >> "$GITHUB_OUTPUT"
+
+  check:
+    needs: playwright
+    runs-on: ubuntu-latest
+
+    # Playwright's image has the browsers and their system libraries: installing
+    # those took from a minute to eleven, most of it apt.
+    container:
+      image: mcr.microsoft.com/playwright:v${{ needs.playwright.outputs.version }}-noble
+      options: --user 1001
 
     # The peer ranges are React 18 and 19, and wordgard's patches; the lockfile
     # pins React 18 and one wordgard. A patch can still change the internals we
@@ -52,9 +69,6 @@ jobs:
       - name: Switch to the newest wordgard in the peer range
         if: matrix.wordgard == 'newest'
         run: npm i --no-save "wordgard@$(npm pkg get peerDependencies.wordgard | tr -d '"')"
-
-      - name: Install the browsers for the browser tests
-        run: npx playwright install --with-deps chromium firefox webkit
 
       - name: Build
         run: npm run build
