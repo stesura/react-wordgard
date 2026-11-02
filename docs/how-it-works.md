@@ -190,6 +190,15 @@ this: a node view replaces `toDOM`, ProseMirror builds its view description from
 component drew and puts node decorations' attributes on it afterwards, and no selector is matched
 against a shape model, nor is the same config drawn by plain ProseMirror.
 
+**`DecorationRoot`.** So the component doesn't have to repeat that tag, `ShapeView`, `WrapperView`
+and `ReactMarkView` put the root's tag, Wordgard's attributes and the root's ref in a context
+(`DecorationRootContext`), and `DecorationRoot` renders them, the component's props merged in:
+`className` joined, `style` merged (Wordgard's comes as a string, parsed then), anything else the
+component's. The ref comes through the context, so the component itself needs none: the factories
+give it `ref` only where React can (React 19, or a `forwardRef` component), which spares React 18
+its warning for a function component given a ref. A hand-written root still gets `ref` and the
+attributes as props.
+
 The component gets react-prosemirror's props, named after the decoration
 (`ShapeComponentProps`): `nodeProps` (`node`, `getPos`, `contentDOMRef`), `children` (the
 content), a forwarded `ref` for its root, and the decorations' attributes as props.
@@ -290,6 +299,7 @@ React remounted the content, with its leftover widget DOM taken out first.
 | Wordgard as a peer dependency, `~0.6.2`. | Two copies break Wordgard's `instanceof` checks; we use its internals. |
 | React shapes as `Elt`s registered by a reserved attribute on a real element. | Survives Wordgard's copies; keeps `target` selectors and the fallback valid. |
 | A React shape's root from its node type's own shape, per tag; `element` only for wrappers, marks and `Point.shape`. | Wordgard needs the tag before React draws, and the type already says it (a heading's per level); a mismatch logs in development. |
+| `DecorationRoot` draws a decoration's root from a context, a hand-written root still allowed. | The tag, the attributes and the ref can't be forgotten or wrong, and no `forwardRef` on React 18; a hand-written root keeps per-element typing and full control. |
 | Atoms as React shapes without a hole, not widgets. | Wordgard's own atom shape: the attributes go on the root, so a selection doesn't remount the component, and every node's component gets the same props. |
 | Chrome as uneditable widget tiles. | Wordgard's own model for a shape's elements around its hole. |
 | Replace Wordgard's `MutationObserver`; rebuild changed shapes from the records, no layout effect. | A component's own commits must never reach Wordgard as edits; a component re-rendering alone doesn't run its parent's effects. |

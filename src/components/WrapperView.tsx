@@ -12,6 +12,7 @@ import {
 } from "../contexts/DecorationContext.js";
 import { createWrapperHandle, nodePos, shapeAttributes } from "../decorations/ReactShapeType.js";
 import { drawWrapper } from "../decorations/ReactWrapperType.js";
+import { DecorationRootContext } from "../contexts/DecorationRootContext.js";
 import { attrsToRecord, htmlAttrsToReactProps } from "../helpers/index.js";
 import { mergeRefs } from "../helpers/refs.js";
 import type { DecoElt } from "../wordgardInternals.js";
@@ -33,14 +34,21 @@ export const WrapperView = ({ elt, node, wrapped, selected, outerRef }: Props) =
     [ref, outerRef, handlers]
   );
   const decoration = useMemo(() => ({ handlers, selected }), [handlers, selected]);
+  const attrs = useMemo(() => attrsToRecord(shapeAttributes(elt)), [elt]);
+  const root = useMemo(
+    () => ({ tagName: elt.tagName, attrs, ref: rootRef }),
+    [elt.tagName, attrs, rootRef]
+  );
   return (
     <DecorationContext.Provider value={decoration}>
-      {drawWrapper(elt, {
-        attrs: htmlAttrsToReactProps(attrsToRecord(shapeAttributes(elt))),
-        nodeProps: { node, getPos: handlers.getPos },
-        children: wrapped(wrappedRef),
-        ref: rootRef,
-      })}
+      <DecorationRootContext.Provider value={root}>
+        {drawWrapper(elt, {
+          attrs: htmlAttrsToReactProps(attrs),
+          nodeProps: { node, getPos: handlers.getPos },
+          children: wrapped(wrappedRef),
+          ref: rootRef,
+        })}
+      </DecorationRootContext.Provider>
     </DecorationContext.Provider>
   );
 };

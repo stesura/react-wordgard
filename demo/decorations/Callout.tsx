@@ -1,10 +1,10 @@
 // A callout after Stesura's (its CalloutNodeView and title bar): a title bar
 // of chrome above the content. The icon picks the kind, a double-click on the
 // title edits it. Simplified: a plain popover for the kind menu, no slots.
-import React, { forwardRef, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 
 import {
-  type ShapeComponentProps,
+  DecorationRoot,
   createShape,
   useEditorEventCallback,
   useNodePos,
@@ -20,46 +20,46 @@ import {
 
 const kindNames = Object.keys(calloutKinds).filter(isCalloutKind);
 
-const CalloutView = forwardRef<HTMLElement, ShapeComponentProps>(
-  ({ nodeProps: { node, contentDOMRef }, children, ...attrs }, ref) => {
-    const kind = node.tag.mark(CalloutKind) ?? "note";
-    const title = node.tag.mark(CalloutTitle);
-    const getPos = useNodePos();
+// Drawn with DecorationRoot: the callout type's own <aside class="callout">.
+export const CalloutShape = createShape(function Callout({
+  nodeProps: { node, contentDOMRef },
+  children,
+}) {
+  const kind = node.tag.mark(CalloutKind) ?? "note";
+  const title = node.tag.mark(CalloutTitle);
+  const getPos = useNodePos();
 
-    // The bar's events are its controls', not the editor's.
-    const barRef = useRef<HTMLDivElement>(null);
-    useStopEvent(
-      (_wg, event) => event.target instanceof Node && !!barRef.current?.contains(event.target)
-    );
+  // The bar's events are its controls', not the editor's.
+  const barRef = useRef<HTMLDivElement>(null);
+  useStopEvent(
+    (_wg, event) => event.target instanceof Node && !!barRef.current?.contains(event.target)
+  );
 
-    const setKind = useEditorEventCallback((wg, next: CalloutKindName) => {
-      wg.dispatch({ changes: { from: getPos(), add: CalloutKind.of(next) } });
-      wg.focus();
-    });
-    // `null` cancels; a blur doesn't pull the focus back from where it went.
-    const finishTitle = useEditorEventCallback((wg, next: string | null, refocus: boolean) => {
-      const from = getPos();
-      if (next && next != title) wg.dispatch({ changes: { from, add: CalloutTitle.of(next) } });
-      else if (next == "" && title)
-        wg.dispatch({ changes: { from, remove: CalloutTitle.of(title) } });
-      if (refocus) wg.focus();
-    });
+  const setKind = useEditorEventCallback((wg, next: CalloutKindName) => {
+    wg.dispatch({ changes: { from: getPos(), add: CalloutKind.of(next) } });
+    wg.focus();
+  });
+  // `null` cancels; a blur doesn't pull the focus back from where it went.
+  const finishTitle = useEditorEventCallback((wg, next: string | null, refocus: boolean) => {
+    const from = getPos();
+    if (next && next != title) wg.dispatch({ changes: { from, add: CalloutTitle.of(next) } });
+    else if (next == "" && title)
+      wg.dispatch({ changes: { from, remove: CalloutTitle.of(title) } });
+    if (refocus) wg.focus();
+  });
 
-    return (
-      <aside {...attrs} ref={ref} data-kind={kind}>
-        <div ref={barRef} className="callout-title">
-          <KindPicker kind={kind} onPick={setKind} />
-          <Title title={title} placeholder={calloutKinds[kind].label} onFinish={finishTitle} />
-        </div>
-        <div className="callout-body" ref={contentDOMRef}>
-          {children}
-        </div>
-      </aside>
-    );
-  }
-);
-
-export const CalloutShape = createShape(CalloutView);
+  return (
+    <DecorationRoot data-kind={kind}>
+      <div ref={barRef} className="callout-title">
+        <KindPicker kind={kind} onPick={setKind} />
+        <Title title={title} placeholder={calloutKinds[kind].label} onFinish={finishTitle} />
+      </div>
+      <div className="callout-body" ref={contentDOMRef}>
+        {children}
+      </div>
+    </DecorationRoot>
+  );
+});
 
 const KindPicker = ({
   kind,

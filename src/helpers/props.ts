@@ -3,7 +3,7 @@
 // attributes, such as an image's `draggable="false"`, go through here).
 // mergeReactProps is left out: nothing uses it.
 
-import { HTMLProps } from "react";
+import { type CSSProperties, HTMLProps } from "react";
 
 let patched = false;
 
@@ -225,4 +225,22 @@ export const htmlAttrsToReactProps = (attrs: Record<string, string>): HTMLProps<
     }
   }
   return props;
+};
+
+// A style attribute as React's style object, for merging with a component's:
+// `background-color` as `backgroundColor`, custom properties as they are.
+export const cssToStyle = (css: string | undefined): CSSProperties => {
+  const style: Record<string, string> = {};
+  for (const declaration of css?.split(";") ?? []) {
+    const colon = declaration.indexOf(":");
+    if (colon < 0) continue;
+    const name = declaration.slice(0, colon).trim();
+    const value = declaration.slice(colon + 1).trim();
+    if (!name || !value) continue;
+    const key = name.startsWith("--")
+      ? name
+      : name.replace(/^-ms-/, "ms-").replace(/-([a-z])/g, (_, char: string) => char.toUpperCase());
+    style[key] = value;
+  }
+  return style;
 };

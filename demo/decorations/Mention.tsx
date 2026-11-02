@@ -6,11 +6,11 @@ import { type WidgetComponentProps, createWidgetType, useIsNodeSelected } from "
 import { people } from "../schema.js";
 
 const MentionView = forwardRef<HTMLSpanElement, WidgetComponentProps<string, HTMLSpanElement>>(
-  ({ value, className, ...attrs }, ref) => {
+  ({ value, className, ...props }, ref) => {
     const selected = useIsNodeSelected();
     const person = people[value];
     return (
-      <span {...attrs} ref={ref} className={`mention ${className ?? ""}`}>
+      <span {...props} ref={ref} className={`mention ${className ?? ""}`}>
         @{person?.name ?? value}
         {selected && person && (
           <span className="mention-card" aria-hidden="true">

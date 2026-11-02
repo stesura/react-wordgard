@@ -10,6 +10,8 @@ The component props types drop "View": `ShapeComponentProps`, `WrapperComponentP
 
 `createWrapper` and `createMarkShape` take the component first, then `{ element }`, and `createMarkShape` has no mark parameter type.
 
+On React 18, a React shape's, wrapper's or mark's component that is a plain function is no longer given a `ref`, which React 18 can't pass to it.
+
 ### New features
 
 A React widget type's `shape(nodeType, value?)` draws a node type as its widgets, their value the node's parameter or what `value` makes of its tag.
@@ -17,6 +19,8 @@ A React widget type's `shape(nodeType, value?)` draws a node type as its widgets
 `createWidgetType` infers its value and element types from its component.
 
 A React shape can draw an atom (an image, a mention, a plot drawn as one), its component getting the node and its attributes, everything it draws chrome.
+
+`DecorationRoot` draws a React shape's, wrapper's or mark's root: the tag its decoration says, Wordgard's attributes and the root's ref, merged with the component's own props, with no `forwardRef` needed on React 18.
 
 ## 0.1.0 (2026-11-01)
 

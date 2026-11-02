@@ -120,54 +120,35 @@ node again only when it changed, or from the component's own state, contexts and
 | A widget at a position or beside a node (placeholder, badge) | `createWidgetType({ component, … })`      | `Decoration.Point.widget(MyType.of(value), { side })`, `Decoration.Tag.widget`   |
 
 ```tsx
-import { forwardRef } from "react";
 import { Decoration } from "wordgard/editor";
 import { basicSchema, blockquote, image } from "wordgard/schema";
 import { Blockquote, Image, Link } from "wordgard/types";
-import {
-  type MarkComponentProps,
-  type ShapeComponentProps,
-  createMarkShape,
-  createShape,
-} from "react-wordgard";
+import { DecorationRoot, createMarkShape, createShape } from "react-wordgard";
 
-const CalloutShape = createShape(
-  forwardRef<HTMLQuoteElement, ShapeComponentProps<HTMLQuoteElement>>(function Callout(
-    { nodeProps: { contentDOMRef }, children, ...attrs },
-    ref
-  ) {
-    return (
-      <blockquote {...attrs} ref={ref}>
-        <span aria-hidden="true">!</span>
-        <div ref={contentDOMRef}>{children}</div>
-      </blockquote>
-    );
-  })
-);
+const CalloutShape = createShape(function Callout({ nodeProps: { contentDOMRef }, children }) {
+  return (
+    <DecorationRoot>
+      <span aria-hidden="true">!</span>
+      <div ref={contentDOMRef}>{children}</div>
+    </DecorationRoot>
+  );
+});
 
 const LinkMark = createMarkShape(
-  forwardRef<HTMLAnchorElement, MarkComponentProps<HTMLAnchorElement>>(function LinkMark(
-    { markProps: { mark, contentDOMRef }, children, ...attrs },
-    ref
-  ) {
+  function LinkMark({ markProps: { mark, contentDOMRef }, children }) {
     return (
-      <a {...attrs} ref={ref} href={String(mark.value)}>
+      <DecorationRoot href={String(mark.value)}>
         <span ref={contentDOMRef}>{children}</span>
-      </a>
+      </DecorationRoot>
     );
-  }),
+  },
   { element: "a" }
 );
 
 // An atom: no content, everything it draws is chrome.
-const PictureShape = createShape(
-  forwardRef<HTMLImageElement, ShapeComponentProps<HTMLImageElement>>(function Picture(
-    { nodeProps, children, ...attrs },
-    ref
-  ) {
-    return <img {...attrs} ref={ref} />;
-  })
-);
+const PictureShape = createShape(function Picture() {
+  return <DecorationRoot />;
+});
 
 export const config = [
   basicSchema(),
@@ -179,8 +160,8 @@ export const config = [
 ];
 ```
 
-An image's `src` comes in `attrs` (its type's own attributes), and its `alt` from the `ImageAlt`
-mark, as an attribute. Check the parameter types of the node and mark types you use in
+An image's `src` is its type's own attribute and its `alt` the `ImageAlt` mark's: `DecorationRoot`
+puts both on the `<img>`. Check the parameter types of the node and mark types you use in
 `wordgard/types`.
 
 ### The component's contract
@@ -191,16 +172,19 @@ mark, as an attribute. Check the parameter types of the node and mark types you 
   default). Wordgard applies decorations to the shape before React draws (`target` selectors
   match its tag), so the tag can't come from the component. Re-render freely, but don't swap the
   root for another element.
+- **Draw it with `<DecorationRoot>`**, once, at the component's root. It renders that tag with
+  Wordgard's attributes (the node type's own, the selection classes `wg-selected-node` and
+  `wg-selected-cell`, tag, point and mark attributes, `contenteditable` on an atom) and the root's
+  ref. Its own props win, except `className`, joined with Wordgard's, and `style`, merged (its
+  keys winning); its `ref` gets the root too. It works on React 18 and 19 without `forwardRef`.
+  Not in a widget, whose component draws its root itself.
+- **Or draw the root by hand**: the element the decoration says, `{...props}` (Wordgard's
+  attributes) and `ref`, never both ways at once. On React 18 that component needs `forwardRef` to
+  get `ref`. A `className` or `style` of its own must be merged with `props`', or one replaces
+  the other. Pick this to drop one of Wordgard's attributes (rare).
 - **Only the outer element comes from the node type.** The elements inside a structure shape (a
   figure's `img`) are the component's to draw, from `nodeProps.node`; attributes aimed at them
-  (`ImageAlt` on a figure) arrive on the root, in `attrs`.
-- **Give the ref to the root element.** React 19 passes `ref` as a prop; on React 18 the component
-  needs `forwardRef` (as in the examples, which work on both).
-- **Spread the attributes (`...attrs`) onto the root.** They carry the node type's own attributes,
-  Wordgard's selection classes (`wg-selected-node`, `wg-selected-cell`) and tag, point and mark
-  attributes (an image's `alt`). Wordgard has already merged the decorations' attributes into one
-  `className` and one `style`: a component setting its own merges them with those, or one
-  replaces the other.
+  (`ImageAlt` on a figure) arrive on the root.
 - **Content goes where `contentDOMRef` points**, else in the root. `children` is the content (a
   wrapper's `children` is what it wraps; no `contentDOMRef` there).
 - **An atom** (a leaf, or a plot whose shape has no hole) has no content: `children` is empty,
@@ -257,7 +241,8 @@ https://wordgard.net/docs/prosemirror/
 
 ## When something fails
 
-- "…must forward its ref to its root element": the component doesn't pass `ref` to its root.
+- "…must draw a DecorationRoot, or forward its ref to its root element": the component's root is
+  neither a `DecorationRoot` nor given `ref` (on React 18, a hand-written root needs `forwardRef`).
 - "…drew <x> where its shape says <y>": draw the element the shape says (the node type's, or
   `element`), or pass the drawn one to the shape's `of`.
 - "React's DOM has extra nodes" or "…chrome is between its content's nodes": chrome sits in a

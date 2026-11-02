@@ -31,7 +31,7 @@ const handles = [
 type Drag = { pointerId: number; startX: number; startWidth: number; sign: number; width: number };
 
 const FigureView = forwardRef<HTMLElement, WidgetComponentProps<FigureValue>>(
-  ({ value: { src, width }, className, ...attrs }, ref) => {
+  ({ value: { src, width }, className, ...props }, ref) => {
     const getPos = useNodePos();
     const selected = useIsNodeSelected();
     const figureRef = useRef<HTMLElement>(null);
@@ -89,7 +89,7 @@ const FigureView = forwardRef<HTMLElement, WidgetComponentProps<FigureValue>>(
     const shown = drag?.width ?? width;
     return (
       <figure
-        {...attrs}
+        {...props}
         ref={useMergedDOMRefs(ref, figureRef)}
         className={`resizable ${selected || drag ? "active" : ""} ${className ?? ""}`}
       >

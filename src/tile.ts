@@ -698,7 +698,9 @@ const reactMarkTile = (
   const { EltTile } = getTileClasses();
   const handle = shapeOfRoot(dom);
   if (!handle || handle.wrapper)
-    throw new Error("A React mark's component must forward its ref to its root element");
+    throw new Error(
+      "A React mark's component must draw a DecorationRoot, or forward its ref to its root element"
+    );
   if (dom.localName != view.elt.tagName) warnElement("mark", view.elt.tagName, dom.localName);
   const content = contentOf(handle) ?? dom;
   if (!dom.contains(content)) throw new Error("A React mark's content element is outside it");
@@ -749,7 +751,9 @@ const reactShapeTile = (
   const handle = shapeOfRoot(dom);
   const what = isReactWrapper(elt) ? "wrapper" : "shape";
   if (!handle || handle.wrapper != (what == "wrapper"))
-    throw new Error(`A React ${what}'s component must forward its ref to its root element`);
+    throw new Error(
+      `A React ${what}'s component must draw a DecorationRoot, or forward its ref to its root element`
+    );
   if (dom.localName != elt.tagName) warnElement(what, elt.tagName, dom.localName);
   if (handle.wrapper && !handle.content)
     throw new Error("A React wrapper's component must draw its children");

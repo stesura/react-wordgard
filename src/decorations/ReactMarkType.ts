@@ -17,6 +17,7 @@ import {
 } from "react";
 import type { Elt, Mark } from "wordgard/doc";
 
+import { takesRef } from "../helpers/refs.js";
 import type { Tile } from "../wordgardInternals.js";
 import { idOf, reserved } from "./ReactShapeType.js";
 
@@ -56,7 +57,12 @@ export const createMarkShape = <E extends Element = HTMLElement>(
 ): MarkShape => {
   const id = `m${draws.size + 1}`;
   draws.set(id, ({ attrs, markProps, children, ref }) =>
-    createElement(component, { ...attrs, ref, markProps, children })
+    createElement(component, {
+      ...attrs,
+      ref: takesRef(component) ? ref : undefined,
+      markProps,
+      children,
+    })
   );
   return { element, attributes: { [reserved]: id } };
 };

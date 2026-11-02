@@ -12,6 +12,7 @@ import {
 } from "../../contexts/DecorationContext.js";
 import { drawMark } from "../../decorations/ReactMarkType.js";
 import { createShapeHandle, shapeAttributes } from "../../decorations/ReactShapeType.js";
+import { DecorationRootContext } from "../../contexts/DecorationRootContext.js";
 import { attrsToRecord, htmlAttrsToReactProps } from "../../helpers/index.js";
 import { mergeRefs } from "../../helpers/refs.js";
 import type { DecoElt } from "../../wordgardInternals.js";
@@ -34,14 +35,21 @@ export const ReactMarkView = ({ elt, mark, children }: Props) => {
   const rootRef = useMemo(() => mergeRefs(ref, decorationRoot(handlers)), [ref, handlers]);
   // A mark is no node: never selected.
   const decoration = useMemo(() => ({ handlers, selected: false }), [handlers]);
+  const attrs = useMemo(() => attrsToRecord(shapeAttributes(elt)), [elt]);
+  const root = useMemo(
+    () => ({ tagName: elt.tagName, attrs, ref: rootRef }),
+    [elt.tagName, attrs, rootRef]
+  );
   return (
     <DecorationContext.Provider value={decoration}>
-      {drawMark(elt, {
-        attrs: htmlAttrsToReactProps(attrsToRecord(shapeAttributes(elt))),
-        markProps: { mark, getPos: handlers.getPos, contentDOMRef },
-        children,
-        ref: rootRef,
-      })}
+      <DecorationRootContext.Provider value={root}>
+        {drawMark(elt, {
+          attrs: htmlAttrsToReactProps(attrs),
+          markProps: { mark, getPos: handlers.getPos, contentDOMRef },
+          children,
+          ref: rootRef,
+        })}
+      </DecorationRootContext.Provider>
     </DecorationContext.Provider>
   );
 };

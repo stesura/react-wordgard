@@ -22,6 +22,7 @@ import {
 import { Attributes, type Node as DocNode, Elt } from "wordgard/doc";
 
 import { ignoresMutation } from "../contexts/DecorationContext.js";
+import { takesRef } from "../helpers/refs.js";
 
 export type ShapeComponentProps<E extends Element = HTMLElement> =
   AllHTMLAttributes<HTMLElement> & {
@@ -57,7 +58,12 @@ export const createShape = <E extends Element = HTMLElement>(
 ): ReactShape => {
   const id = String(draws.size + 1);
   draws.set(id, ({ attrs, nodeProps, children, ref }) =>
-    createElement(component, { ...attrs, ref, nodeProps, children })
+    createElement(component, {
+      ...attrs,
+      ref: takesRef(component) ? ref : undefined,
+      nodeProps,
+      children,
+    })
   );
   const shapeElt = (element: string, attrs: Attributes, atom: boolean) =>
     Elt.create(element, Attributes.merge(attrs, [reserved, id]), atom ? [] : [0]);

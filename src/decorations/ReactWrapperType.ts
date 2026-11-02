@@ -16,6 +16,7 @@ import {
 } from "react";
 import { type Node as DocNode, Elt } from "wordgard/doc";
 
+import { takesRef } from "../helpers/refs.js";
 import { idOf, reserved } from "./ReactShapeType.js";
 
 export type WrapperComponentProps<E extends Element = HTMLElement> =
@@ -49,7 +50,12 @@ export const createWrapper = <E extends Element = HTMLElement>(
 ): Elt => {
   const id = `w${draws.size + 1}`;
   draws.set(id, ({ attrs, nodeProps, children, ref }) =>
-    createElement(component, { ...attrs, ref, nodeProps, children })
+    createElement(component, {
+      ...attrs,
+      ref: takesRef(component) ? ref : undefined,
+      nodeProps,
+      children,
+    })
   );
   return Elt.mk(element, { [reserved]: id }, [0]);
 };

@@ -5,7 +5,7 @@ import React, { forwardRef, useState } from "react";
 import { type MarkComponentProps, createMarkShape, useStopEvent } from "../../src/index.js";
 
 const LinkView = forwardRef<HTMLAnchorElement, MarkComponentProps<HTMLAnchorElement>>(
-  ({ markProps: { mark, contentDOMRef }, children, ...attrs }, ref) => {
+  ({ markProps: { mark, contentDOMRef }, children, ...props }, ref) => {
     const [hover, setHover] = useState(false);
     const href = String(mark.value);
     useStopEvent(
@@ -13,7 +13,7 @@ const LinkView = forwardRef<HTMLAnchorElement, MarkComponentProps<HTMLAnchorElem
     );
     return (
       <a
-        {...attrs}
+        {...props}
         ref={ref}
         href={href}
         onMouseEnter={() => setHover(true)}
