@@ -21,6 +21,7 @@ import { Widget, type Wordgard } from "wordgard/editor";
 import type { GardState } from "wordgard/state";
 
 import { attrsToRecord } from "./helpers/index.js";
+import { ErrorBoundary } from "./components/ErrorBoundary.js";
 import { DocNodeView } from "./components/nodes/DocNodeView.js";
 import { stopsEvent } from "./contexts/DecorationContext.js";
 import { EditorContext, editorOf } from "./contexts/EditorContext.js";
@@ -92,6 +93,10 @@ const roots = new WeakMap<
     rendered: Rendered;
     layouts: WeakMap<Plot, Layout>;
     composition: CompositionView | null;
+    // An error React threw rendering the document, and how many it threw: the
+    // next render mounts the document anew.
+    error: { thrown: unknown } | null;
+    failures: number;
   }
 >();
 
@@ -1073,18 +1078,37 @@ const newEntry = (commit: Entry["commit"]): Entry => ({
   rendered: { texts: new WeakMap(), wrappers: new WeakMap() },
   layouts: new WeakMap(),
   composition: null,
+  error: null,
+  failures: 0,
 });
 
 const docElement = (wg: Wordgard, entry: Entry, views: readonly ChildView[]) =>
   createElement(
-    EditorContext.Provider,
-    { value: editorOf(wg) },
+    ErrorBoundary,
+    {
+      key: entry.failures,
+      onError: (thrown) => {
+        entry.error = { thrown };
+        entry.failures++;
+      },
+    },
     createElement(
-      RenderStoreContext.Provider,
-      { value: entry.store },
-      createElement(DocNodeView, { views })
+      EditorContext.Provider,
+      { value: editorOf(wg) },
+      createElement(
+        RenderStoreContext.Provider,
+        { value: entry.store },
+        createElement(DocNodeView, { views })
+      )
     )
   );
+
+// Throws what React threw rendering the document, once.
+const throwRenderError = (entry: Entry) => {
+  const { error } = entry;
+  entry.error = null;
+  if (error) throw error.thrown;
+};
 
 // The first layout, keys included.
 const firstLayout = (state: GardState, entry: Entry): Laid => {
@@ -1182,7 +1206,9 @@ export class ReactDocTile extends DocTile {
   // Builds the tiles over what the portal committed, for its first commit or
   // a commit after it was unmounted.
   static mount = (dom: Element, wg: Wordgard, old: DocTile) => {
-    const { last } = rootOf(dom);
+    const entry = rootOf(dom);
+    throwRenderError(entry);
+    const { last } = entry;
     if (!last) throw new Error("Nothing rendered to mount");
     return ReactDocTile.build(last.state, dom, last.decoSet, last.views, {
       wg,
@@ -1211,6 +1237,7 @@ export class ReactDocTile extends DocTile {
       editor.publish(state);
       entry.commit(element);
     });
+    throwRenderError(entry);
     // flushSync defers inside a React render or commit, and the tiles can't
     // be built over DOM React hasn't committed. React renders what the stores
     // then hold, so it gets back what it last committed, and Wordgard, which

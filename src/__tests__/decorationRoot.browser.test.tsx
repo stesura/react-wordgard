@@ -12,6 +12,7 @@ import { Blockquote, Heading, Image, Link, Paragraph } from "wordgard/types";
 
 import { ReactWordgard } from "../ReactWordgard.js";
 import { DecorationRoot } from "../components/DecorationRoot.js";
+import { ErrorBoundary } from "../components/ErrorBoundary.js";
 import { createMarkShape } from "../decorations/ReactMarkType.js";
 import { createShape } from "../decorations/ReactShapeType.js";
 import { createWidgetType } from "../decorations/ReactWidgetType.js";
@@ -195,11 +196,17 @@ describe("DecorationRoot", () => {
 
   it("is only a decoration's root", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    const dom = document.createElement("div");
-    const root = createRoot(dom);
-    expect(() => flushSync(() => root.render(<DecorationRoot />))).toThrow(
-      /root of a React shape, wrapper, mark or widget/
+    const root = createRoot(document.createElement("div"));
+    // React 19 doesn't rethrow a render error from flushSync: caught here.
+    let thrown: unknown = null;
+    flushSync(() =>
+      root.render(
+        <ErrorBoundary onError={(e) => (thrown = e)}>
+          <DecorationRoot />
+        </ErrorBoundary>
+      )
     );
+    expect(String(thrown)).toMatch(/root of a React shape, wrapper, mark or widget/);
     root.unmount();
     error.mockRestore();
   });

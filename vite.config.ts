@@ -28,7 +28,7 @@ export default defineConfig({
   },
   // Found mid-run otherwise, which reloads the browser tests.
   optimizeDeps: {
-    include: ["wordgard/schema"],
+    include: ["wordgard/schema", "wordgard/history", "use-sync-external-store/with-selector"],
   },
   test: {
     globals: true,
