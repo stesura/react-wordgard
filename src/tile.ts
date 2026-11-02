@@ -753,8 +753,11 @@ const reactShapeTile = (
   if (dom.localName != elt.tagName) warnElement(what, elt.tagName, dom.localName);
   if (handle.wrapper && !handle.content)
     throw new Error("A React wrapper's component must draw its children");
-  const content = contentOf(handle) ?? dom;
-  if (!dom.contains(content) || (handle.wrapper && content == dom))
+  const atom = !handle.wrapper && !elt.hasContent;
+  if (atom && handle.content)
+    throw new Error("A React shape drawing an atom has no content: drop its contentDOMRef");
+  const content = atom ? null : (contentOf(handle) ?? dom);
+  if ((content && !dom.contains(content)) || (handle.wrapper && content == dom))
     throw new Error(
       `A React ${what}'s ${handle.wrapper ? "children are" : "content element is"} outside it`
     );
@@ -770,7 +773,7 @@ const reactShapeTile = (
   if (moved) for (const child of moved.children) if (widgetDOM.has(child.dom)) child.dom.remove();
   // The same for what a wrapper wrapped: React may have remounted it, or made
   // its element structure (same name, so React kept it, widget DOM included).
-  if (handle.wrapper && dom.wgTile) removeWidgetDOM(dom.wgTile, content);
+  if (handle.wrapper && content && dom.wgTile) removeWidgetDOM(dom.wgTile, content);
   // What a wrapper wraps: the node's shape or an element in it, or the widget
   // drawing the node.
   const wrappedTile = (element: Element, after: number): Tile => {
@@ -882,9 +885,13 @@ const warnElement = (what: "shape" | "wrapper" | "mark", expected: string, found
   const key = `${what}:${expected}>${found}`;
   if (warned.has(key)) return;
   warned.add(key);
-  const define = { shape: "createShape", wrapper: "createWrapper", mark: "createMarkShape" }[what];
+  const fix = {
+    shape: `draw the element its shape says (the node type's, or the one given to \`of\`), or pass <${found}> to \`of\``,
+    wrapper: "give createWrapper the element its component draws",
+    mark: "give createMarkShape the element its component draws",
+  }[what];
   console.error(
-    `A React ${what}'s component drew <${found}> where its ${what} says <${expected}>: give ${define} the element its component draws`
+    `A React ${what}'s component drew <${found}> where its ${what} says <${expected}>: ${fix}`
   );
 };
 

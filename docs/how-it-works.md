@@ -122,8 +122,8 @@ build gives it a tile flagged `Composition`, as Wordgard's `ContentUpdate.compos
 
 A **native widget** (`Widget.define`) is Wordgard's: its DOM comes from `render`, kept by the build
 (`widgetDOM`) and placed among React's nodes. A **React widget** (`createWidgetType`) is a real Wordgard
-`Widget.Type` whose `render` is the fallback plain Wordgard draws; the React view draws its
-component instead, in the editor's tree, with the app's contexts. Its root element (the forwarded
+`Widget.Type`, its `render` a placeholder (an empty span) only plain Wordgard draws; the React
+view draws its component instead, in the editor's tree, with the app's contexts. Its root element (the forwarded
 ref) is the widget's DOM. Widgets are uneditable, and Wordgard ignores mutations inside them, so a
 React widget re-renders freely; it must keep its root element. `useNodePos` reads its position
 from its tile.
@@ -168,12 +168,26 @@ whether its node is selected (`useIsNodeSelected`, `useSelectNode`), and the set
 
 ## React shapes
 
-A **React shape** (`createShape({component, element})`) is a real Wordgard `Elt` with a content hole
-(`<div data-wg-react="1">[0]`), registered as drawn by a component. Wordgard reasons about the
-`Elt` (whether the node is an atom, where its content goes, `target` selectors, merging
+A **React shape** (`createShape({component})`) is a real Wordgard `Elt`
+(`<blockquote data-wg-react="1">[0]`), registered as drawn by a component. Wordgard reasons about
+the `Elt` (whether the node is an atom, where its content goes, `target` selectors, merging
 attributes); React draws the component. The registration is a reserved attribute because Wordgard
 copies `Elt`s when it adds attributes or wraps them, and every copy keeps their attributes.
-`element` must be the component's root (`span` for an inline node).
+`createShape` returns a React shape type: `.shape(type)` is a `Tag.shape` whose function builds the
+`Elt` from the node type's own `NodeShape`, for each tag (Wordgard caches it by tag): the outer
+element's tag and attributes, and a hole unless the type draws an atom. `.of(element, {atom})` is
+the `Elt` itself, for `Point.shape`, which applies to whatever node follows.
+
+**The root's tag.** Wordgard applies decorations to the `Elt` before anything is drawn: `target`
+selectors match its tags, wrappers and attributes go on its elements. So the tag has to be known up
+front, and the component can't say it: its root exists only once it has rendered, which needs the
+node, its content and the editor's contexts, and may differ per node (a heading's level). The node
+type already says it, per node, so `.shape(type)` takes it from there. The component must draw that
+element and keep it; `reactShapeTile` (and the wrapper and mark builds) log an error, once per
+mismatch, when a committed root's tag differs (`warnElement`). react-prosemirror never needed
+this: a node view replaces `toDOM`, ProseMirror builds its view description from whatever DOM the
+component drew and puts node decorations' attributes on it afterwards, and no selector is matched
+against a shape model, nor is the same config drawn by plain ProseMirror.
 
 The component gets react-prosemirror's props, named after the decoration
 (`ShapeComponentProps`): `nodeProps` (`node`, `getPos`, `contentDOMRef`), `children` (the
@@ -187,7 +201,10 @@ chrome like any widget in a shape, and Wordgard ignores mutations inside it. In 
 plot holding blocks), chrome may also sit in the content element, before or after the content:
 the content's DOM there is all elements React drew for nodes, mark wrappers and widgets
 (`viewRoots`), so anything else is chrome. A textblock's content element must hold only the
-content: its text can't be told from chrome text. A shape the editor state changes is rebuilt in
+content: its text can't be told from chrome text. A shape without a hole draws an atom: its root's
+tile has the `Atom` flag, there's no content element (a `contentDOMRef` throws), and everything
+under the root is chrome; the handle's `atom` (set through the root's ref) has `sortRecords` take
+child changes on the root for structure. A shape the editor state changes is rebuilt in
 the flush's build, or, in a flush with nothing to redraw (the selection moved), right after
 React's commit there; one the component changes on its own, below.
 
@@ -271,6 +288,8 @@ React remounted the content, with its leftover widget DOM taken out first.
 | Host the editor in the app's tree through a portal. | The app's contexts reach React widgets and shapes. |
 | Wordgard as a peer dependency, `~0.6.2`. | Two copies break Wordgard's `instanceof` checks; we use its internals. |
 | React shapes as `Elt`s registered by a reserved attribute on a real element. | Survives Wordgard's copies; keeps `target` selectors and the fallback valid. |
+| A React shape's root from its node type's own shape, per tag; `element` only for wrappers, marks and `Point.shape`. | Wordgard needs the tag before React draws, and the type already says it (a heading's per level); a mismatch logs in development. |
+| Atoms as React shapes without a hole, not widgets. | Wordgard's own atom shape: the attributes go on the root, so a selection doesn't remount the component, and every node's component gets the same props. |
 | Chrome as uneditable widget tiles. | Wordgard's own model for a shape's elements around its hole. |
 | Replace Wordgard's `MutationObserver`; rebuild changed shapes from the records, no layout effect. | A component's own commits must never reach Wordgard as edits; a component re-rendering alone doesn't run its parent's effects. |
 | Hook event listeners run before keymaps (highest precedence). | As react-prosemirror's `handleDOMEvents`; Stesura needs keydown first. |

@@ -5,13 +5,29 @@
 // wrappers, drawn around what they wrap, the same ways. After each
 // change, Wordgard's next flush must find nothing to redraw, and the tiles must
 // be what a fresh build over the same DOM gives.
-import React, { createContext, forwardRef, useContext, useLayoutEffect, useState } from "react";
+import React, {
+  createContext,
+  createElement,
+  forwardRef,
+  useContext,
+  useLayoutEffect,
+  useState,
+} from "react";
 import { flushSync } from "react-dom";
 import { Elt, Leaf } from "wordgard/doc";
 import { Decoration, Widget, type Wordgard } from "wordgard/editor";
-import { basicSchema, blockquote, image } from "wordgard/schema";
-import { GardState } from "wordgard/state";
-import { Blockquote, Cell, Image, Paragraph, Table, TableRow } from "wordgard/types";
+import { basicSchema, blockquote, figure, image } from "wordgard/schema";
+import { GardSelection, GardState } from "wordgard/state";
+import {
+  Blockquote,
+  Cell,
+  Figure,
+  Heading,
+  Image,
+  Paragraph,
+  Table,
+  TableRow,
+} from "wordgard/types";
 
 import { ReactWordgard } from "../ReactWordgard.js";
 import { type ShapeComponentProps, createShape } from "../decorations/ReactShapeType.js";
@@ -20,6 +36,7 @@ import { type WrapperComponentProps, createWrapper } from "../decorations/ReactW
 import { useEditorStateSelector } from "../hooks/useEditorStateSelector.js";
 import { useWordgard } from "../hooks/useWordgard.js";
 import { composeIn, drawn, flushKeeps, textIn, typeInto } from "../testing/editing.js";
+import { docTileOf } from "../testing/tiles.js";
 
 // What the components start with, and their setters, by editor, innermost
 // first.
@@ -128,7 +145,7 @@ const doc = "<p>a</p><blockquote><p>bc</p></blockquote>";
 const config = (extra: GardState.Extension = []) => [
   basicSchema(),
   blockquote(),
-  Decoration.Tag.shape(Blockquote, CalloutShape),
+  Decoration.Tag.shape(Blockquote, CalloutShape.of("div")),
   extra,
 ];
 
@@ -136,8 +153,8 @@ const tableDoc = "<table><tbody><tr><td>a</td><td>b</td></tr></tbody></table>";
 const tableConfig = [
   basicSchema(),
   GardState.schemaElement.of([Table, TableRow, Cell]),
-  Decoration.Tag.shape(TableRow, createShape({ component: RowView, element: "tr" })),
-  Decoration.Tag.shape(Cell, createShape({ component: CellView, element: "td" })),
+  createShape({ component: RowView }).shape(TableRow),
+  createShape({ component: CellView }).shape(Cell),
 ];
 
 // Widgets in a cell's content, native and React, counting connections.
@@ -340,7 +357,7 @@ describe("React shapes", () => {
       config: [
         basicSchema(),
         Decoration.Point.source.of(() =>
-          Decoration.Point.set([[Decoration.Point.shape(CalloutShape), 3]])
+          Decoration.Point.set([[Decoration.Point.shape(CalloutShape.of("div")), 3]])
         ),
       ],
     });
@@ -474,10 +491,7 @@ describe("React shapes", () => {
       config: [
         basicSchema(),
         blockquote(),
-        Decoration.Tag.shape(
-          Blockquote,
-          createShape({ component: QuoteView, element: "blockquote" })
-        ),
+        createShape({ component: QuoteView }).shape(Blockquote),
       ],
     });
     const quote = () => wg.contentDOM.querySelector("blockquote")?.innerHTML;
@@ -504,10 +518,14 @@ describe("React shapes", () => {
       config: [
         basicSchema(),
         blockquote(),
-        Decoration.Tag.shape(Blockquote, createShape({ component: Callout, element: "section" })),
+        Decoration.Tag.shape(Blockquote, CalloutShape.of("section")),
       ],
     });
     expect(error.mock.calls.flat().join("")).toContain("drew <div> where its shape says <section>");
+    create({ config: [basicSchema(), blockquote(), CalloutShape.shape(Blockquote)] });
+    expect(error.mock.calls.flat().join("")).toContain(
+      "drew <div> where its shape says <blockquote>"
+    );
     error.mockRestore();
   });
 
@@ -515,7 +533,7 @@ describe("React shapes", () => {
     expect(() =>
       create({
         doc: '<p><img src="data:,"></p>',
-        config: [basicSchema(), image(), Decoration.Tag.shape(Image, CalloutShape)],
+        config: [basicSchema(), image(), Decoration.Tag.shape(Image, CalloutShape.of("div"))],
       })
     ).toThrow(/Leaf nodes shapes shouldn't have a content hole/);
   });
@@ -760,9 +778,9 @@ describe("React wrappers", () => {
   });
 
   it("refuses a React shape as a wrapper and a React wrapper as a shape", () => {
-    expect(() => create(framedParagraphs(Decoration.Tag.wrapper(Paragraph, CalloutShape)))).toThrow(
-      /use createWrapper/
-    );
+    expect(() =>
+      create(framedParagraphs(Decoration.Tag.wrapper(Paragraph, CalloutShape.of("div"))))
+    ).toThrow(/use createWrapper/);
     expect(() =>
       create({
         config: [basicSchema(), blockquote(), Decoration.Tag.shape(Blockquote, FrameWrapper)],
@@ -789,6 +807,220 @@ describe("React wrappers", () => {
     expect(error.mock.calls.flat().join("")).toContain(
       "drew <section> where its wrapper says <div>"
     );
+    error.mockRestore();
+  });
+});
+
+// An inline atom (a mention-like chip) drawn by a component with chrome of
+// its own state, and the component's mounts counted.
+const Chip = Leaf.Type.define<string>("Chip", {
+  inline: true,
+  validate: "string",
+  selectable: true,
+  shape: {
+    element: "span",
+    selector: "span[data-chip]",
+    attributes: (id) => ({ "data-chip": id }),
+    readElement: (elt) => elt.getAttribute("data-chip") ?? "",
+  },
+});
+const chips = { mounts: 0, open: false, setOpen: (_open: boolean) => {} };
+const ChipShape = createShape({
+  component: forwardRef<HTMLSpanElement, ShapeComponentProps<HTMLSpanElement>>(
+    ({ nodeProps, children: _, ...attrs }, ref) => {
+      const [open, setOpen] = useState(chips.open);
+      useLayoutEffect(() => {
+        chips.mounts++;
+        chips.setOpen = (open) => flushSync(() => setOpen(open));
+      }, []);
+      return (
+        <span {...attrs} ref={ref}>
+          @{String(nodeProps.node.isLeaf ? nodeProps.node.param : "")}
+          {open && <b className="card">card</b>}
+        </span>
+      );
+    }
+  ),
+});
+
+// A block leaf, a figure, its image from the node's parameter.
+const FigureShape = createShape({
+  component: forwardRef<HTMLElement, ShapeComponentProps>(
+    ({ nodeProps, children: _, ...attrs }, ref) => (
+      <figure {...attrs} ref={ref}>
+        <img src={String(nodeProps.node.isLeaf ? nodeProps.node.param : "")} alt="" />
+      </figure>
+    )
+  ),
+});
+
+// A blockquote drawn as an atom: its content isn't drawn.
+const QuoteAtom = createShape({
+  component: forwardRef<HTMLDivElement, ShapeComponentProps<HTMLDivElement>>(
+    ({ nodeProps, children: _, ...attrs }, ref) => (
+      <div {...attrs} ref={ref} className="quote">
+        “{nodeProps.node.isPlot ? nodeProps.node.textContent() : ""}”
+      </div>
+    )
+  ),
+});
+
+// A heading, its root following the level.
+const HeadingShape = createShape({
+  component: forwardRef<HTMLHeadingElement, ShapeComponentProps<HTMLHeadingElement>>(
+    ({ nodeProps, children, ...attrs }, ref) =>
+      createElement(
+        `h${nodeProps.node.isPlot ? String(nodeProps.node.tag.param) : ""}`,
+        { ...attrs, ref },
+        children
+      )
+  ),
+});
+
+describe("React shapes drawing atoms", () => {
+  afterEach(() => Object.assign(chips, { mounts: 0, open: false }));
+
+  const chipConfig = [basicSchema(), GardState.schemaElement.of(Chip), ChipShape.shape(Chip)];
+  const chipDoc = '<p>a<span data-chip="ada"></span>b</p>';
+
+  it("draws an inline atom from the node type's element, its chrome uneditable", () => {
+    const wg = create({ doc: chipDoc, config: chipConfig });
+    const chip = wg.contentDOM.querySelector("span[data-chip='ada']");
+    expect(chip?.textContent).toBe("@ada");
+    expect(chip?.getAttribute("contenteditable")).toBe("false");
+    expect(wg.contentDOM.innerHTML).not.toContain("data-wg-react");
+    expect(docTileOf(wg).nodeTile(2)?.dom).toBe(chip);
+    expect(drawn(wg)).toEqual(fresh(wg));
+    expect(flushKeeps(wg)).toBe(true);
+  });
+
+  it("keeps the tiles right when an atom's component changes its chrome on its own", async () => {
+    const wg = create({ doc: chipDoc, config: chipConfig });
+    chips.setOpen(true);
+    expect(wg.contentDOM.querySelector(".card")).not.toBeNull();
+    await Promise.resolve();
+    chips.open = true;
+    expect(drawn(wg)).toEqual(fresh(wg));
+    expect(flushKeeps(wg)).toBe(true);
+    typeInto(wg, textIn(wg, "p"), 1, "x");
+    wg.flush();
+    expect(wg.state.doc.textContent()).toBe("axb");
+  });
+
+  it("keeps an atom's component through its selection, the class on its root", () => {
+    const wg = create({ doc: chipDoc, config: chipConfig });
+    const chip = wg.contentDOM.querySelector("span[data-chip]");
+    const found = wg.state.doc.nodeAt(2);
+    if (!found) throw new Error("No chip");
+    wg.dispatch({ selection: GardSelection.node(2, found) });
+    wg.flush();
+    expect(wg.contentDOM.querySelector("span[data-chip]")).toBe(chip);
+    expect(chip?.classList.contains("wg-selected-node")).toBe(true);
+    expect(chips.mounts).toBe(1);
+    // React adds the class after the attributes it first set.
+    expect(drawn(wg).tiles).toEqual(fresh(wg).tiles);
+  });
+
+  it("draws a block leaf and a plot drawn as an atom", () => {
+    const src = "data:image/svg+xml,";
+    const wg = create({
+      doc: `<p>a</p><figure><img src="${src}"></figure><blockquote><p>q</p></blockquote><p>b</p>`,
+      config: [
+        basicSchema(),
+        blockquote(),
+        figure(),
+        FigureShape.shape(Figure),
+        Decoration.Tag.shape(Blockquote, QuoteAtom.of("div", { atom: true })),
+      ],
+    });
+    expect(wg.contentDOM.querySelector("figure img")?.getAttribute("src")).toBe(src);
+    expect(wg.contentDOM.querySelector(".quote")?.textContent).toBe("“q”");
+    expect(wg.contentDOM.querySelector(".quote p")).toBeNull();
+    const figureNode = wg.state.doc.content[1];
+    expect(docTileOf(wg).nodeTile(3)?.dom).toBe(wg.contentDOM.querySelector("figure"));
+    expect(docTileOf(wg).nodeTile(3 + (figureNode?.length ?? 0))?.dom).toBe(
+      wg.contentDOM.querySelector(".quote")
+    );
+    expect(drawn(wg)).toEqual(fresh(wg));
+    typeInto(wg, textIn(wg, "p:last-child"), 1, "x");
+    wg.flush();
+    expect(wg.state.doc.textContent({ blockSeparator: "|" })).toBe("a|q|bx");
+  });
+
+  it("draws an image from its type's attributes and its marks", () => {
+    const ImageShape = createShape({
+      component: forwardRef<HTMLImageElement, ShapeComponentProps<HTMLImageElement>>(
+        ({ nodeProps: _, ...attrs }, ref) => <img {...attrs} ref={ref} />
+      ),
+    });
+    const src = "data:image/svg+xml,";
+    const wg = create({
+      doc: `<p>a<img src="${src}" alt="A cat">b</p>`,
+      config: [basicSchema(), image(), ImageShape.shape(Image)],
+    });
+    const img = wg.contentDOM.querySelector("img");
+    expect(img?.getAttribute("src")).toBe(src);
+    expect(img?.getAttribute("alt")).toBe("A cat");
+    expect(docTileOf(wg).nodeTile(2)?.dom).toBe(img);
+    expect(drawn(wg)).toEqual(fresh(wg));
+  });
+
+  it("refuses a content element in an atom", () => {
+    const WithContent = createShape({
+      component: forwardRef<HTMLSpanElement, ShapeComponentProps<HTMLSpanElement>>(
+        ({ nodeProps, ...attrs }, ref) => (
+          <span {...attrs} ref={ref}>
+            <span ref={nodeProps.contentDOMRef} />
+          </span>
+        )
+      ),
+    });
+    expect(() =>
+      create({
+        doc: chipDoc,
+        config: [basicSchema(), GardState.schemaElement.of(Chip), WithContent.shape(Chip)],
+      })
+    ).toThrow(/drop its contentDOMRef/);
+  });
+
+  it("draws a wrapper around an atom, and an atom from a point shape", async () => {
+    const wg = create({
+      doc: chipDoc,
+      config: [...chipConfig, Decoration.Tag.wrapper(Chip, Elt.mk("span", { class: "w" }, [0]))],
+    });
+    expect(wg.contentDOM.querySelector(".w > span[data-chip]")?.textContent).toBe("@ada");
+    chips.setOpen(true);
+    await Promise.resolve();
+    chips.open = true;
+    expect(drawn(wg)).toEqual(fresh(wg));
+    typeInto(wg, textIn(wg, "p"), 1, "x");
+    wg.flush();
+    expect(wg.state.doc.textContent()).toBe("axb");
+    // A point shape has no type to take attributes from.
+    chips.open = false;
+    const point = create({
+      doc: chipDoc,
+      config: [
+        basicSchema(),
+        GardState.schemaElement.of(Chip),
+        Decoration.Point.source.of(() =>
+          Decoration.Point.set([[Decoration.Point.shape(ChipShape.of("span", { atom: true })), 2]])
+        ),
+      ],
+    });
+    expect(point.contentDOM.querySelector("p > span:not([data-chip])")?.textContent).toBe("@ada");
+    expect(drawn(point)).toEqual(fresh(point));
+  });
+
+  it("gives a heading's root its level", () => {
+    const error = vi.spyOn(console, "error");
+    const wg = create({
+      doc: "<h1>a</h1><h3>b</h3>",
+      config: [basicSchema(), HeadingShape.shape(Heading)],
+    });
+    expect(wg.contentDOM.innerHTML).toBe("<h1>a</h1><h3>b</h3>");
+    expect(error).not.toHaveBeenCalled();
+    expect(drawn(wg)).toEqual(fresh(wg));
     error.mockRestore();
   });
 });

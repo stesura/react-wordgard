@@ -54,7 +54,7 @@ const renderShape = (
   const { shape: elt, inEditable: inner } = uneditable(shape, inEditable);
   // Wordgard fills a wrapper's hole with what it wraps, which a React shape
   // would drop.
-  if (isReactShape(elt) && (elt.children.length != 1 || elt.children[0] !== 0))
+  if (isReactShape(elt) && (elt.children.length > 1 || elt.children.some((child) => child !== 0)))
     throw new Error("A React shape can't wrap: use createWrapper");
   if (isReactShape(elt))
     return (

@@ -1,6 +1,9 @@
-// Named after ReactWidgetType: a React shape is a real Wordgard `Elt` with a
-// content hole, the shape plain Wordgard draws, registered as drawn by a
-// component, which renders the content as `children`. Wordgard copies an Elt
+// Named after ReactWidgetType: a React shape is a real Wordgard `Elt`, the
+// shape plain Wordgard draws, registered as drawn by a component, which renders
+// the content as `children`. Wordgard resolves decorations on the Elt before
+// React renders (`target` selectors match its tag), so its tag is known up
+// front: the node type's own outer element, per node (a heading's level). Without
+// a hole, as for the type's own shape, it draws an atom. Wordgard copies an Elt
 // when it adds attributes or wraps it, so the registration is a reserved
 // attribute, which every copy keeps; React never renders it. The props follow
 // react-prosemirror's node views (`nodeProps`, `contentDOMRef`, a forwarded
@@ -15,7 +18,9 @@ import {
   type RefCallback,
   createElement,
 } from "react";
-import { Attributes, type Node as DocNode, Elt } from "wordgard/doc";
+import { Attributes, Node as DocNode, Elt } from "wordgard/doc";
+import { Decoration } from "wordgard/editor";
+import type { GardState } from "wordgard/state";
 
 import { ignoresMutation } from "../contexts/DecorationContext.js";
 
@@ -31,9 +36,15 @@ export type ShapeComponentProps<E extends Element = HTMLElement> =
 
 export type ShapeSpec<E extends Element = HTMLElement> = {
   component: ComponentType<ShapeComponentProps<E>>;
-  // The component's root element: `target` selectors match it, and plain
-  // Wordgard draws it. `span` for an inline node.
-  element?: string;
+};
+
+export type ReactShapeType = {
+  // Nodes of `type` drawn by the component, its root the type's own outer
+  // element (tag and attributes), an atom where the type's shape is.
+  shape: (type: DocNode.Type.Ref<unknown>) => GardState.Extension;
+  // The shape with `element` for its root: for Decoration.Point.shape, which
+  // applies to whichever node follows, or a root other than the type's.
+  of: (element: string, options?: { atom?: boolean }) => Elt;
 };
 
 export const reserved = "data-wg-react";
@@ -49,13 +60,23 @@ const draws = new Map<string, (props: DrawProps) => ReactElement>();
 
 export const createShape = <E extends Element = HTMLElement>({
   component,
-  element = "div",
-}: ShapeSpec<E>): Elt => {
+}: ShapeSpec<E>): ReactShapeType => {
   const id = String(draws.size + 1);
   draws.set(id, ({ attrs, nodeProps, children, ref }) =>
     createElement(component, { ...attrs, ref, nodeProps, children })
   );
-  return Elt.mk(element, { [reserved]: id }, [0]);
+  const shapeElt = (element: string, attrs: Attributes, atom: boolean) =>
+    Elt.create(element, Attributes.merge(attrs, [reserved, id]), atom ? [] : [0]);
+  return {
+    shape: (type) => {
+      const { shape } = DocNode.Type.get(type);
+      return Decoration.Tag.shape(type, (tag) => {
+        const outer = shape.create(tag.param);
+        return shapeElt(outer.tagName, outer.attrs, shape.atom);
+      });
+    },
+    of: (element, { atom = false } = {}) => shapeElt(element, [], atom),
+  };
 };
 
 export const idOf = (elt: Elt<unknown>) => Attributes.get(elt.attrs, reserved);
@@ -89,6 +110,8 @@ export type ShapeHandle = {
   root: Element | null;
   content: Element | null;
   wrapper: boolean;
+  // A shape without a hole: everything under its root is chrome.
+  atom: boolean;
 };
 
 const roots = new WeakMap<Element, ShapeHandle>();
@@ -101,7 +124,7 @@ const everContent = new WeakSet<Element>();
 export const shapeOfRoot = (dom: Element) => roots.get(dom);
 
 export const contentOf = (handle: ShapeHandle) =>
-  handle.content ?? (handle.wrapper ? null : handle.root);
+  handle.content ?? (handle.wrapper || handle.atom ? null : handle.root);
 
 const rootRef = (handle: ShapeHandle) => (dom: Element | null) => {
   if (handle.root) roots.delete(handle.root);
@@ -109,8 +132,13 @@ const rootRef = (handle: ShapeHandle) => (dom: Element | null) => {
   if (dom) roots.set(dom, handle);
 };
 
+// Whether the shape a root draws is an atom, recorded when React commits it.
+export const atomRef = (handle: ShapeHandle, atom: boolean) => () => {
+  handle.atom = atom;
+};
+
 export const createShapeHandle = () => {
-  const handle: ShapeHandle = { root: null, content: null, wrapper: false };
+  const handle: ShapeHandle = { root: null, content: null, wrapper: false, atom: false };
   const contentDOMRef = (dom: Element | null) => {
     if (handle.content) contents.delete(handle.content);
     handle.content = dom;
@@ -123,7 +151,7 @@ export const createShapeHandle = () => {
 };
 
 export const createWrapperHandle = () => {
-  const handle: ShapeHandle = { root: null, content: null, wrapper: true };
+  const handle: ShapeHandle = { root: null, content: null, wrapper: true, atom: false };
   const wrappedRef = (dom: Element | null) => {
     if (handle.content) wrapped.delete(handle.content);
     handle.content = dom;
@@ -149,8 +177,9 @@ const shapeAround = (node: Node | null): ShapeHandle | null => {
     if (!(cur instanceof Element)) continue;
     if (contents.has(cur)) return null;
     const root = roots.get(cur);
-    // A shape's root without a content element holds the content itself.
-    if (root) return root.content ? root : null;
+    // A shape's root without a content element holds the content itself,
+    // unless it's an atom's.
+    if (root) return root.content || root.atom ? root : null;
     if (wrapped.has(cur)) return null;
   }
   return null;
@@ -214,7 +243,8 @@ export const sortRecords = (
     }
     const handle = shapeAround(target);
     if (!handle) return true;
-    const content = contentOf(handle);
+    // An atom's structure is its root's children: its tiles are chrome over them.
+    const content = contentOf(handle) ?? (handle.atom ? handle.root : null);
     if (
       record.type == "childList" &&
       handle.root &&

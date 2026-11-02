@@ -54,7 +54,7 @@ const plain: GardState.Extension = [
 ];
 const decorated: GardState.Extension = [
   plain,
-  Decoration.Tag.shape(Blockquote, createShape({ component: Callout, element: "aside" })),
+  Decoration.Tag.shape(Blockquote, createShape({ component: Callout }).of("aside")),
   Decoration.Mark.shape(Link, createMarkShape({ component: LinkView, element: "a" })),
   Decoration.Tag.shape(Image, Picture.of(null)),
 ];

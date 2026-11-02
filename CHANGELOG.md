@@ -6,11 +6,15 @@
 
 The component props types drop "View": `ShapeComponentProps`, `WrapperComponentProps`, `MarkComponentProps` and `WidgetComponentProps`.
 
+`createShape` no longer takes an `element` and returns a React shape type instead of a shape: `type.shape(nodeType)` draws the type's nodes, the root the node type's own outer element for each node, and `type.of(element)` is the shape for `Decoration.Point.shape`.
+
 ### New features
 
 A React widget type's `shape(nodeType, value?)` draws a node type as its widgets, their value the node's parameter or what `value` makes of its tag.
 
 `createWidgetType` infers its value and element types from its component.
+
+A React shape can draw an atom (an image, a mention, a plot drawn as one), its component getting the node and its attributes, everything it draws chrome.
 
 ## 0.1.0 (2026-11-01)
 

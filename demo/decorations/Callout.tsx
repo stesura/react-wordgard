@@ -21,7 +21,7 @@ import {
 const kindNames = Object.keys(calloutKinds).filter(isCalloutKind);
 
 const CalloutView = forwardRef<HTMLElement, ShapeComponentProps>(
-  ({ nodeProps: { node, contentDOMRef }, children, className, ...attrs }, ref) => {
+  ({ nodeProps: { node, contentDOMRef }, children, ...attrs }, ref) => {
     const kind = node.tag.mark(CalloutKind) ?? "note";
     const title = node.tag.mark(CalloutTitle);
     const getPos = useNodePos();
@@ -46,7 +46,7 @@ const CalloutView = forwardRef<HTMLElement, ShapeComponentProps>(
     });
 
     return (
-      <aside {...attrs} ref={ref} className={`callout ${className ?? ""}`} data-kind={kind}>
+      <aside {...attrs} ref={ref} data-kind={kind}>
         <div ref={barRef} className="callout-title">
           <KindPicker kind={kind} onPick={setKind} />
           <Title title={title} placeholder={calloutKinds[kind].label} onFinish={finishTitle} />
@@ -59,7 +59,7 @@ const CalloutView = forwardRef<HTMLElement, ShapeComponentProps>(
   }
 );
 
-export const CalloutShape = createShape({ component: CalloutView, element: "aside" });
+export const CalloutShape = createShape({ component: CalloutView });
 
 const KindPicker = ({
   kind,

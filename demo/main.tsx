@@ -149,7 +149,7 @@ const config = [
   dropCursor(),
   calloutButton,
   Wordgard.contentAttributes.of({ "aria-label": "Demo document" }),
-  Decoration.Tag.shape(Callout, CalloutShape),
+  CalloutShape.shape(Callout),
   ResizableFigure.shape(Figure, (tag) => ({ src: tag.param, width: tag.mark(ImageSize) })),
   MentionWidget.shape(Mention),
   ReactImage.shape(Image),

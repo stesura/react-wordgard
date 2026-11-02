@@ -11,6 +11,7 @@ import {
   decorationRoot,
 } from "../contexts/DecorationContext.js";
 import {
+  atomRef,
   createShapeHandle,
   drawShape,
   nodePos,
@@ -32,9 +33,10 @@ type Props = {
 export const ShapeView = ({ elt, node, content, selected, outerRef }: Props) => {
   const [{ handle, ref, contentDOMRef }] = useState(createShapeHandle);
   const [handlers] = useState(() => createDecorationHandlers(nodePos(handle)));
+  const atom = !elt.hasContent;
   const rootRef = useMemo(
-    () => mergeRefs(ref, outerRef, decorationRoot(handlers)),
-    [ref, outerRef, handlers]
+    () => mergeRefs(ref, outerRef, decorationRoot(handlers), atomRef(handle, atom)),
+    [ref, outerRef, handlers, handle, atom]
   );
   const decoration = useMemo(() => ({ handlers, selected }), [handlers, selected]);
   return (
