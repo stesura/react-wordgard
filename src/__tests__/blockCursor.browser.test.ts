@@ -1,8 +1,9 @@
 // Typing at a block-level cursor (Wordgard's gap cursor, between two cursor
-// barriers) should insert a paragraph there. Chromium and WebKit don't: the
-// text goes into the block below, elsewhere, or nowhere, on plain Wordgard as
-// on ReactWordgard (docs/wordgard-upstream-bugs.md, 12). Expected to fail
-// there, so the run tells us when Wordgard fixes it.
+// barriers) should insert a paragraph there. Chromium and WebKit don't, or
+// only sometimes: the text goes into the block below, elsewhere, or nowhere,
+// on plain Wordgard as on ReactWordgard (docs/wordgard-upstream-bugs.md, 12).
+// Too unsteady there for `it.fails`, which broke CI when it passed: asserted in
+// Firefox only, until Wordgard fixes it.
 import { Wordgard } from "wordgard/editor";
 import { basicSchema, codeBlock, figure } from "wordgard/schema";
 import { server, userEvent } from "vitest/browser";
@@ -26,12 +27,12 @@ const cases = [
 
 const editors = { Wordgard, ReactWordgard };
 
-const fixed = server.browser == "firefox";
+const works = server.browser == "firefox";
 
 describe("typing at a block-level cursor", () => {
   for (const [editor, Editor] of Object.entries(editors)) {
     for (const { name, doc, typed } of cases) {
-      (fixed ? it : it.fails)(`inserts a paragraph ${name}, on ${editor}`, async () => {
+      it.skipIf(!works)(`inserts a paragraph ${name}, on ${editor}`, async () => {
         const wg = Editor.create({
           parent: document.body,
           doc,

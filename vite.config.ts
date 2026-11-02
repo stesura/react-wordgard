@@ -68,6 +68,9 @@ export default defineConfig({
         test: {
           name: "view",
           include: [wordgardTests, "test/view/*.test.ts"],
+          // Wordgard's "can handle random changes" draws 100 random documents:
+          // on ReactWordgard, in CI's Firefox, past the 15 s default.
+          testTimeout: 60_000,
           setupFiles: [
             "test/wordgard-workspace.ts",
             "test/skipInBrowser.ts",
