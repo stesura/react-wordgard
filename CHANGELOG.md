@@ -14,6 +14,8 @@ On React 18, a React shape's, wrapper's or mark's component that is a plain func
 
 ### Bug fixes
 
+A React decoration's component drawing its root by hand gets Wordgard's style as an object in `style`, which it can merge with its own, instead of a `STYLE` string that overwrote it.
+
 Two adjacent leaves retagged in one transaction (an image's `src` changed beside another's) keep their components, as a single retag does.
 
 ### New features
@@ -29,6 +31,8 @@ A `useEditorLayoutEffect` read returning `undefined` skips its write, and when n
 A node moved within its parent (deleted and inserted again, the same object, in one transaction) keeps its React shapes', wrappers' and marks' components and those inside it; React point widgets inside it are drawn anew, as Wordgard redraws them.
 
 A React shape can draw an atom (an image, a mention, a plot drawn as one), its component getting the node and its attributes, everything it draws chrome.
+
+A React widget's component can draw its root with `DecorationRoot`, a `span` unless `createWidgetType` gets another `element`, with no `forwardRef` on React 18 and, for a widget drawing a node, the node's attributes.
 
 `DecorationRoot` draws a React shape's, wrapper's or mark's root: the tag its decoration says, Wordgard's attributes and the root's ref, merged with the component's own props, with no `forwardRef` needed on React 18.
 

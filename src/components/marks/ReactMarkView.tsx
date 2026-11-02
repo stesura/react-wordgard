@@ -13,7 +13,7 @@ import {
 import { drawMark } from "../../decorations/ReactMarkType.js";
 import { createShapeHandle, shapeAttributes } from "../../decorations/ReactShapeType.js";
 import { DecorationRootContext } from "../../contexts/DecorationRootContext.js";
-import { attrsToRecord, htmlAttrsToReactProps } from "../../helpers/index.js";
+import { attrsToRecord, componentProps } from "../../helpers/index.js";
 import { mergeRefs } from "../../helpers/refs.js";
 import type { DecoElt } from "../../wordgardInternals.js";
 
@@ -44,7 +44,7 @@ export const ReactMarkView = ({ elt, mark, children }: Props) => {
     <DecorationContext.Provider value={decoration}>
       <DecorationRootContext.Provider value={root}>
         {drawMark(elt, {
-          attrs: htmlAttrsToReactProps(attrs),
+          attrs: componentProps(attrs),
           markProps: { mark, getPos: handlers.getPos, contentDOMRef },
           children,
           ref: rootRef,

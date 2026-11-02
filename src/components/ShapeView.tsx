@@ -18,7 +18,7 @@ import {
   shapeAttributes,
 } from "../decorations/ReactShapeType.js";
 import { DecorationRootContext } from "../contexts/DecorationRootContext.js";
-import { attrsToRecord, htmlAttrsToReactProps } from "../helpers/index.js";
+import { attrsToRecord, componentProps } from "../helpers/index.js";
 import { mergeRefs } from "../helpers/refs.js";
 import type { DecoElt } from "../wordgardInternals.js";
 
@@ -49,7 +49,7 @@ export const ShapeView = ({ elt, node, content, selected, outerRef }: Props) => 
     <DecorationContext.Provider value={decoration}>
       <DecorationRootContext.Provider value={root}>
         {drawShape(elt, {
-          attrs: htmlAttrsToReactProps(attrs),
+          attrs: componentProps(attrs),
           nodeProps: { node, getPos: handlers.getPos, contentDOMRef },
           children: content,
           ref: rootRef,

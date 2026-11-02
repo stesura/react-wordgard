@@ -25,9 +25,9 @@ point when it's done or dropped.
   here was mostly this.
 - **The timing benchmark's memory column** is unreliable after a ReactWordgard run (the next
   editor shows negative values); `npm run bench:heap` is the one to read.
-- **`useEditorLayoutEffect`:** one registered makes every flush run a read and a write pass. Skipping
-  the write when `read` returns the same value was declined for now (it needs an `eq` option;
-  adding it later breaks nothing).
+- **`useEditorLayoutEffect`:** one registered makes every flush run its read. A read returning
+  `undefined` skips its write, and with no write due none is scheduled (2026-11-02); there's no
+  `eq` option.
 
 ## Browsers and input
 

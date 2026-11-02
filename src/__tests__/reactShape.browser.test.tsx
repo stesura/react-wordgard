@@ -16,9 +16,10 @@ import React, {
 import { flushSync } from "react-dom";
 import { Elt, Leaf } from "wordgard/doc";
 import { Decoration, Widget, type Wordgard } from "wordgard/editor";
-import { basicSchema, blockquote, figure, image, imageResizing } from "wordgard/schema";
+import { alignment, basicSchema, blockquote, figure, image, imageResizing } from "wordgard/schema";
 import { GardSelection, GardState } from "wordgard/state";
 import {
+  Alignment,
   Blockquote,
   Cell,
   Figure,
@@ -323,6 +324,37 @@ describe("React shapes", () => {
     control(wg).setBar(true);
     expect(flushKeeps(wg)).toBe(true);
     initial.bar = true;
+    expect(drawn(wg)).toEqual(fresh(wg));
+  });
+
+  // Wordgard's style comes as an object, so a root drawn by hand merges it
+  // with its own.
+  it("gives a root drawn by hand Wordgard's style to merge with its own", () => {
+    const Styled = createShape(
+      forwardRef<HTMLParagraphElement, ShapeComponentProps<HTMLParagraphElement>>(
+        ({ nodeProps: _, children, style, ...attrs }, ref) => (
+          <p {...attrs} ref={ref} style={{ ...style, color: "red" }}>
+            {children}
+          </p>
+        )
+      )
+    );
+    const wg = create({
+      doc: '<p style="text-align: center">a</p>',
+      config: [basicSchema(), alignment(), Decoration.Tag.shape(Paragraph, Styled)],
+    });
+    const p = wg.contentDOM.querySelector("p");
+    expect(p?.style.textAlign).toBe("center");
+    expect(p?.style.color).toBe("red");
+    wg.dispatch({
+      changes: [
+        { from: 0, remove: Alignment.of("center") },
+        { from: 0, add: Alignment.of("end") },
+      ],
+    });
+    wg.flush();
+    expect(p?.style.textAlign).toBe("end");
+    expect(p?.style.color).toBe("red");
     expect(drawn(wg)).toEqual(fresh(wg));
   });
 

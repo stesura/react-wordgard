@@ -244,3 +244,12 @@ export const cssToStyle = (css: string | undefined): CSSProperties => {
   }
   return style;
 };
+
+// Not in react-prosemirror: the props a React decoration's component gets for
+// a root it draws by hand, Wordgard's style as an object it can merge with its
+// own (`STYLE`, a string, would overwrite its `style` when Wordgard's changes).
+export const componentProps = (attrs: Record<string, string>): HTMLProps<HTMLElement> => {
+  const { style, ...rest } = attrs;
+  const props = htmlAttrsToReactProps(rest);
+  return style ? { ...props, style: cssToStyle(style) } : props;
+};

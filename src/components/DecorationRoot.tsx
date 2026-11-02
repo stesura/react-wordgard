@@ -24,7 +24,7 @@ export const DecorationRoot = forwardRef<Element, DecorationRootProps>(
     const merged = useMemo(() => mergeRefs(rootRef, toCallbackRef(ref)), [rootRef, ref]);
     if (!root)
       throw new Error(
-        "DecorationRoot is the root of a React shape, wrapper or mark: use it in their component"
+        "DecorationRoot is the root of a React shape, wrapper, mark or widget: use it in their component"
       );
     // Wordgard's style is a string, which React can't merge with an object.
     const { style: css, ...attrs } = root.attrs;

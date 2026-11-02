@@ -3,6 +3,8 @@
 // own props merged in. Plain function components, so React 18 gives them no
 // ref: DecorationRoot takes it from its context.
 import React from "react";
+import { flushSync } from "react-dom";
+import { createRoot } from "react-dom/client";
 import { Decoration, type Wordgard } from "wordgard/editor";
 import { basicSchema, blockquote, image } from "wordgard/schema";
 import { GardSelection, type GardState } from "wordgard/state";
@@ -191,19 +193,14 @@ describe("DecorationRoot", () => {
     expect(drawn(wg)).toEqual(fresh(wg));
   });
 
-  it("isn't a widget's root", () => {
-    const Bad = createWidgetType({
-      component: function Bad() {
-        return <DecorationRoot />;
-      },
-    });
+  it("is only a decoration's root", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    expect(() =>
-      create({
-        doc: "<p>a</p>",
-        config: [basicSchema(), Decoration.Tag.widget(Paragraph, "start", Bad.of(null))],
-      })
-    ).toThrow(/root of a React shape, wrapper or mark/);
+    const dom = document.createElement("div");
+    const root = createRoot(dom);
+    expect(() => flushSync(() => root.render(<DecorationRoot />))).toThrow(
+      /root of a React shape, wrapper, mark or widget/
+    );
+    root.unmount();
     error.mockRestore();
   });
 
@@ -221,5 +218,81 @@ describe("DecorationRoot", () => {
     });
     expect(wg.contentDOM.innerHTML).toContain('<div class="plain"><p>a</p></div>');
     expect(drawn(wg)).toEqual(fresh(wg));
+  });
+});
+
+// Plain function components, so React 18 gives them no ref: DecorationRoot
+// takes it from its context, in a widget as in a shape.
+const badgeMounts = { count: 0 };
+const Badge = createWidgetType({
+  component: function Badge({ value }: { value: string }) {
+    const [mount] = React.useState(() => ++badgeMounts.count);
+    return (
+      <DecorationRoot className="badge" data-mount={mount}>
+        {value}
+      </DecorationRoot>
+    );
+  },
+});
+const Tag = createWidgetType({
+  component: function Tag({ value }: { value: string }) {
+    return <DecorationRoot>{value}</DecorationRoot>;
+  },
+  element: "i",
+});
+
+describe("DecorationRoot in a widget", () => {
+  afterEach(() => {
+    badgeMounts.count = 0;
+  });
+
+  it("draws a widget's root, its element the widget type's, without a warning", () => {
+    const error = vi.spyOn(console, "error");
+    const wg = create({
+      doc: "<p>ab</p>",
+      config: [
+        basicSchema(),
+        Decoration.Tag.widget(Paragraph, "start", Badge.of("¶")),
+        Decoration.Point.source.of(() =>
+          Decoration.Point.set([[Decoration.Point.widget(Tag.of("!")), 2]])
+        ),
+      ],
+    });
+    expect(wg.contentDOM.innerHTML).toBe(
+      '<p><span data-mount="1" class="badge" contenteditable="false">¶</span>a' +
+        '<i contenteditable="false">!</i>b</p>'
+    );
+    expect(error).not.toHaveBeenCalled();
+    // A fresh editor's badge is another mount.
+    expect(drawn(wg).tiles).toEqual(fresh(wg).tiles);
+    const text = wg.contentDOM.querySelector("p")?.childNodes[1];
+    if (!(text instanceof Text)) throw new Error("No text after the badge");
+    typeInto(wg, text, 0, "x");
+    wg.flush();
+    expect(wg.state.doc.textContent()).toBe("xab");
+    expect(flushKeeps(wg)).toBe(true);
+    error.mockRestore();
+  });
+
+  it("puts the attributes of the node a widget draws on its root", () => {
+    const wg = create({
+      doc: '<p>a<img src="data:," alt="A cat">b</p>',
+      config: [
+        basicSchema(),
+        image(),
+        Decoration.Tag.shape(Image, (tag) => Badge.of(tag.param.slice(0, 5))),
+      ],
+    });
+    const badge = () => wg.contentDOM.querySelector(".badge");
+    const before = badge();
+    expect(before?.getAttribute("alt")).toBe("A cat");
+    expect(before?.parentElement?.nodeName).toBe("P");
+    const found = wg.state.doc.nodeAt(2);
+    if (!found) throw new Error("No image");
+    wg.dispatch({ selection: GardSelection.node(2, found) });
+    wg.flush();
+    expect(badge()).toBe(before);
+    expect(before?.className).toBe("wg-selected-node badge");
+    expect(badgeMounts.count).toBe(1);
   });
 });

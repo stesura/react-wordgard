@@ -197,7 +197,9 @@ against a shape model, nor is the same config drawn by plain ProseMirror.
 
 **`DecorationRoot`.** So the component doesn't have to repeat that tag, `ShapeView`, `WrapperView`
 and `ReactMarkView` put the root's tag, Wordgard's attributes and the root's ref in a context
-(`DecorationRootContext`), and `DecorationRoot` renders them, the component's props merged in:
+(`DecorationRootContext`), and `DecorationRoot` renders them, the component's props merged in.
+`WidgetView` does the same for a React widget, its tag the type's `element` (Wordgard doesn't look
+at a widget's element) and its attributes those of the node it draws, if any. The merging:
 `className` joined, `style` merged (Wordgard's comes as a string, parsed then), anything else the
 component's. The ref comes through the context, so the component itself needs none: the factories
 give it `ref` only where React can (React 19, or a `forwardRef` component), which spares React 18

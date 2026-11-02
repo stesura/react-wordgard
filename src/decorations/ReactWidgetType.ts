@@ -19,6 +19,7 @@ import { Attributes, Elt } from "wordgard/doc";
 import { Widget } from "wordgard/editor";
 
 import { stopsEvent } from "../contexts/DecorationContext.js";
+import { takesRef } from "../helpers/refs.js";
 import { reserved } from "./ReactShapeType.js";
 
 // A widget drawing a node also gets the node's attributes (the selected-node
@@ -36,6 +37,9 @@ export type WidgetTypeSpec<Param, E extends Element = HTMLElement> = Omit<
   "render"
 > & {
   component: ComponentType<WidgetComponentProps<Param, E>>;
+  // The root DecorationRoot draws in the component. Wordgard doesn't look at a
+  // widget's element, so it's the component's choice.
+  element?: string;
 };
 
 type Draw = (
@@ -44,7 +48,7 @@ type Draw = (
   attrs: HTMLProps<HTMLElement>
 ) => ReactElement | null;
 
-const components = new WeakMap<Widget.Type<unknown>, Draw>();
+const components = new WeakMap<Widget.Type<unknown>, { draw: Draw; element: string }>();
 
 // Widget.define needs a `render`, which ReactWordgard never calls: only plain
 // Wordgard, given a React widget, draws this.
@@ -59,10 +63,10 @@ export const createWidgetType = <Param, E extends Element = HTMLElement>(
 export const createWidgetTypeWithRender = <Param, E extends Element = HTMLElement>(
   spec: WidgetTypeSpec<Param, E> & Pick<Widget.Spec<Param>, "render">
 ): Widget.Type<Param> => {
-  const { propagateEvent } = spec;
+  const { component, element = "span", propagateEvent, ...widgetSpec } = spec;
   // Its components' useStopEvent first, then the spec's.
   const type = Widget.define<Param>({
-    ...spec,
+    ...widgetSpec,
     propagateEvent: (event) =>
       !stopsEvent(event) &&
       (typeof propagateEvent == "function" ? propagateEvent(event) : propagateEvent !== false),
@@ -70,9 +74,15 @@ export const createWidgetTypeWithRender = <Param, E extends Element = HTMLElemen
   // A type guard, not checked by the compiler: a widget of `type` was made by
   // `type.of`, so its value is a Param.
   const own = (widget: Widget): widget is Widget<Param> => widget.type == type;
-  components.set(type, (widget, ref, attrs) =>
-    own(widget) ? createElement(spec.component, { ...attrs, value: widget.value, ref }) : null
-  );
+  const draw: Draw = (widget, ref, attrs) =>
+    own(widget)
+      ? createElement(component, {
+          ...attrs,
+          value: widget.value,
+          ref: takesRef(component) ? ref : undefined,
+        })
+      : null;
+  components.set(type, { draw, element });
   return type;
 };
 
@@ -83,7 +93,10 @@ export const drawWidget = (
   widget: Widget,
   ref: RefCallback<Element>,
   attrs: HTMLProps<HTMLElement> = {}
-) => components.get(widget.type)?.(widget, ref, attrs) ?? null;
+) => components.get(widget.type)?.draw(widget, ref, attrs) ?? null;
+
+// The root a React widget's DecorationRoot draws.
+export const widgetElement = (widget: Widget) => components.get(widget.type)?.element ?? "span";
 
 // Wordgard adds attributes to a widget-drawn node by wrapping the widget in an
 // element. Around a React widget, that element is marked: the view draws the

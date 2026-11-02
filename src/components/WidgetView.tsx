@@ -11,8 +11,9 @@ import {
   createDecorationHandlers,
   decorationRoot,
 } from "../contexts/DecorationContext.js";
-import { drawWidget, widgetRoot } from "../decorations/ReactWidgetType.js";
-import { attrsToRecord, htmlAttrsToReactProps } from "../helpers/index.js";
+import { DecorationRootContext } from "../contexts/DecorationRootContext.js";
+import { drawWidget, widgetElement, widgetRoot } from "../decorations/ReactWidgetType.js";
+import { attrsToRecord, componentProps } from "../helpers/index.js";
 import { mergeRefs } from "../helpers/refs.js";
 
 type Props = {
@@ -50,9 +51,17 @@ export const WidgetView = memo(
       [root, handlers, outerRef]
     );
     const decoration = useMemo(() => ({ handlers, selected }), [handlers, selected]);
+    const record = useMemo(() => attrsToRecord(attrs), [attrs]);
+    const tagName = widgetElement(widget);
+    const decorationRootValue = useMemo(
+      () => ({ tagName, attrs: record, ref }),
+      [tagName, record, ref]
+    );
     return (
       <DecorationContext.Provider value={decoration}>
-        {drawWidget(widget, ref, htmlAttrsToReactProps(attrsToRecord(attrs)))}
+        <DecorationRootContext.Provider value={decorationRootValue}>
+          {drawWidget(widget, ref, componentProps(record))}
+        </DecorationRootContext.Provider>
       </DecorationContext.Provider>
     );
   },

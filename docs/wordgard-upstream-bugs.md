@@ -1,7 +1,7 @@
 # Wordgard bugs found while building react-wordgard (2026-10-31)
 
-Bugs in Wordgard's own view that react-wordgard's comparison tests ran into, and, at the end,
-requests: Wordgard logic we copy because it isn't reachable. Each says what we do about it now and
+Bugs in Wordgard's own view that react-wordgard's comparison tests ran into, typos in its docs,
+and, at the end, requests: Wordgard logic we copy because it isn't reachable. Each says what we do about it now and
 what to do once Wordgard changes. Checked against `wordgard` 0.6.2 (installed)
 and Wordgard's `main` at `08804c9`, where all but the fourth are still present. None reported
 upstream yet.
@@ -189,6 +189,13 @@ Firefox does, and what `insertText` does when dispatched directly at the gap, in
 - **Once fixed:** make the test a plain `it` in every browser, then check by hand in Chrome and
   Safari (Playwright's key events aren't real typing).
 - **Fix:** handle text keys (`keydown`/`keypress`) at a block-level cursor with `insertText`.
+
+## Documentation
+
+### System guide: Editor State > Transactions
+
+- "The things stored in a selection are:" should read "in a transaction".
+- "the time at which the selection was created" (annotations) should read "the transaction".
 
 ## Requests
 
