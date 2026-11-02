@@ -12,11 +12,21 @@ The component props types drop "View": `ShapeComponentProps`, `WrapperComponentP
 
 On React 18, a React shape's, wrapper's or mark's component that is a plain function is no longer given a `ref`, which React 18 can't pass to it.
 
+### Bug fixes
+
+Two adjacent leaves retagged in one transaction (an image's `src` changed beside another's) keep their components, as a single retag does.
+
 ### New features
 
-A React widget type's `shape(nodeType, value?)` draws a node type as its widgets, their value the node's parameter or what `value` makes of its tag.
-
 `createWidgetType` infers its value and element types from its component.
+
+`createShape`, `createWrapper` and `createMarkShape` give the same value for the same component (and `element`), and register it once.
+
+A `useEditorLayoutEffect` read returning `undefined` skips its write, and when no read asks for a write none is scheduled, sparing Wordgard a second measure.
+
+`useStopEvent` is also asked for events on a React decoration's own elements (its root, unless it is the content element, and the elements around its content element: an atom's root, a frame's padding), never for those in its content.
+
+A node moved within its parent (deleted and inserted again, the same object, in one transaction) keeps its React shapes', wrappers' and marks' components and those inside it; React point widgets inside it are drawn anew, as Wordgard redraws them.
 
 A React shape can draw an atom (an image, a mention, a plot drawn as one), its component getting the node and its attributes, everything it draws chrome.
 

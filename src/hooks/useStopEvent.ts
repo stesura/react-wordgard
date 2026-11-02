@@ -1,9 +1,10 @@
 // Named after react-prosemirror's useStopEvent, rewritten for Wordgard: when
 // `stopEvent` returns true, Wordgard doesn't handle the event, nor do its
 // handlers and keymaps, and the browser's default goes ahead. It's consulted
-// through widget types' `propagateEvent`: for events in a React decoration's
-// chrome or in a React widget, its own or a nested one's, not for those on
-// its own elements or in plain content.
+// through widget types' `propagateEvent`, for events in a React decoration's
+// chrome or in a React widget, its own or a nested one's, and through its own
+// elements' tiles (tile.ts `ownTile`), for events on them; not for those in
+// its content.
 import { useLayoutEffect } from "react";
 import type { Wordgard } from "wordgard/editor";
 

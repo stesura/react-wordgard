@@ -15,9 +15,8 @@ import {
   type RefCallback,
   createElement,
 } from "react";
-import { Attributes, type Node as DocNode, Elt } from "wordgard/doc";
-import { Decoration, Widget } from "wordgard/editor";
-import type { GardState } from "wordgard/state";
+import { Attributes, Elt } from "wordgard/doc";
+import { Widget } from "wordgard/editor";
 
 import { stopsEvent } from "../contexts/DecorationContext.js";
 import { reserved } from "./ReactShapeType.js";
@@ -39,18 +38,6 @@ export type WidgetTypeSpec<Param, E extends Element = HTMLElement> = Omit<
   component: ComponentType<WidgetComponentProps<Param, E>>;
 };
 
-type ShapeOf<Param> = {
-  // A node of `type` drawn as this widget, its value the node's parameter or
-  // what `value` makes of its tag.
-  <T extends DocNode.Type.Ref<Param>>(type: T): GardState.Extension;
-  <T extends DocNode.Type.Ref<unknown>>(
-    type: T,
-    value: (tag: DocNode.Tag.For<T>) => Param
-  ): GardState.Extension;
-};
-
-export type ReactWidgetType<Param> = Widget.Type<Param> & { shape: ShapeOf<Param> };
-
 type Draw = (
   widget: Widget,
   ref: RefCallback<Element>,
@@ -65,13 +52,13 @@ const placeholder = () => document.createElement("span");
 
 export const createWidgetType = <Param, E extends Element = HTMLElement>(
   spec: WidgetTypeSpec<Param, E>
-): ReactWidgetType<Param> => createWidgetTypeWithRender({ ...spec, render: placeholder });
+): Widget.Type<Param> => createWidgetTypeWithRender({ ...spec, render: placeholder });
 
 // For the tests comparing ReactWordgard with plain Wordgard, which draws
 // `render`.
 export const createWidgetTypeWithRender = <Param, E extends Element = HTMLElement>(
   spec: WidgetTypeSpec<Param, E> & Pick<Widget.Spec<Param>, "render">
-): ReactWidgetType<Param> => {
+): Widget.Type<Param> => {
   const { propagateEvent } = spec;
   // Its components' useStopEvent first, then the spec's.
   const type = Widget.define<Param>({
@@ -86,18 +73,7 @@ export const createWidgetTypeWithRender = <Param, E extends Element = HTMLElemen
   components.set(type, (widget, ref, attrs) =>
     own(widget) ? createElement(spec.component, { ...attrs, value: widget.value, ref }) : null
   );
-  function shape(type: DocNode.Type.Ref<Param>): GardState.Extension;
-  function shape<T extends DocNode.Type.Ref<unknown>>(
-    type: T,
-    value: (tag: DocNode.Tag.For<T>) => Param
-  ): GardState.Extension;
-  function shape(
-    nodeType: DocNode.Type.Ref<Param>,
-    value?: (tag: DocNode.Tag.For<DocNode.Type.Ref<Param>>) => Param
-  ) {
-    return Decoration.Tag.shape(nodeType, (tag) => type.of(value ? value(tag) : tag.param));
-  }
-  return Object.assign(type, { shape });
+  return type;
 };
 
 export const isReactWidget = (widget: Widget) => components.has(widget.type);

@@ -362,6 +362,18 @@ const nodeAt = (root: Node, path: readonly number[]) =>
     return child;
   }, root);
 
+// Moves the node at `from` to `to`, both in `state`'s document.
+const move = (state: GardState, from: number, to: number): Transaction.Spec => {
+  const node = state.doc.nodeAt(from);
+  if (!node) throw new Error(`No node at ${from}`);
+  return {
+    changes: [
+      { from, to: from + node.length },
+      { from: to, insert: [node] },
+    ],
+  };
+};
+
 const blockIn = (content: HTMLElement, index: number) => {
   const block = content.children[index];
   if (!block) throw new Error("No block");
@@ -629,6 +641,42 @@ describe("ReactDocTile", () => {
           describeTile(docTileOf(wordgard), wordgard.contentDOM)
         );
       }
+    });
+
+    // React keeps the moved nodes' DOM, and the tiles are built over it.
+    it("draws nodes moved within their parent as Wordgard does", () => {
+      const { wordgard, react } = both(
+        `<p>a <span class="chip">b <em>c</em></span> d<img src="${img}"></p>` +
+          `<blockquote><p>q<span class="atom">x</span></p><ul><li><p>l</p></li></ul></blockquote>` +
+          `<figure><img src="${img}"></figure><p><img src="${img}"><img src="${img}#2">e</p>`
+      );
+      const quote = react.contentDOM.querySelector("blockquote");
+      const steps = [
+        // The quote to the start; the chip past the image; the figure to the
+        // end; two images swapped.
+        (state: GardState) => move(state, state.doc.content[0]?.length ?? 0, 0),
+        (state: GardState) => {
+          const p = state.doc.content[0]?.length ?? 0;
+          return move(state, p + 3, p + 3 + 5 + 3);
+        },
+        (state: GardState) => {
+          const [first, second] = state.doc.content;
+          return move(state, (first?.length ?? 0) + (second?.length ?? 0), state.doc.length);
+        },
+        (state: GardState) => {
+          const [first, second] = state.doc.content;
+          const p = (first?.length ?? 0) + (second?.length ?? 0);
+          return move(state, p + 1, p + 3);
+        },
+      ];
+      for (const step of steps) {
+        for (const wg of [wordgard, react]) edit(wg, step(wg.state).changes);
+        expect(react.contentDOM.innerHTML).toBe(wordgard.contentDOM.innerHTML);
+        expect(describeTile(docTileOf(react), react.contentDOM)).toEqual(
+          describeTile(docTileOf(wordgard), wordgard.contentDOM)
+        );
+      }
+      expect(react.contentDOM.querySelector("blockquote")).toBe(quote);
     });
 
     // A mark on the paragraph's tag changes the paragraph, not its content:
@@ -1116,6 +1164,11 @@ describe("ReactDocTile", () => {
         step({ effects: GardState.appendConfig.of(mark) });
         const start = Decoration.Tag.widget(Paragraph, "start", Tracked.of("s"));
         step({ effects: GardState.appendConfig.of(start) });
+        // Moved within their parent: the quote to the start, an image past
+        // the text after it.
+        step(move(wg.state, 6, 0));
+        const p = wg.state.doc.content[0]?.length ?? 0;
+        step(move(wg.state, p + 3, p + 5));
         step({ changes: { from: 0, to: wg.state.doc.length, insert: [HorizontalRule] } });
         wg.dom.parentElement?.remove();
         return log;
@@ -1371,6 +1424,11 @@ describe("ReactDocTile", () => {
         step({ effects: GardState.appendConfig.of(mark) });
         const start = Decoration.Tag.widget(Paragraph, "start", Tracked.of("s"));
         step({ effects: GardState.appendConfig.of(start) });
+        // Moved within their parent: the quote to the start, an image past
+        // the text after it.
+        step(move(wg.state, 6, 0));
+        const p = wg.state.doc.content[0]?.length ?? 0;
+        step(move(wg.state, p + 3, p + 5));
         step({ changes: { from: 0, to: wg.state.doc.length, insert: [HorizontalRule] } });
         wg.dom.parentElement?.remove();
         return log;
@@ -1456,18 +1514,6 @@ describe("ReactDocTile", () => {
       const found = docTileOf(react).nodeTile(3);
       expect(found?.dom).toBe(image);
       expect(found?.tag?.param).toBe(`${img}#big`);
-    });
-
-    it("draws a node type as a React widget with its shape helper", () => {
-      const doc = `<p>a<img src="${img}">b</p>`;
-      const drawn = (extra: GardState.Extension) =>
-        mount(ReactWordgard.create, doc, extra).contentDOM.innerHTML;
-      expect(drawn(ReactLabel.shape(Image))).toBe(
-        drawn(Decoration.Tag.shape(Image, (tag) => ReactLabel.of(tag.param)))
-      );
-      expect(drawn(ReactLabel.shape(Image, (tag) => tag.param.slice(-2)))).toBe(
-        drawn(Decoration.Tag.shape(Image, (tag) => ReactLabel.of(tag.param.slice(-2))))
-      );
     });
 
     it("leaves plain Wordgard an empty placeholder for a React widget", () => {

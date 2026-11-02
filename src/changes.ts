@@ -71,9 +71,11 @@ const sectionAt = (ends: readonly number[], pos: number, inclusive = false) => {
 // starting at `pos` went, or null when its first token was replaced.
 // `retagged` marks a replacement of that token alone, by one token (a tag or
 // parameter change), which keeps the key when the node type stays the same. A
-// copy, since `update` gets bare sections and Wordgard can't map over those
-// (docs/wordgard-upstream-bugs.md, "Requests").
-export const mapNodePos = (changes: readonly number[], pos: number) => {
+// leaf is its token, and Wordgard's update merges adjacent replaced sections:
+// a leaf in a replaced section of unchanged length is retagged, at the same
+// offset in it. A copy, since `update` gets bare sections and Wordgard can't
+// map over those (docs/wordgard-upstream-bugs.md, "Requests").
+export const mapNodePos = (changes: readonly number[], pos: number, leaf = false) => {
   const { startA, endA, startB, endB, ins } = indexOf(changes);
   const k = sectionAt(endA, pos);
   const fromA = startA[k] ?? 0;
@@ -83,9 +85,9 @@ export const mapNodePos = (changes: readonly number[], pos: number) => {
     return { pos: (endB.at(-1) ?? 0) + pos - totalA, retagged: false };
   }
   if ((ins[k] ?? 0) < 0) return { pos: fromB + pos - fromA, retagged: false };
-  return fromA == pos && (endA[k] ?? 0) - fromA == 1 && ins[k] == 1
-    ? { pos: fromB, retagged: true }
-    : null;
+  const lenA = (endA[k] ?? 0) - fromA;
+  if (leaf && lenA == ins[k]) return { pos: fromB + pos - fromA, retagged: true };
+  return fromA == pos && lenA == 1 && ins[k] == 1 ? { pos: fromB, retagged: true } : null;
 };
 
 // Where `pos` in the old document went, or null when it was replaced.

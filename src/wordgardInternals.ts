@@ -72,7 +72,7 @@ export interface EltTile extends CompositeTile {
   readonly elt: DecoElt;
 }
 
-interface EltTileClass {
+export interface EltTileClass {
   new (elt: DecoElt, tag: DocNode.Tag | null, flags: number, length: number, dom: Element): EltTile;
   of(
     elt: DecoElt,
@@ -118,7 +118,9 @@ export const TileFlag = {
   Composition: 0x80,
   Synced: 0x100,
   Atom: 0x200,
+  HasContent: 0x400,
   AfterContent: 0x800,
+  ContentNotLast: 0x1000,
   Dirty: 0x2000,
 } as const;
 

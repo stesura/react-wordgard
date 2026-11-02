@@ -72,7 +72,11 @@ at once when something needs layout, `ensureFlushed`). Then:
    attributes. React then diffs against what it believes is there. Not for a composition's text
    node, which stays as the browser left it.
 6. **Keys** (`mapKeys`): every plot keeps an array of React keys for its children, mapped through
-   the changes; unchanged ends copy their keys, the middle maps them.
+   the changes; unchanged ends copy their keys, the middle maps them. A node whose start survived
+   keeps its key; so does a retag (its opening token replaced by one of the same type, or a leaf
+   in a replaced range of unchanged length), and a node moved within its parent (the same object,
+   each old key used once). React then moves the moved node's DOM, and the build rebuilds its tiles
+   over it, connecting its widgets anew, as Wordgard does for an inserted range.
 7. **Layout** (`layout` → `iterDeco`): for each plot, what to draw (views: nodes, text, mark
    wrappers, widgets, hack nodes), walking Wordgard's decorations with `DecoIterator`, the way
    Wordgard's `ContentUpdate` builds tiles. Only what the changes touch is walked again:
@@ -158,8 +162,9 @@ whether its node is selected (`useIsNodeSelected`, `useSelectNode`), and the set
 - `useStopEvent` feeds `propagateEvent`: the chrome's widget type's and every React widget type's
   ask the decorations around the event's target, up to its editor's content element (an editor
   nested in a decoration isn't its). Wordgard checks it before its handlers, so a stopped event
-  reaches no handler or keymap, and keeps its default. Events with no widget tile on their path
-  (on a shape's own elements, in plain content) aren't asked.
+  reaches no handler or keymap, and keeps its default. A React shape's, wrapper's or mark's root
+  and structure (not its content element) have tiles of an `EltTile` subclass whose `ignoreEvent`
+  asks too, for events targeting that element itself. Events in plain content aren't asked.
 - `useIgnoreMutation` is asked in `sortRecords`, for the records that would reach Wordgard, up to
   the editor's content element too.
 - The selection is read from the class Wordgard draws a node selection with (`wg-selected-node`,

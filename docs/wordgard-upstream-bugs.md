@@ -195,8 +195,8 @@ Firefox does, and what `insertText` does when dispatched directly at the gap, in
 ### Mapping a position over bare sections
 
 - **What we copy:** `ChangeSet.mapPos(pos, 1, "after")` (`src/doc/change.ts`), as `mapNodePos` in
-  `src/reactKeys.ts` (about 15 lines, plus a `retagged` flag of our own), to carry React keys
-  through an update.
+  `src/changes.ts` (about 15 lines, plus a `retagged` flag of our own, for a retag and for leaves
+  in a replaced range of unchanged length), to carry React keys through an update.
 - **Why:** `DocTile.update` receives the change sections, not a `ChangeSet` (Wordgard's own tests
   call it with `tr.changes.sections`), and a `ChangeSet` can't be rebuilt from sections: its
   constructor is private, and `ChangeSet.create` takes a change description. Calling
@@ -235,3 +235,20 @@ Firefox does, and what `insertText` does when dispatched directly at the gap, in
   `@internal` members the `.d.ts` strips.
 - **Ask:** a constructor subclasses can call, and the members a view needs in the typings. The
   npm tarball also ships a stale `dist/view.d.ts` (the old `EditorState` API).
+
+### `destroy()` and `isDestroyed`
+
+- **What we do:** nothing: an editor's lifetime follows its element (`connectedCallback`,
+  `disconnectedCallback`), so `WordgardEditor` has no way to end one for good, and code holding an
+  editor can't tell a dropped one from one briefly out of the page.
+- **Ask:** `destroy()` (running the plugins' `remove`) and `isDestroyed`, as ProseMirror's view has.
+- **Once available:** `WordgardEditor` could destroy its editor on unmount.
+
+### Drag-and-drop moves inside the editor (a question)
+
+- **What we see:** `drop` reads the slice back from `dataTransfer` even for a drag inside the
+  editor, so moved nodes are rebuilt from HTML: new objects, which remount their React
+  components (`mapKeys` keeps keys only for the same node object moved within its parent), and
+  lose what HTML doesn't carry.
+- **Ask:** whether that's deliberate; ProseMirror reuses its own slice (`view.dragging.slice`).
+- **Once changed:** a drag within one parent keeps the moved node's components, with no work here.

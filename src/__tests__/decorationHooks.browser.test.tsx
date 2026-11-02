@@ -3,13 +3,14 @@
 // claimed mutations, the node selection, editor event listeners before
 // keymaps, merged refs.
 import React, { forwardRef, useRef, useState } from "react";
-import { Elt } from "wordgard/doc";
+import { Elt, Leaf } from "wordgard/doc";
 import { Decoration, Wordgard } from "wordgard/editor";
 import { basicSchema, blockquote, image } from "wordgard/schema";
 import { GardSelection, GardState } from "wordgard/state";
 import { Blockquote, Image, Link } from "wordgard/types";
 
 import { ReactWordgard } from "../ReactWordgard.js";
+import { DecorationRoot } from "../components/DecorationRoot.js";
 import { type MarkComponentProps, createMarkShape } from "../decorations/ReactMarkType.js";
 import { type ShapeComponentProps, createShape } from "../decorations/ReactShapeType.js";
 import { type WidgetComponentProps, createWidgetType } from "../decorations/ReactWidgetType.js";
@@ -110,6 +111,51 @@ const Picture = createWidgetType({
   }),
 });
 
+// Components stopping every mousedown: a quote with padding and structure
+// around its content element, an inline atom whose chrome is its text.
+const StopQuote = createShape(function StopQuote({ nodeProps: { contentDOMRef }, children }) {
+  useStopEvent((_, event) => {
+    if (event.type != "mousedown") return false;
+    if (event.target instanceof Element) seen.listened.push(`stopped ${event.target.nodeName}`);
+    return true;
+  });
+  return (
+    <DecorationRoot className="stops">
+      <div className="frame">
+        <div className="body" ref={contentDOMRef}>
+          {children}
+        </div>
+      </div>
+    </DecorationRoot>
+  );
+});
+
+const Mention = Leaf.Type.define<string>("Mention", {
+  inline: true,
+  validate: "string",
+  shape: {
+    element: "span",
+    attributes: { class: "mention" },
+    selector: "span.mention",
+    readElement: (elt) => elt.textContent ?? "",
+  },
+});
+
+const MentionShape = createShape(function MentionShape({ nodeProps: { node } }) {
+  useStopEvent((_, event) => {
+    if (event.type != "mousedown") return false;
+    if (event.target instanceof Element) seen.listened.push(`stopped ${event.target.nodeName}`);
+    return true;
+  });
+  return <DecorationRoot>@{node.isLeaf ? String(node.param) : ""}</DecorationRoot>;
+});
+
+const stopConfig: GardState.Extension = [
+  GardState.schemaElement.of(Mention),
+  GardState.prec.highest(Decoration.Tag.shape(Blockquote, StopQuote)),
+  Decoration.Tag.shape(Mention, MentionShape),
+];
+
 // The events Wordgard's own handlers get, as a keymap would.
 const handled: string[] = [];
 const recordHandled = [
@@ -144,10 +190,10 @@ afterEach(() => {
   mounts.picture = 0;
 });
 
-const create = (extra: GardState.Extension = []) => {
+const create = (extra: GardState.Extension = [], source = doc) => {
   const parent = document.createElement("div");
   document.body.appendChild(parent);
-  const wg = ReactWordgard.create({ doc, config: [config, extra], parent });
+  const wg = ReactWordgard.create({ doc: source, config: [config, extra], parent });
   wg.flush();
   editors.push(wg);
   return wg;
@@ -184,6 +230,28 @@ describe("React decoration hooks", () => {
     fire(wg.contentDOM.querySelector(".label"), mousedown());
     fire(wg.contentDOM.querySelector(".picture"), mousedown());
     expect(handled).toEqual(["mousedown label"]);
+  });
+
+  it("stop the events a component says on its own elements, not in its content", () => {
+    const wg = create(
+      stopConfig,
+      '<p>a<span class="mention">ada</span></p><blockquote><p>d</p></blockquote>'
+    );
+    const quote = wg.contentDOM.querySelector("blockquote.stops");
+    fire(quote, mousedown());
+    fire(quote?.querySelector(".frame"), mousedown());
+    fire(wg.contentDOM.querySelector(".mention"), mousedown());
+    expect(handled).toEqual([]);
+    expect(seen.listened).toEqual(["stopped BLOCKQUOTE", "stopped DIV", "stopped SPAN"]);
+    // The content element and what it holds are Wordgard's.
+    fire(quote?.querySelector(".body"), mousedown());
+    fire(quote?.querySelector("p"), mousedown());
+    expect(handled).toEqual(["mousedown body", "mousedown "]);
+    expect(seen.listened).toHaveLength(3);
+    wg.focus();
+    expect(wg.hasFocus).toBe(true);
+    fire(textIn(wg, "blockquote p").parentElement, keydown("x"));
+    expect(handled).toContain("keydown x");
   });
 
   it("leave Wordgard the mutations a component doesn't claim, and not those it does", async () => {

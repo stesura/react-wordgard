@@ -51,20 +51,33 @@ const draws = new Map<string, (props: DrawProps) => ReactElement>();
 // type's.
 type MarkShape = { element: string; attributes: Record<string, string> };
 
+// By component, then root element, as React shapes are.
+const marks = new WeakMap<object, { id: string; shapes: Map<string, MarkShape> }>();
+
 export const createMarkShape = <E extends Element = HTMLElement>(
   component: ComponentType<MarkComponentProps<E>>,
   { element = "span" }: MarkShapeOptions = {}
 ): MarkShape => {
-  const id = `m${draws.size + 1}`;
-  draws.set(id, ({ attrs, markProps, children, ref }) =>
-    createElement(component, {
-      ...attrs,
-      ref: takesRef(component) ? ref : undefined,
-      markProps,
-      children,
-    })
-  );
-  return { element, attributes: { [reserved]: id } };
+  let registered = marks.get(component);
+  if (!registered) {
+    const id = `m${draws.size + 1}`;
+    draws.set(id, ({ attrs, markProps, children, ref }) =>
+      createElement(component, {
+        ...attrs,
+        ref: takesRef(component) ? ref : undefined,
+        markProps,
+        children,
+      })
+    );
+    registered = { id, shapes: new Map() };
+    marks.set(component, registered);
+  }
+  let shape = registered.shapes.get(element);
+  if (!shape) {
+    shape = { element, attributes: { [reserved]: registered.id } };
+    registered.shapes.set(element, shape);
+  }
+  return shape;
 };
 
 export const isReactMark = (elt: Elt<unknown>) => {

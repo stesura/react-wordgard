@@ -12,7 +12,6 @@ export {
   createShape,
 } from "./decorations/ReactShapeType.js";
 export {
-  type ReactWidgetType,
   type WidgetTypeSpec,
   type WidgetComponentProps,
   createWidgetType,

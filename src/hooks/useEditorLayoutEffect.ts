@@ -7,7 +7,11 @@
 // write phase after (Wordgard's scheduleDOMRead and scheduleDOMWrite), React
 // state it sets committing there too. A write that changes the size of the
 // editor's content makes Wordgard update and measure again within the flush,
-// so pagination can settle there. Neither may dispatch (Wordgard throws during
+// so pagination can settle there. A `read` returning undefined skips its write;
+// with no write to do, none is scheduled, which spares Wordgard measuring
+// again. Reads run in registration order: an engine whose parts must run in
+// another order registers one effect and drives them. Neither may dispatch
+// (Wordgard throws during
 // its flush): dispatch from useEditorEffect or an event handler. Writes into
 // the document's own DOM are foreign edits to Wordgard: write inside widgets,
 // outside the editor, or through decorations.
@@ -17,7 +21,7 @@ import type { Wordgard } from "wordgard/editor";
 import { useEditorContext } from "../contexts/EditorContext.js";
 
 export type EditorLayoutEffect<T> = {
-  read: (wg: Wordgard) => T;
+  read: (wg: Wordgard) => T | undefined;
   write: (value: T, wg: Wordgard) => void;
 };
 
@@ -31,7 +35,7 @@ export const useEditorLayoutEffect = <T>(measure: EditorLayoutEffect<T>) => {
     const entry = () => {
       const { read, write } = latest.current;
       const value = read(wg);
-      return () => write(value, wg);
+      return value === undefined ? null : () => write(value, wg);
     };
     measures.add(entry);
     requestMeasure();

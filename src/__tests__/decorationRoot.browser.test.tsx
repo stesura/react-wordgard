@@ -62,6 +62,28 @@ const quoteConfig = (extra: GardState.Extension = []) => [
   extra,
 ];
 
+// Composed per call, as an app folding extensions' components might.
+const Plain = ({ children }: { children?: React.ReactNode }) => (
+  <DecorationRoot>{children}</DecorationRoot>
+);
+
+describe("The factories", () => {
+  it("give the same value for the same component", () => {
+    expect(createShape(Plain)).toBe(createShape(Plain));
+    expect(createWrapper(Plain)).toBe(createWrapper(Plain));
+    expect(createWrapper(Plain, { element: "section" })).not.toBe(createWrapper(Plain));
+    expect(
+      createWrapper(Plain, { element: "section" }).eq(createWrapper(Plain, { element: "section" }))
+    ).toBe(true);
+    expect(createMarkShape(Plain)).toBe(createMarkShape(Plain));
+    const wg = create({
+      doc: "<blockquote><p>a</p></blockquote>",
+      config: [basicSchema(), blockquote(), Decoration.Tag.shape(Blockquote, createShape(Plain))],
+    });
+    expect(wg.contentDOM.innerHTML).toBe("<blockquote><p>a</p></blockquote>");
+  });
+});
+
 describe("DecorationRoot", () => {
   it("draws a shape's root, its tag the node type's, without a warning", () => {
     const error = vi.spyOn(console, "error");

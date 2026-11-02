@@ -48,6 +48,8 @@ import {
   type DecoElt,
   type DecoSet,
   DocTile,
+  type EltTile,
+  type EltTileClass,
   Reused,
   type Tile,
   TileFlag,
@@ -245,8 +247,9 @@ type BuildContext = {
   changedShapes: ReadonlySet<Element>;
 };
 
-// The widget tiles a plot's content had, under `old`, the tile that held it,
-// by their position in the new document. Built on first use.
+// The point widget tiles a plot's content had, native and React, under `old`,
+// the tile that held it, by their position in the new document. Built on
+// first use.
 type WidgetPool = { old: Tile | null; byPos: Map<number, Tile[]> | null };
 
 const widgetPool = (old: Tile | null): WidgetPool => ({ old, byPos: null });
@@ -260,7 +263,11 @@ const widgetsAt = (pool: WidgetPool, context: BuildContext, pos: number) => {
       const collect = (tile: Tile, start: number) => {
         let pos = start;
         for (const child of tile.children) {
-          if (widgetDOM.has(child.dom)) {
+          const { dom } = child;
+          if (
+            widgetDOM.has(dom) ||
+            (dom instanceof Element && widgetRoots.has(dom) && !child.tag)
+          ) {
             for (const at of map(pos)) {
               const found = byPos.get(at);
               if (found) found.push(child);
@@ -365,7 +372,8 @@ const addChildTiles = (
     if (view.type == "widget") {
       // TilePointer.matchingWidget: an equal point widget on the same side,
       // unchanged in the DOM, is kept whole. A React widget's old tile is the
-      // one over the element React kept.
+      // one over the element React kept, if its old place maps here: not
+      // inside a node moved here.
       const { widget } = view;
       const side = pointSide(view.side);
       const matching = (tile: WidgetTile) =>
@@ -375,7 +383,9 @@ const addChildTiles = (
         !context.dirty.has(tile.dom) &&
         tile.widget.eq(widget);
       if (isReactWidget(widget)) {
-        const tile = reactWidgetTile(cursor.next(), context, matching, (dom) => {
+        const keep = (tile: WidgetTile) =>
+          matching(tile) && widgetsAt(pool, context, pos).includes(tile);
+        const tile = reactWidgetTile(cursor.next(), context, keep, (dom) => {
           if (!widget.type.editable) setUneditable(dom);
           return new WidgetTile(widget, null, TileFlag.Point | side, dom);
         });
@@ -666,6 +676,34 @@ const chrome = Widget.define<null>({
 // Tiles over a React shape's elements: React's attributes, not the shape's.
 const shapeTiles = new WeakSet<Tile>();
 
+// A React decoration's own element (its root, or structure down to its content
+// element), whose events Wordgard asks it about as it walks up from their
+// target (eventBelongsToEditor): useStopEvent decides for those targeting the
+// element itself, as a widget's propagateEvent does for chrome. Not for the
+// content element, whose events are the content's.
+let ownTileClass: EltTileClass | null = null;
+
+const ownTile = (
+  elt: DecoElt,
+  tag: DocNode.Tag | null,
+  flags: number,
+  length: number,
+  dom: Element
+): EltTile => {
+  ownTileClass ??= class extends getTileClasses().EltTile {
+    ignoreEvent(event: Event) {
+      return event.target == this.dom && stopsEvent(event);
+    }
+  };
+  // EltTile.of's flags, as it can't make a subclass.
+  if (elt.hasContent) {
+    flags |= TileFlag.HasContent;
+    const hole = elt.children.indexOf(0);
+    if (hole > -1 && hole < elt.children.length - 1) flags |= TileFlag.ContentNotLast;
+  }
+  return new ownTileClass(elt, tag, flags, length, dom);
+};
+
 const addChromeTile = (tile: CompositeTile, child: ChildNode, flags: number) => {
   if (!(child instanceof Element || child instanceof Text)) return;
   if (child instanceof Element) setUneditable(child);
@@ -711,7 +749,10 @@ const reactMarkTile = (
   if (old && moved) removeWidgetDOM(old, content);
   let contentTile: Tile | null = null;
   const build = (element: Element, elt: DecoElt, flags: number): Tile => {
-    const tile = EltTile.of(elt, null, flags, 0, element);
+    const tile =
+      element == content
+        ? EltTile.of(elt, null, flags, 0, element)
+        : ownTile(elt, null, flags, 0, element);
     shapeTiles.add(tile);
     markTiles.add(tile);
     if (element == content) {
@@ -798,7 +839,10 @@ const reactShapeTile = (
     addChromeTile(tile, child, TileFlag.Point | TileFlag.NodeInner | after);
   const build = (element: Element, elt: DecoElt, tag: DocNode.Tag | null, flags: number): Tile => {
     const previous = element.wgTile ?? null;
-    const tile = EltTile.of(elt, tag, flags, tag ? length : 0, element);
+    const tile =
+      element == content && !handle.wrapper
+        ? EltTile.of(elt, tag, flags, tag ? length : 0, element)
+        : ownTile(elt, tag, flags, tag ? length : 0, element);
     shapeTiles.add(tile);
     if (element == content && !handle.wrapper) {
       tile.flags |= TileFlag.PlotContent;

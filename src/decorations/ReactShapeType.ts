@@ -53,9 +53,15 @@ type DrawProps = {
 
 const draws = new Map<string, (props: DrawProps) => ReactElement>();
 
+// By component: calling createShape again with one gives the same shape, so
+// Wordgard sees no configuration change and the registry doesn't grow.
+const shapes = new WeakMap<object, ReactShape>();
+
 export const createShape = <E extends Element = HTMLElement>(
   component: ComponentType<ShapeComponentProps<E>>
 ): ReactShape => {
+  const found = shapes.get(component);
+  if (found) return found;
   const id = String(draws.size + 1);
   draws.set(id, ({ attrs, nodeProps, children, ref }) =>
     createElement(component, {
@@ -72,9 +78,11 @@ export const createShape = <E extends Element = HTMLElement>(
     const outer = shape.create(tag.param);
     return shapeElt(outer.tagName, outer.attrs, shape.atom);
   };
-  return Object.assign(forTag, {
+  const shape = Object.assign(forTag, {
     of: (element: string, { atom = false } = {}) => shapeElt(element, [], atom),
   });
+  shapes.set(component, shape);
+  return shape;
 };
 
 export const idOf = (elt: Elt<unknown>) => Attributes.get(elt.attrs, reserved);

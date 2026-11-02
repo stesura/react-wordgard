@@ -66,12 +66,13 @@ const walk = (changes: readonly number[]) => {
 };
 
 const reference = {
-  mapNodePos: (changes: readonly number[], pos: number) => {
+  mapNodePos: (changes: readonly number[], pos: number, leaf: boolean) => {
     const sections = walk(changes);
     const s = sections.find((s) => s.endA > pos);
     const last = sections.at(-1);
     if (!s) return { pos: (last?.endB ?? 0) + pos - (last?.endA ?? 0), retagged: false };
     if (s.ins < 0) return { pos: s.b + pos - s.a, retagged: false };
+    if (leaf && s.endA - s.a == s.ins) return { pos: s.b + pos - s.a, retagged: true };
     return s.a == pos && s.endA - s.a == 1 && s.ins == 1 ? { pos: s.b, retagged: true } : null;
   },
   mapKept: (changes: readonly number[], pos: number) => {
@@ -132,7 +133,8 @@ describe("change section helpers", () => {
         changes.push(random(5), [-1, -2, 0, 1, 2, 3][random(6)] ?? -1);
       const size = changes.reduce((sum, n, i) => (i % 2 ? sum : sum + n), 0);
       for (let pos = 0; pos <= size + 1; pos++) {
-        expect(mapNodePos(changes, pos)).toEqual(reference.mapNodePos(changes, pos));
+        for (const leaf of [false, true])
+          expect(mapNodePos(changes, pos, leaf)).toEqual(reference.mapNodePos(changes, pos, leaf));
         expect(mapKept(changes, pos)).toEqual(reference.mapKept(changes, pos));
         expect(redrawn(changes, pos)).toBe(reference.redrawn(changes, pos));
         expect(pointMapper(changes)(pos)).toEqual(reference.pointMapper(changes, pos));

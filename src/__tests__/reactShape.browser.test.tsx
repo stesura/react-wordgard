@@ -16,7 +16,7 @@ import React, {
 import { flushSync } from "react-dom";
 import { Elt, Leaf } from "wordgard/doc";
 import { Decoration, Widget, type Wordgard } from "wordgard/editor";
-import { basicSchema, blockquote, figure, image } from "wordgard/schema";
+import { basicSchema, blockquote, figure, image, imageResizing } from "wordgard/schema";
 import { GardSelection, GardState } from "wordgard/state";
 import {
   Blockquote,
@@ -24,6 +24,7 @@ import {
   Figure,
   Heading,
   Image,
+  ImageSize,
   Paragraph,
   Table,
   TableRow,
@@ -330,6 +331,49 @@ describe("React shapes", () => {
     control(wg).setLabel("b");
     expect(flushKeeps(wg)).toBe(true);
     expect(wg.contentDOM.querySelector("[data-label]")?.getAttribute("data-label")).toBe("b");
+  });
+
+  // Code outside React (a resize observer, a layout engine) marking a node's
+  // element.
+  it("keeps an attribute set by hand on its root, until React sets that attribute", async () => {
+    const wg = create();
+    const root = wg.contentDOM.querySelector("[data-label]");
+    if (!root) throw new Error("No callout");
+    root.setAttribute("data-pending", "1");
+    root.classList.add("moving");
+    await Promise.resolve();
+    expect(flushKeeps(wg)).toBe(true);
+    // An edit in its content, the component's own re-render, an edit
+    // re-rendering it from the flush.
+    typeInto(wg, textIn(wg, ".body p"), 1, "x");
+    wg.flush();
+    control(wg).setLabel("b");
+    await Promise.resolve();
+    wg.flush();
+    wg.dispatch({ changes: { from: 0, insert: [Paragraph.create()] } });
+    wg.flush();
+    expect(root.getAttribute("data-pending")).toBe("1");
+    expect(root.classList.contains("moving")).toBe(true);
+    // Selected, the node's class changes: React sets `className` again.
+    const pos = control(wg).getPos();
+    const node = wg.state.doc.nodeAt(pos);
+    if (!node) throw new Error("No callout");
+    wg.dispatch({ selection: GardSelection.node(pos, node) });
+    wg.flush();
+    expect(root.classList.contains("wg-selected-node")).toBe(true);
+    expect(root.classList.contains("moving")).toBe(false);
+    expect(root.getAttribute("data-pending")).toBe("1");
+  });
+
+  it("undoes an attribute set by hand on a node drawn without React", async () => {
+    const wg = create();
+    const p = wg.contentDOM.querySelector(":scope > p");
+    if (!p) throw new Error("No paragraph");
+    p.setAttribute("data-pending", "1");
+    await Promise.resolve();
+    wg.flush();
+    expect(p.hasAttribute("data-pending")).toBe(false);
+    expect(wg.state.doc.textContent({ blockSeparator: "|" })).toBe("a|bc");
   });
 
   it("rebuilds a shape whose chrome changes with the editor state, inside the flush", () => {
@@ -658,6 +702,46 @@ describe("React wrappers", () => {
     expect(String(wg.state.doc)).toContain("bxc");
     Object.assign(framed, { header: false, deep: true });
     expect(drawn(wg)).toEqual(fresh(wg));
+  });
+
+  // A node type's own structure shape, without a hole, with React chrome
+  // around an element in it: the type's shape decides where the marks'
+  // attributes go.
+  it("wraps an element of a structure shape, the marks' attributes kept on it", async () => {
+    const src = "data:image/svg+xml,";
+    const wg = create({
+      doc: `<figure><img src="${src}" alt="A cat"></figure><p>a</p>`,
+      config: [
+        basicSchema(),
+        figure(),
+        imageResizing(),
+        Decoration.Tag.wrapper(Figure, FrameWrapper, { target: "img" }),
+      ],
+    });
+    wg.dispatch({ changes: { from: 0, add: ImageSize.of(30) } });
+    wg.flush();
+    const img = wg.contentDOM.querySelector("figure > section > img");
+    expect(img?.getAttribute("src")).toBe(src);
+    expect(img?.getAttribute("alt")).toBe("A cat");
+    expect(img?.getAttribute("style")).toContain("width: 30px");
+    expect(frame(wg).getPos()).toBe(0);
+    frame(wg).setHeader(false);
+    frame(wg).setLabel("b");
+    await Promise.resolve();
+    expect(flushKeeps(wg)).toBe(true);
+    expect(wg.contentDOM.querySelector("figure > section > header")).toBeNull();
+    // The size changes as a mark: the wrapper keeps its state.
+    wg.dispatch({ changes: { from: 0, add: ImageSize.of(40) } });
+    wg.flush();
+    expect(wg.contentDOM.querySelector("figure > section > img")).toBe(img);
+    expect(img?.getAttribute("style")).toContain("width: 40px");
+    expect(wg.contentDOM.querySelector("section")?.getAttribute("data-frame")).toBe("b");
+    typeInto(wg, textIn(wg, "p"), 1, "x");
+    wg.flush();
+    expect(wg.state.doc.textContent({ blockSeparator: "|" })).toBe("|ax");
+    framed.header = false;
+    const other = fresh(wg);
+    expect(drawn(wg).tiles).toEqual(other.tiles);
   });
 
   it("wraps a React shape, either changing on its own", () => {
@@ -1028,5 +1112,110 @@ describe("React shapes drawing atoms", () => {
     expect(error).not.toHaveBeenCalled();
     expect(drawn(wg)).toEqual(fresh(wg));
     error.mockRestore();
+  });
+});
+
+// Line numbers beside a paragraph's text: a React shape provides the number
+// from its own state, a tag widget at the paragraph's start draws it, and the
+// paragraph's content element holds only its text.
+const Line = createContext(0);
+const lines = { setLine: (_line: number) => {} };
+const LineShape = createShape(
+  forwardRef<HTMLParagraphElement, ShapeComponentProps<HTMLParagraphElement>>(
+    ({ nodeProps: _, children, ...attrs }, ref) => {
+      const [line, setLine] = useState(1);
+      useLayoutEffect(() => {
+        lines.setLine = (line) => flushSync(() => setLine(line));
+      }, []);
+      return (
+        <Line.Provider value={line}>
+          <p {...attrs} ref={ref}>
+            {children}
+          </p>
+        </Line.Provider>
+      );
+    }
+  )
+);
+const LineNumber = createWidgetType({
+  component: forwardRef<HTMLSpanElement, WidgetComponentProps<null>>((_, ref) => (
+    <span ref={ref} className="line" aria-hidden="true">
+      {useContext(Line)}
+    </span>
+  )),
+});
+
+describe("Chrome beside a textblock's text", () => {
+  const lineConfig = [
+    basicSchema(),
+    Decoration.Tag.shape(Paragraph, LineShape),
+    Decoration.Tag.widget(Paragraph, "start", LineNumber.of(null)),
+  ];
+  // A paragraph's text node, after its number.
+  const lineText = (wg: Wordgard, index = 0) => {
+    const text = wg.contentDOM.children[index]?.lastChild;
+    if (!(text instanceof Text)) throw new Error("No text in the paragraph");
+    return text;
+  };
+  const key = (wg: Wordgard, key: string, shiftKey = false) =>
+    wg.contentDOM.dispatchEvent(new KeyboardEvent("keydown", { key, shiftKey, bubbles: true }));
+
+  it("draws a tag widget from the shape's context, the text beside it", () => {
+    const wg = create({ doc: "<p>ab</p>", config: lineConfig });
+    expect(wg.contentDOM.innerHTML).toBe(
+      '<p><span class="line" aria-hidden="true" contenteditable="false">1</span>ab</p>'
+    );
+    expect(drawn(wg)).toEqual(fresh(wg));
+  });
+
+  it("changes the number on its own, outside the flush", async () => {
+    const wg = create({ doc: "<p>ab</p>", config: lineConfig });
+    const tile = docTileOf(wg);
+    lines.setLine(7);
+    await Promise.resolve();
+    expect(wg.contentDOM.querySelector(".line")?.textContent).toBe("7");
+    expect(flushKeeps(wg)).toBe(true);
+    expect(docTileOf(wg)).toBe(tile);
+    typeInto(wg, lineText(wg), 2, "c");
+    wg.flush();
+    expect(wg.state.doc.textContent()).toBe("abc");
+    expect(wg.contentDOM.querySelector(".line")?.textContent).toBe("7");
+  });
+
+  it("takes typing and a composition at the paragraph's start", () => {
+    const wg = create({ doc: "<p>ab</p>", config: lineConfig });
+    typeInto(wg, lineText(wg), 0, "x");
+    wg.flush();
+    expect(wg.state.doc.textContent()).toBe("xab");
+    expect(drawn(wg)).toEqual(fresh(wg));
+    const composition = composeIn(wg, lineText(wg));
+    composition.update(0, "k");
+    wg.flush();
+    composition.end();
+    wg.flush();
+    expect(wg.state.doc.textContent()).toBe("kxab");
+    expect(wg.contentDOM.querySelector("p")?.firstChild).toBe(wg.contentDOM.querySelector(".line"));
+    expect(drawn(wg)).toEqual(fresh(wg));
+  });
+
+  it("moves and selects across the paragraph's start with arrow keys", () => {
+    const wg = create({ doc: "<p>ab</p><p>cd</p>", config: lineConfig });
+    wg.focus();
+    wg.dispatch({ selection: { anchor: 6 } });
+    wg.flush();
+    key(wg, "ArrowLeft");
+    wg.flush();
+    expect(wg.state.selection.head).toBe(5);
+    key(wg, "ArrowLeft");
+    wg.flush();
+    expect(wg.state.selection.head).toBe(3);
+    key(wg, "ArrowRight");
+    key(wg, "ArrowRight", true);
+    wg.flush();
+    expect([wg.state.selection.anchor, wg.state.selection.head]).toEqual([5, 6]);
+    // The DOM selection is in the text, past the number.
+    const selection = document.getSelection();
+    expect(selection?.anchorNode).toBe(lineText(wg, 1));
+    expect(selection?.anchorOffset).toBe(0);
   });
 });

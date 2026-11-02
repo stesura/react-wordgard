@@ -44,20 +44,33 @@ type DrawProps = {
 // Keyed apart from React shapes' ids, which share the attribute.
 const draws = new Map<string, (props: DrawProps) => ReactElement>();
 
+// By component, then root element, as React shapes are.
+const wrappers = new WeakMap<object, { id: string; elts: Map<string, Elt> }>();
+
 export const createWrapper = <E extends Element = HTMLElement>(
   component: ComponentType<WrapperComponentProps<E>>,
   { element = "div" }: WrapperOptions = {}
 ): Elt => {
-  const id = `w${draws.size + 1}`;
-  draws.set(id, ({ attrs, nodeProps, children, ref }) =>
-    createElement(component, {
-      ...attrs,
-      ref: takesRef(component) ? ref : undefined,
-      nodeProps,
-      children,
-    })
-  );
-  return Elt.mk(element, { [reserved]: id }, [0]);
+  let registered = wrappers.get(component);
+  if (!registered) {
+    const id = `w${draws.size + 1}`;
+    draws.set(id, ({ attrs, nodeProps, children, ref }) =>
+      createElement(component, {
+        ...attrs,
+        ref: takesRef(component) ? ref : undefined,
+        nodeProps,
+        children,
+      })
+    );
+    registered = { id, elts: new Map() };
+    wrappers.set(component, registered);
+  }
+  let elt = registered.elts.get(element);
+  if (!elt) {
+    elt = Elt.mk(element, { [reserved]: registered.id }, [0]);
+    registered.elts.set(element, elt);
+  }
+  return elt;
 };
 
 export const isReactWrapper = (elt: Elt<unknown>) => {

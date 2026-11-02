@@ -14,8 +14,9 @@ export type EditorStore = {
   readonly subscribe: (listener: () => void) => () => void;
 };
 
-// Reads in the flush's read phase, returning the write for its write phase.
-export type Measure = () => () => void;
+// Reads in the flush's read phase, returning the write for its write phase, or
+// null for none.
+export type Measure = () => (() => void) | null;
 
 export type EditorContextValue = {
   readonly wg: Wordgard;
@@ -69,7 +70,9 @@ export const editorOf = (wg: Wordgard): Editor => {
     });
   };
   const readMeasures = (wg: Wordgard) => {
-    const writes = [...measures].map((measure) => measure());
+    const writes = [...measures].flatMap((measure) => measure() ?? []);
+    // A scheduled write makes Wordgard measure again.
+    if (!writes.length) return;
     // React state set by a write commits now, on the same paint.
     wg.scheduleDOMWrite(() =>
       flushSync(() => {

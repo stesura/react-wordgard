@@ -10,6 +10,7 @@ import React, {
   forwardRef,
   useContext,
   useLayoutEffect,
+  useRef,
   useState,
 } from "react";
 import { flushSync } from "react-dom";
@@ -552,6 +553,43 @@ describe("hooks", () => {
     expect(wg.contentDOM.querySelector(".h")?.textContent).toBe(`h${second}`);
     expect(reads.at(-1)).toBe(second);
     expect(docTileOf(wg)).not.toBe(tile);
+  });
+
+  it("useEditorLayoutEffect skips the write when every read returns undefined", () => {
+    const writes: number[] = [];
+    // Writes the paragraph count, only when it changed since the last write.
+    const Count = () => {
+      const last = useRef(-1);
+      useEditorLayoutEffect({
+        read: (wg) => {
+          const count = wg.contentDOM.children.length;
+          return count == last.current ? undefined : count;
+        },
+        write: (count) => {
+          last.current = count;
+          writes.push(count);
+        },
+      });
+      return null;
+    };
+    const { wg } = render(
+      <WordgardEditor doc="<p>one</p>" config={[basicSchema()]}>
+        <Grab />
+        <Count />
+        <WordgardDoc />
+      </WordgardEditor>
+    );
+    wg.flush();
+    expect(writes).toEqual([1]);
+    const schedule = vi.spyOn(wg, "scheduleDOMWrite");
+    edit(wg, { changes: { from: 2, insert: [Leaf.text("x")] } });
+    expect(writes).toEqual([1]);
+    expect(schedule).not.toHaveBeenCalled();
+    // A new paragraph: written in the same flush.
+    edit(wg, { changes: { from: wg.state.doc.length, insert: [Paragraph.create()] } });
+    expect(writes).toEqual([1, 2]);
+    expect(schedule).toHaveBeenCalledTimes(1);
+    schedule.mockRestore();
   });
 
   it("refuses to update from inside a React effect, with an error saying why", async () => {

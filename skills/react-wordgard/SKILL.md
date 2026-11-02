@@ -100,6 +100,10 @@ Wordgard drives the update and React draws inside it, so there are two effect ho
 - **Never read the editor's layout (`coordsAtPos`, `posAtCoords`) in a plain React `useEffect` or
   `useLayoutEffect`**: it runs inside Wordgard's update, before the view of the new DOM exists, and
   react-wordgard refuses the update. Use one of the two hooks above.
+- `useEditorLayoutEffect`'s `read` runs on every update: return `undefined` when nothing changed,
+  which skips the write and, when no read asks for one, Wordgard's second measure. Reads run in
+  registration order; an engine with ordered parts (pagination) registers one effect and drives
+  them.
 - Menus and popovers: position them with your popover library (Floating UI, Radix, Base UI) from a
   virtual anchor built from `wg.coordsAtPos(pos)` in `useEditorEffect`; show or hide them from
   `useEditorStateSelector`. Wordgard's own tooltips and panels also work, as plain DOM.
@@ -108,8 +112,10 @@ Wordgard drives the update and React draws inside it, so there are two effect ho
 
 Prefer Wordgard's declarative shapes (`Elt` shapes, `Decoration.Tag.attribute`, mark shapes) for
 anything that needs no code: React draws them all already. Use a React component where a part needs
-state, interaction or the app's contexts. Each factory below is **called once, at module level**,
-and returns a Wordgard value you pass in `config`. The components need no memoizing: React draws a
+state, interaction or the app's contexts. Each factory below is **called at module level**, with a
+component defined there, and returns a Wordgard value you pass in `config`. `createShape`,
+`createWrapper` and `createMarkShape` return the same value for the same component, so composing
+the config again (per editor) is safe; a component created inside a render is new each time. The components need no memoizing: React draws a
 node again only when it changed, or from the component's own state, contexts and hooks.
 
 | Need                                                         | Factory                                   | Passed to                                                                        |
@@ -193,6 +199,9 @@ puts both on the `<img>`. Check the parameter types of the node and mark types y
 - Everything else the component draws is **chrome**: made uneditable, never read as document
   content, free to change from the component's state, a context or a store.
   - In a textblock (a paragraph-like node) or a mark, the content element holds only the content.
+    Chrome beside a textblock's text (line numbers) is a React widget at its `"start"` or `"end"`:
+    `Decoration.Tag.widget(Paragraph, "start", LineNumber.of(null))`. Its component may read a
+    context the paragraph's React shape provides around `{children}`.
   - In a node holding blocks, chrome may sit before or after the content in its element, not
     between the content's nodes.
   - Moving `{children}` under another element remounts the content (a selection or IME
@@ -200,6 +209,43 @@ puts both on the `<img>`. Check the parameter types of the node and mark types y
 - Node parameters: `nodeProps.node.tag.param` for a node with content, `node.param` for a leaf;
   `markProps.mark` is the document's mark (`mark.value`).
 - `createWrapper` can't wrap a node a native widget draws (draw it with a React shape or widget), nor text.
+- **Don't write attributes on document elements by hand.** On a React decoration's root they
+  survive only until React sets that attribute (a `classList.add` is lost when the selection
+  changes `className`); on elements Wordgard draws they're undone at the next update. Put the
+  state in the component (`data-resizing={resizing}`), or in a decoration from a state field.
+
+### A shape, a wrapper, or both
+
+- The node type's shape decides where attributes go (`target`, `preferTarget`: `ImageAlt` and
+  `ImageSize` land on a figure's `img`). Don't replace a shape just to add chrome.
+- React chrome around a node, or an element in its shape, is a **wrapper**:
+  `Decoration.Tag.wrapper(Figure, createWrapper(Frame), { target: "img" })`. The `img` keeps its
+  `src`, `alt` and width; `Frame` draws a resize handle beside `{children}`.
+- A shape and wrappers on the same type apply to all its nodes. A table: a React shape drawing
+  `table > tbody > {children}`, plus a wrapper for a scroll container around it.
+- Porting a react-prosemirror node view that draws chrome around the node's own element: keep the
+  type's shape (or a React shape for the element), and move the chrome into a wrapper.
+
+### Changing a node without remounting it
+
+A component keeps its state while its node changes in place or moves within its parent; it
+remounts, with everything inside, when the node is replaced whole, changes type or moves to another
+parent.
+
+- **Data an action changes in place** (size, alignment, a callout's kind, a table's widths): a mark
+  on the tag, `Mark.Type.define(name, { target: NodeType, … })`, read with
+  `node.tag.mark(Type)`, changed with `wg.dispatch({ changes: { from: pos, add: Type.of(v) } })`
+  or `{ from: pos, remove: Type.of(v) }`. It merges in collaboration and inverts in history.
+- **What identifies the node** (an image's `src`, a heading's level): its parameter, changed by
+  retagging the opening token, `{ from: pos, to: pos + 1, insert: [Heading.of(2)] }`.
+- **Never** replace the whole node (`{ from, to, insert: [node] }`) to change its data: that
+  remounts the component.
+- ProseMirror's `setNodeAttribute` / `setNodeMarkup` port to one of the first two.
+- **Moving a node**: delete it and insert the same node object elsewhere in the same parent, in one
+  transaction (`changes: [{ from, to: from + node.length }, { from: target, insert: [node] }]`).
+  A copy (a new object, or one inserted while the original stays) mounts anew. React moves the
+  DOM, so an `<iframe>` in a moved node reloads. Wordgard's drag-and-drop rebuilds what it drops
+  from HTML: those moves remount.
 
 ### Hooks inside React decorations
 
@@ -207,7 +253,9 @@ puts both on the `<img>`. Check the parameter types of the node and mark types y
   handlers and effects, not during render).
 - `useIsNodeSelected()`, `useSelectNode(select, deselect?)`: the node selection.
 - `useStopEvent((wg, event) => stop)`: Wordgard ignores the events it stops in the decoration's
-  chrome or a React widget (inputs, buttons in a title bar), and their default goes ahead.
+  chrome, on its own elements (its root, the elements around its content element: an atom's root,
+  a frame's padding; not a root that is itself the content element) or in a React widget (inputs, buttons in a title bar), and their default goes
+  ahead. Never asked for events in the content, unlike react-prosemirror.
 - `useIgnoreMutation((wg, record) => ignore)`: Wordgard doesn't read the DOM mutations it claims
   (typing aside: Wordgard takes it from `beforeinput`).
 - `useMergedDOMRefs(...refs)`: one ref setting several (the forwarded `ref` and `contentDOMRef`

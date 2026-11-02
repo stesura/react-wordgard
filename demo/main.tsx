@@ -150,9 +150,11 @@ const config = [
   calloutButton,
   Wordgard.contentAttributes.of({ "aria-label": "Demo document" }),
   Decoration.Tag.shape(Callout, CalloutShape),
-  ResizableFigure.shape(Figure, (tag) => ({ src: tag.param, width: tag.mark(ImageSize) })),
-  MentionWidget.shape(Mention),
-  ReactImage.shape(Image),
+  Decoration.Tag.shape(Figure, (tag) =>
+    ResizableFigure.of({ src: tag.param, width: tag.mark(ImageSize) })
+  ),
+  Decoration.Tag.shape(Mention, (tag) => MentionWidget.of(tag.param)),
+  Decoration.Tag.shape(Image, (tag) => ReactImage.of(tag.param)),
   Decoration.Mark.shape(Link, LinkShape),
 ];
 

@@ -26,8 +26,9 @@ export const addFreshKeys = (keys: ReactKeys, plot: Plot) => {
 
 // Carries keys from `oldDoc` to `newDoc` through `changes` (the sections
 // DocTile.update receives), as react-prosemirror maps them through a
-// transaction's steps: a node whose start survives keeps its key, others get
-// fresh ones. Only plots that changed identity are visited. Returns, for each
+// transaction's steps: a node whose start survives keeps its key, as does a
+// node moved within its parent (the same object); others get fresh ones. Only
+// plots that changed identity are visited. Returns, for each
 // of those, the plot it replaces.
 export const mapKeys = (
   keys: ReactKeys,
@@ -45,14 +46,35 @@ export const mapKeys = (
     const { head, tail } = unchangedEnds(changes, oldPlot, oldStart, newPlot);
     const oldTail = oldPlot.content.length - tail;
     const newTail = newPlot.content.length - tail;
-    const found = new Map<number, { key: string; node: Node; start: number; retagged: boolean }>();
+    // Old children whose start survived, by where it went; those of replaced
+    // ranges by identity, for a node moved within this plot, and the leaves
+    // among them by where a retag put them.
+    type Old = { key: string; node: Node; start: number };
+    const found = new Map<number, Old>();
+    const byNode = new Map<Node, Old[]>();
+    const retagged = new Map<number, Old>();
     let pos = oldStart;
     oldPlot.content.forEach((node, i) => {
-      const mapped = node.isText || i < head || i >= oldTail ? null : mapNodePos(changes, pos);
       const key = oldKeys[i];
-      if (mapped && key)
-        found.set(mapped.pos, { key, node, start: pos, retagged: mapped.retagged });
+      if (key && !node.isText && i >= head && i < oldTail) {
+        const old = { key, node, start: pos };
+        const mapped = mapNodePos(changes, pos, node.isLeaf);
+        if (mapped && !mapped.retagged) found.set(mapped.pos, old);
+        else {
+          byNode.set(node, [...(byNode.get(node) ?? []), old]);
+          if (mapped) retagged.set(mapped.pos, old);
+        }
+      }
       pos += node.length;
+    });
+    // Each old key goes once: to its node where it's still there (moved),
+    // else to what a retag put in its place, if of its type.
+    const claimed = new Set<Old>();
+    const middle = newPlot.content.map((child, i) => {
+      if (child.isText || i < head || i >= newTail) return undefined;
+      const old = byNode.get(child)?.find((old) => !claimed.has(old));
+      if (old) claimed.add(old);
+      return old;
     });
     pos = newStart;
     const newKeys = newPlot.content.map((child, i) => {
@@ -62,12 +84,16 @@ export const mapKeys = (
         i < head ? oldKeys[i] : i >= newTail ? oldKeys[i - newTail + oldTail] : undefined;
       if (same !== undefined) return same;
       if (child.isText) return "";
-      const old = found.get(start);
-      const kept = old && (!old.retagged || old.node.type == child.type) ? old : undefined;
-      if (child.isPlot) {
-        if (kept?.node.isPlot) mapChildren(kept.node, kept.start + 1, child, start + 1);
-        else addFreshKeys(keys, child);
+      let kept = found.get(start) ?? middle[i];
+      const retag = kept ? undefined : retagged.get(start);
+      if (retag && !claimed.has(retag) && retag.node.type == child.type) {
+        claimed.add(retag);
+        kept = retag;
       }
+      // A moved plot is the same object: its content keeps its keys.
+      if (child.isPlot && kept?.node.isPlot && kept.node != child)
+        mapChildren(kept.node, kept.start + 1, child, start + 1);
+      else if (child.isPlot) addFreshKeys(keys, child);
       return kept ? kept.key : createNodeKey();
     });
     keys.set(newPlot, newKeys);
