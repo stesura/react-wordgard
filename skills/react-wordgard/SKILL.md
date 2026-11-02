@@ -111,13 +111,13 @@ anything that needs no code: React draws them all already. Use a React component
 state, interaction or the app's contexts. Each factory below is **called once, at module level**,
 and returns the Wordgard value its name says, which you pass to Wordgard's decorations:
 
-| Need                                                       | Factory                                      | Passed to                                                                        |
-| ---------------------------------------------------------- | -------------------------------------------- | -------------------------------------------------------------------------------- |
-| A node with editable content (callout, table cell, figure) | `createShape({ component, element })`        | `Decoration.Tag.shape(Type, shape)`, `Decoration.Point.shape(shape)`             |
-| A node without content, an atom (image, mention, embed)    | `createWidgetType({ render, component, … })` | `Decoration.Tag.shape(Type, (tag) => MyType.of(tag.param))`                      |
-| An element around a node or part of its shape              | `createWrapper({ component, element })`      | `Decoration.Tag.wrapper(Type, wrapper, { target? })`, `Decoration.Point.wrapper` |
-| A mark's element (link, comment highlight)                 | `createMarkShape({ component, element })`    | `Decoration.Mark.shape(MarkType, shape)`                                         |
-| A widget at a position (placeholder, gutter badge)         | `createWidgetType({ render, component })`    | `Decoration.Point.widget(MyType.of(value), { side })`, `Decoration.Tag.widget`   |
+| Need                                                       | Factory                                   | Passed to                                                                        |
+| ---------------------------------------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------- |
+| A node with editable content (callout, table cell, figure) | `createShape({ component, element })`     | `Decoration.Tag.shape(Type, shape)`, `Decoration.Point.shape(shape)`             |
+| A node without content, an atom (image, mention, embed)    | `createWidgetType({ component, … })`      | `MyType.shape(Type)`, or `MyType.shape(Type, (tag) => value)`                    |
+| An element around a node or part of its shape              | `createWrapper({ component, element })`   | `Decoration.Tag.wrapper(Type, wrapper, { target? })`, `Decoration.Point.wrapper` |
+| A mark's element (link, comment highlight)                 | `createMarkShape({ component, element })` | `Decoration.Mark.shape(MarkType, shape)`                                         |
+| A widget at a position (placeholder, gutter badge)         | `createWidgetType({ component })`         | `Decoration.Point.widget(MyType.of(value), { side })`, `Decoration.Tag.widget`   |
 
 ```tsx
 import { forwardRef } from "react";
@@ -125,15 +125,15 @@ import { Decoration } from "wordgard/editor";
 import { basicSchema, blockquote, image } from "wordgard/schema";
 import { Blockquote, Image, Link } from "wordgard/types";
 import {
-  type MarkViewComponentProps,
-  type ShapeViewComponentProps,
-  type WidgetViewComponentProps,
+  type MarkComponentProps,
+  type ShapeComponentProps,
+  type WidgetComponentProps,
   createMarkShape,
   createShape,
   createWidgetType,
 } from "react-wordgard";
 
-const Callout = forwardRef<HTMLElement, ShapeViewComponentProps>(
+const Callout = forwardRef<HTMLElement, ShapeComponentProps>(
   ({ nodeProps: { contentDOMRef }, children, ...attrs }, ref) => (
     <aside {...attrs} ref={ref}>
       <span aria-hidden="true">!</span>
@@ -142,7 +142,7 @@ const Callout = forwardRef<HTMLElement, ShapeViewComponentProps>(
   )
 );
 
-const LinkView = forwardRef<HTMLAnchorElement, MarkViewComponentProps<HTMLAnchorElement>>(
+const LinkMark = forwardRef<HTMLAnchorElement, MarkComponentProps<HTMLAnchorElement>>(
   ({ markProps: { mark, contentDOMRef }, children }, ref) => (
     <a ref={ref} href={String(mark.value)}>
       <span ref={contentDOMRef}>{children}</span>
@@ -150,9 +150,8 @@ const LinkView = forwardRef<HTMLAnchorElement, MarkViewComponentProps<HTMLAnchor
   )
 );
 
-const Picture = createWidgetType<string, HTMLImageElement>({
-  render: (src) => Object.assign(document.createElement("img"), { src }),
-  component: forwardRef<HTMLImageElement, WidgetViewComponentProps<string, HTMLImageElement>>(
+const Picture = createWidgetType({
+  component: forwardRef<HTMLImageElement, WidgetComponentProps<string, HTMLImageElement>>(
     ({ value, ...attrs }, ref) => <img {...attrs} ref={ref} src={value} />
   ),
 });
@@ -162,8 +161,8 @@ export const config = [
   blockquote(),
   image(),
   Decoration.Tag.shape(Blockquote, createShape({ component: Callout, element: "aside" })),
-  Decoration.Mark.shape(Link, createMarkShape({ component: LinkView, element: "a" })),
-  Decoration.Tag.shape(Image, (tag) => Picture.of(tag.param)),
+  Decoration.Mark.shape(Link, createMarkShape({ component: LinkMark, element: "a" })),
+  Picture.shape(Image),
 ];
 ```
 
@@ -173,12 +172,15 @@ use in `wordgard/types`.
 
 ### The component's contract
 
-- **Forward the ref to the root element, and keep that element**: re-render freely, but don't
-  swap the root for another element.
+- **Give the ref to the root element, and keep that element**: re-render freely, but don't
+  swap the root for another element. React 19 passes `ref` as a prop; on React 18 the component
+  needs `forwardRef` (as in the examples, which work on both).
 - **`element`** is the root's tag (`div` by default for shapes and wrappers, `span` for marks;
   `span` for an inline node). Wordgard's `target` selectors match it, and plain Wordgard draws it.
 - **Spread the attributes (`...attrs`) onto the root.** They carry Wordgard's selection classes
   (`wg-selected-node`, `wg-selected-cell`) and tag, point and mark attributes (an image's `alt`).
+  Wordgard has already merged the decorations' attributes into one `className` and one `style`:
+  a component setting its own merges them with those, or one replaces the other.
 - **Content goes where `contentDOMRef` points**, else in the root. `children` is the content (a
   wrapper's `children` is what it wraps; no `contentDOMRef` there).
 - Everything else the component draws is **chrome**: made uneditable, never read as document
@@ -218,7 +220,7 @@ use in `wordgard/types`.
 | `<ProseMirrorDoc />`                                                                                                    | `<WordgardDoc />`                                                                             |
 | `nodeViews`                                                                                                             | `createShape` (content) or `createWidgetType` (atom), as a `Decoration.Tag.shape` in `config` |
 | `markViews`                                                                                                             | `createMarkShape` with `Decoration.Mark.shape`                                                |
-| `NodeViewComponentProps`                                                                                                | `ShapeViewComponentProps` (same `nodeProps`, `contentDOMRef`, `children`, `ref`)              |
+| `NodeViewComponentProps`                                                                                                | `ShapeComponentProps` (same `nodeProps`, `contentDOMRef`, `children`, `ref`)                  |
 | `node.attrs`                                                                                                            | `node.tag.param` (or `node.param` for a leaf)                                                 |
 | `view` in callbacks                                                                                                     | `wg`                                                                                          |
 | `ProseMirror-selectednode`, `selectedCell`                                                                              | `wg-selected-node`, `wg-selected-cell`                                                        |

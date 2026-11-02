@@ -4,7 +4,7 @@
 // marked content as `children`. Wordgard's mark shapes are declarative, so the
 // registration is the reserved attribute React shapes use, which the element
 // Wordgard makes from the shape keeps. The props follow react-prosemirror's
-// MarkViewComponentProps.
+// MarkComponentProps.
 import {
   type AllHTMLAttributes,
   type ComponentType,
@@ -20,25 +20,24 @@ import type { Elt, Mark, Shape } from "wordgard/doc";
 import type { Tile } from "../wordgardInternals.js";
 import { idOf, reserved } from "./ReactShapeType.js";
 
-export type MarkViewComponentProps<E extends Element = HTMLElement> =
-  AllHTMLAttributes<HTMLElement> & {
-    markProps: {
-      mark: Mark;
-      getPos: () => number;
-      contentDOMRef: RefCallback<Element>;
-    };
-    children: ReactNode;
-  } & RefAttributes<E>;
+export type MarkComponentProps<E extends Element = HTMLElement> = AllHTMLAttributes<HTMLElement> & {
+  markProps: {
+    mark: Mark;
+    getPos: () => number;
+    contentDOMRef: RefCallback<Element>;
+  };
+  children: ReactNode;
+} & RefAttributes<E>;
 
 export type MarkShapeSpec<E extends Element = HTMLElement> = {
-  component: ComponentType<MarkViewComponentProps<E>>;
+  component: ComponentType<MarkComponentProps<E>>;
   // The component's root element, which plain Wordgard draws.
   element?: string;
 };
 
 type DrawProps = {
   attrs: HTMLProps<HTMLElement>;
-  markProps: MarkViewComponentProps["markProps"];
+  markProps: MarkComponentProps["markProps"];
   children: ReactNode;
   ref: RefCallback<Element>;
 };

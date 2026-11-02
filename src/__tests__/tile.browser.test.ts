@@ -39,7 +39,7 @@ import {
 } from "wordgard/types";
 
 import { ReactWordgard } from "../ReactWordgard.js";
-import { createWidgetType } from "../decorations/ReactWidgetType.js";
+import { createWidgetType, createWidgetTypeWithRender } from "../decorations/ReactWidgetType.js";
 import { useNodePos } from "../hooks/useNodePos.js";
 import { useWordgard } from "../hooks/useWordgard.js";
 import { ReactDocTile, nodeViewOf } from "../tile.js";
@@ -139,13 +139,17 @@ const TextWidget = Widget.define<string>({ render: (text) => document.createText
 const LabelView = forwardRef<HTMLSpanElement, { value: string }>(({ value }, ref) =>
   createElement("span", { ref, className: "w" }, value)
 );
-const ReactLabel = createWidgetType({ render: label, component: LabelView });
-const EditableReactLabel = createWidgetType({
+const ReactLabel = createWidgetTypeWithRender({ render: label, component: LabelView });
+const EditableReactLabel = createWidgetTypeWithRender({
   render: label,
   component: LabelView,
   editable: true,
 });
-const ReactAside = createWidgetType({ render: label, component: LabelView, inFlow: false });
+const ReactAside = createWidgetTypeWithRender({
+  render: label,
+  component: LabelView,
+  inFlow: false,
+});
 
 // Decorations of every kind, each in a document of its own.
 const pointAt = (...decos: [Decoration.Point, number][]) =>
@@ -1202,7 +1206,7 @@ describe("ReactDocTile", () => {
       const [first] = useState(value);
       return createElement("span", { ref, className: "m" }, `${first}:${value}`);
     });
-    const ReactMounted = createWidgetType({ render: label, component: Mounted });
+    const ReactMounted = createWidgetTypeWithRender({ render: label, component: Mounted });
     const setPoint = Transaction.Effect.define<string>();
     // A React point widget whose value changes on `setPoint`, where it is.
     const point = GardState.Field.define({
@@ -1257,7 +1261,7 @@ describe("ReactDocTile", () => {
           value
         );
       });
-      const ReactProbe = createWidgetType({ render: label, component: Probe });
+      const ReactProbe = createWidgetTypeWithRender({ render: label, component: Probe });
       const { react } = both(`<p>ab<img src="${img}">c</p><blockquote><p>q</p></blockquote>`, [
         pointAt([Decoration.Point.widget(ReactProbe.of("p")), 2]),
         Decoration.Tag.widget(Paragraph, "start", ReactProbe.of("t")),
@@ -1297,7 +1301,7 @@ describe("ReactDocTile", () => {
           `${value}${clicks}`
         );
       });
-      const ReactClicks = createWidgetType({ render: label, component: Clicks });
+      const ReactClicks = createWidgetTypeWithRender({ render: label, component: Clicks });
       const { react } = both(`<p>ab<img src="${img}"></p><blockquote><p>q</p></blockquote>`, [
         pointAt([Decoration.Point.widget(ReactClicks.of("p")), 2]),
         Decoration.Tag.widget(Paragraph, "end", ReactClicks.of("e")),
@@ -1322,7 +1326,7 @@ describe("ReactDocTile", () => {
     it("connects and disconnects React widgets as Wordgard does", () => {
       const run = (create: Create) => {
         const log: string[] = [];
-        const Tracked = createWidgetType({
+        const Tracked = createWidgetTypeWithRender({
           render: label,
           component: LabelView,
           connect: (value) => log.push(`connect ${value}`),
@@ -1375,7 +1379,7 @@ describe("ReactDocTile", () => {
     });
 
     it("leaves a React widget's events to its propagateEvent", () => {
-      const Stopping = createWidgetType({
+      const Stopping = createWidgetTypeWithRender({
         render: label,
         component: LabelView,
         propagateEvent: false,
@@ -1393,7 +1397,7 @@ describe("ReactDocTile", () => {
     });
 
     it("needs a React widget's component to forward its ref", () => {
-      const NoRef = createWidgetType({
+      const NoRef = createWidgetTypeWithRender({
         render: label,
         component: ({ value }: { value: string }) => createElement("span", null, value),
       });
@@ -1424,7 +1428,7 @@ describe("ReactDocTile", () => {
           onDoubleClick: grow,
         });
       });
-      const ReactImage = createWidgetType({
+      const ReactImage = createWidgetTypeWithRender({
         render: (src) => Object.assign(document.createElement("img"), { src }),
         component: ImageView,
       });
@@ -1452,6 +1456,26 @@ describe("ReactDocTile", () => {
       const found = docTileOf(react).nodeTile(3);
       expect(found?.dom).toBe(image);
       expect(found?.tag?.param).toBe(`${img}#big`);
+    });
+
+    it("draws a node type as a React widget with its shape helper", () => {
+      const doc = `<p>a<img src="${img}">b</p>`;
+      const drawn = (extra: GardState.Extension) =>
+        mount(ReactWordgard.create, doc, extra).contentDOM.innerHTML;
+      expect(drawn(ReactLabel.shape(Image))).toBe(
+        drawn(Decoration.Tag.shape(Image, (tag) => ReactLabel.of(tag.param)))
+      );
+      expect(drawn(ReactLabel.shape(Image, (tag) => tag.param.slice(-2)))).toBe(
+        drawn(Decoration.Tag.shape(Image, (tag) => ReactLabel.of(tag.param.slice(-2))))
+      );
+    });
+
+    it("leaves plain Wordgard an empty placeholder for a React widget", () => {
+      const Public = createWidgetType({ component: LabelView });
+      const wg = mount(Wordgard.create, "<p>a</p>", [
+        Decoration.Tag.widget(Paragraph, "start", Public.of("x")),
+      ]);
+      expect(wg.contentDOM.innerHTML).toBe('<p><span contenteditable="false"></span>a</p>');
     });
   });
 

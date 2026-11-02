@@ -5,7 +5,7 @@ import React, { type PointerEvent, forwardRef, useRef, useState } from "react";
 import { ImageSize } from "wordgard/types";
 
 import {
-  type WidgetViewComponentProps,
+  type WidgetComponentProps,
   createWidgetType,
   useEditorEventCallback,
   useIsNodeSelected,
@@ -30,7 +30,7 @@ const handles = [
 
 type Drag = { pointerId: number; startX: number; startWidth: number; sign: number; width: number };
 
-const FigureView = forwardRef<HTMLElement, WidgetViewComponentProps<FigureValue>>(
+const FigureView = forwardRef<HTMLElement, WidgetComponentProps<FigureValue>>(
   ({ value: { src, width }, className, ...attrs }, ref) => {
     const getPos = useNodePos();
     const selected = useIsNodeSelected();
@@ -113,13 +113,7 @@ const FigureView = forwardRef<HTMLElement, WidgetViewComponentProps<FigureValue>
   }
 );
 
-export const ResizableFigure = createWidgetType<FigureValue>({
-  render: ({ src, width }) => {
-    const figure = document.createElement("figure");
-    const img = figure.appendChild(Object.assign(document.createElement("img"), { src }));
-    if (width) img.style.width = `${width}px`;
-    return figure;
-  },
+export const ResizableFigure = createWidgetType({
   eq: (a, b) => a.src == b.src && a.width == b.width,
   component: FigureView,
 });

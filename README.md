@@ -1,6 +1,10 @@
 # react-wordgard
 
-> **Work in progress.** The API below may still change.
+> **Under construction.** react-wordgard isn't ready for production yet, and its API may still
+> change.
+
+react-wordgard stays on 0.x for as long as Wordgard does: it follows Wordgard's API and reaches
+into its internals, so it can't be more stable than Wordgard. Its 1.0 comes after Wordgard's.
 
 A React view for [Wordgard](https://www.npmjs.com/package/wordgard): React draws Wordgard's
 document, inside Wordgard's own update, and Wordgard keeps doing what it does (input, selection,
@@ -30,59 +34,79 @@ Code.
 ## Usage
 
 ```tsx
-import { forwardRef } from "react";
-import { Decoration } from "wordgard/editor";
+import { Wordgard } from "wordgard/editor";
 import { basicSchema, image } from "wordgard/schema";
 import { Image } from "wordgard/types";
 import {
+  type WidgetComponentProps,
   WordgardDoc,
   WordgardEditor,
   createWidgetType,
   useEditorStateSelector,
 } from "react-wordgard";
 
-// An image drawn by a React component. It forwards its ref to its root element,
-// which becomes the widget's DOM; `render` is what plain Wordgard draws.
-const ImageView = forwardRef<HTMLImageElement, { value: string }>(({ value }, ref) => (
-  <img ref={ref} src={value} />
-));
-const ReactImage = createWidgetType({
-  render: (src) => Object.assign(document.createElement("img"), { src }),
-  component: ImageView,
-});
+// An image drawn by a React component. Its root element gets the ref, which makes it the
+// widget's DOM, and the node's attributes: the image's `alt`, the selected node's class.
+function ImageWidget({ value, ref, ...attrs }: WidgetComponentProps<string, HTMLImageElement>) {
+  return <img {...attrs} ref={ref} src={value} />;
+}
+const ReactImage = createWidgetType({ component: ImageWidget });
 
-const WordCount = () => {
+function WordCount() {
   const words = useEditorStateSelector((state) => state.doc.textContent().split(/\s+/).length);
   return <output>{words} words</output>;
-};
+}
 
-export const Editor = () => (
-  <WordgardEditor
-    doc="<p>Hello <strong>world</strong></p>"
-    config={[
-      basicSchema(),
-      image(),
-      Decoration.Tag.shape(Image, (tag) => ReactImage.of(tag.param)),
-    ]}
-  >
-    <WordCount />
-    <WordgardDoc className="editor" />
-  </WordgardEditor>
+export function Editor() {
+  return (
+    <WordgardEditor
+      doc='<p>Hello <strong>world</strong> <img src="/cat.png" alt="A cat"></p>'
+      config={[
+        basicSchema(),
+        image(),
+        ReactImage.shape(Image),
+        Wordgard.contentAttributes.of({ "aria-label": "Document" }),
+      ]}
+    >
+      <WordCount />
+      <WordgardDoc className="editor" />
+    </WordgardEditor>
+  );
+}
+```
+
+React 19 passes `ref` as a prop, as above. On React 18, wrap the component in `forwardRef`; the
+same goes for shapes, wrappers and marks:
+
+```tsx
+import { forwardRef } from "react";
+
+const ImageWidget = forwardRef<HTMLImageElement, WidgetComponentProps<string, HTMLImageElement>>(
+  function ImageWidget({ value, ...attrs }, ref) {
+    return <img {...attrs} ref={ref} src={value} />;
+  }
 );
 ```
 
-- `<WordgardEditor>` creates the editor from a `Wordgard.Spec` (read once: the editor owns its
-  state; change it with `dispatch`, and its configuration with Wordgard's compartments) and
-  provides it to what it holds. `<WordgardDoc>` puts the editor in the page and renders the
-  document through a portal, in your React tree: your contexts reach React widgets. One
-  `<WordgardDoc>` per editor; a second one throws.
-- `createWidgetType(spec)` takes `Widget.define`'s spec plus a `component`, and returns a real
-  `Widget.Type`, as `Widget.define` does: call it once, at module level, and use its widgets
-  (`type.of(value)`) wherever Wordgard takes a widget (a node's shape, a tag or point widget,
-  inside an `Elt` shape). React widgets are uneditable by default, so a component may re-render
-  on its own; it must keep the same root element. A widget drawing a node gets the node's
-  attributes as props (`className` for the selected node, tag and mark attributes), for its
-  root.
+- `<WordgardEditor>` creates the editor from a `Wordgard.Spec` and provides it to what it holds.
+  The spec is read once, when it mounts: changing `doc` or `config` afterwards does nothing. The
+  editor owns its state: change it with `dispatch`, and its configuration with Wordgard's
+  compartments or `GardState.appendConfig`. `<WordgardDoc>` puts the editor in the page and
+  renders the document through a portal, in your React tree: your contexts reach React widgets.
+  One `<WordgardDoc>` per editor; a second one throws.
+- `createWidgetType(spec)` takes `Widget.define`'s spec, `component` in place of `render`
+  (`eq`, `editable`, `inFlow`, `propagateEvent`, `connect`, `disconnect` keep their meaning), and
+  returns a real `Widget.Type`, as `Widget.define` does: call it once, at module level, and use
+  its widgets (`type.of(value)`) wherever Wordgard takes a widget (a node's shape, a tag or point
+  widget, inside an `Elt` shape). `type.shape(nodeType, value?)` draws a node type as the widget,
+  its value the node's parameter or `value(tag)`: short for
+  `Decoration.Tag.shape(nodeType, (tag) => type.of(value ? value(tag) : tag.param))`. React
+  widgets are uneditable by default, so a component may re-render on its own; it must keep the
+  same root element. A widget drawing a node gets the node's attributes as props (`className` for
+  the selected node, tag and mark attributes), for its root.
+- Spread the attributes a component gets onto its root. Wordgard has already merged the
+  decorations' attributes into one `className` and one `style`; a component setting its own
+  merges them with those (joins the classes, spreads the style), or one replaces the other.
 - React shapes, wrappers and marks: below.
 - Hooks, from inside `<WordgardEditor>`:
   - `useWordgard()`: the editor.
@@ -123,31 +147,50 @@ wrapper, a mark's shape), what plain Wordgard draws, registered as drawn by the 
 it to Wordgard's decorations:
 
 ```tsx
-import { forwardRef } from "react";
 import { Decoration } from "wordgard/editor";
 import { Blockquote, Link } from "wordgard/types";
-import { type ShapeViewComponentProps, createMarkShape, createShape } from "react-wordgard";
+import {
+  type MarkComponentProps,
+  type ShapeComponentProps,
+  createMarkShape,
+  createShape,
+} from "react-wordgard";
 
-const Callout = forwardRef<HTMLDivElement, ShapeViewComponentProps<HTMLDivElement>>(
-  ({ nodeProps, children, ...attrs }, ref) => (
-    <div {...attrs} ref={ref}>
-      <TitleBar />
-      <div className="body" ref={nodeProps.contentDOMRef}>
+// A blockquote drawn as a callout: a decorative icon, then the content.
+function Callout({ nodeProps: { contentDOMRef }, children, ref, ...attrs }: ShapeComponentProps) {
+  return (
+    <aside {...attrs} ref={ref}>
+      <span aria-hidden="true">💡</span>
+      <div className="body" ref={contentDOMRef}>
         {children}
       </div>
-    </div>
-  )
-);
+    </aside>
+  );
+}
+
+// A link, its target the mark's value.
+function LinkMark({
+  markProps: { mark, contentDOMRef },
+  children,
+  ref,
+  ...attrs
+}: MarkComponentProps<HTMLAnchorElement>) {
+  return (
+    <a {...attrs} ref={ref} href={String(mark.value)}>
+      <span ref={contentDOMRef}>{children}</span>
+    </a>
+  );
+}
 
 const config = [
-  Decoration.Tag.shape(Blockquote, createShape({ component: Callout })),
-  Decoration.Mark.shape(Link, createMarkShape({ component: LinkView, element: "a" })),
+  Decoration.Tag.shape(Blockquote, createShape({ component: Callout, element: "aside" })),
+  Decoration.Mark.shape(Link, createMarkShape({ component: LinkMark, element: "a" })),
 ];
 ```
 
 - `createShape({ component, element })`, for `Decoration.Tag.shape` and `Decoration.Point.shape`:
   the component gets `nodeProps` (`node`, `getPos`, `contentDOMRef`), `children` (the content), a
-  forwarded `ref` for its root, and the decorations' attributes as props. The content goes in the
+  `ref` for its root, and the decorations' attributes as props. The content goes in the
   `contentDOMRef` element, else in the root. For nodes with content; a leaf is a React widget.
 - `createWrapper({ component, element })`, for `Decoration.Tag.wrapper` and
   `Decoration.Point.wrapper`: the same props without `contentDOMRef`; `children` is what it
@@ -233,8 +276,8 @@ Not offered: `useIsComposingIn`, `useIsEditorStatic`.
 A react-prosemirror node view keeps its body: the props keep their names (`nodeProps`,
 `contentDOMRef`, `children`, `ref`, the attributes). What changes:
 
-- The props type: `ShapeViewComponentProps` (a node with content), `WrapperViewComponentProps`,
-  `MarkViewComponentProps`, or a React widget's `WidgetViewComponentProps` for an atom.
+- The props type: `ShapeComponentProps` (a node with content), `WrapperComponentProps`,
+  `MarkComponentProps`, or a React widget's `WidgetComponentProps` for an atom.
 - `node.attrs` becomes the node's parameter (`node.tag.param` for a node with content, `node.param`
   for a leaf), and `view` becomes `wg`, Wordgard's editor.
 - Registration: a decoration in the editor's `config` instead of `nodeViews`.

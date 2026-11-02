@@ -2,14 +2,10 @@
 // the person while it's selected (click it, or move onto it).
 import React, { forwardRef } from "react";
 
-import {
-  type WidgetViewComponentProps,
-  createWidgetType,
-  useIsNodeSelected,
-} from "../../src/index.js";
+import { type WidgetComponentProps, createWidgetType, useIsNodeSelected } from "../../src/index.js";
 import { people } from "../schema.js";
 
-const MentionView = forwardRef<HTMLSpanElement, WidgetViewComponentProps<string, HTMLSpanElement>>(
+const MentionView = forwardRef<HTMLSpanElement, WidgetComponentProps<string, HTMLSpanElement>>(
   ({ value, className, ...attrs }, ref) => {
     const selected = useIsNodeSelected();
     const person = people[value];
@@ -27,12 +23,4 @@ const MentionView = forwardRef<HTMLSpanElement, WidgetViewComponentProps<string,
   }
 );
 
-export const MentionWidget = createWidgetType<string, HTMLSpanElement>({
-  render: (id) => {
-    const span = document.createElement("span");
-    span.className = "mention";
-    span.textContent = `@${people[id]?.name ?? id}`;
-    return span;
-  },
-  component: MentionView,
-});
+export const MentionWidget = createWidgetType({ component: MentionView });

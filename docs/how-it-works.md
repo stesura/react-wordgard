@@ -176,7 +176,7 @@ copies `Elt`s when it adds attributes or wraps them, and every copy keeps their 
 `element` must be the component's root (`span` for an inline node).
 
 The component gets react-prosemirror's props, named after the decoration
-(`ShapeViewComponentProps`): `nodeProps` (`node`, `getPos`, `contentDOMRef`), `children` (the
+(`ShapeComponentProps`): `nodeProps` (`node`, `getPos`, `contentDOMRef`), `children` (the
 content), a forwarded `ref` for its root, and the decorations' attributes as props.
 
 **Tiles.** The build walks the component's DOM, not the shape: the root is the node's tile, the
@@ -216,7 +216,7 @@ mutations are filtered out.
 A **React wrapper** (`createWrapper({component, element})`) is the same idea for `Tag.wrapper` and
 `Point.wrapper`: a real `Elt` with a hole, registered by the reserved attribute. Wordgard fills the
 hole with what it wraps (the node's shape, or the element `target` picks in it), so the wrapper's
-`Elt` holds one child. The component gets `WrapperViewComponentProps`: a React shape's props
+`Elt` holds one child. The component gets `WrapperComponentProps`: a React shape's props
 without `contentDOMRef` (`nodeProps` with `node` and `getPos`, `children`, `ref`, attributes).
 
 `DefaultNodeView` draws what's wrapped with a ref on its root (`outerRef`, through `ShapeView`
@@ -240,7 +240,7 @@ atom, the wrapper's root is made uneditable, as Wordgard makes a shape without a
 A **React mark** (`createMarkShape({component, element})`, `span` by default) is a mark's element shape
 (`Shape.Element`) carrying the reserved attribute, for `Decoration.Mark.shape` or a mark type's
 own spec. A React mark replacing an attribute-shaped mark makes it element-shaped, so spanning. The
-component gets `MarkViewComponentProps`, react-prosemirror's: `markProps` (`mark`, `getPos`,
+component gets `MarkComponentProps`, react-prosemirror's: `markProps` (`mark`, `getPos`,
 `contentDOMRef`), `children`, `ref`.
 
 `mark` is the document's: `Decoration.Mark.shape` hands Wordgard's walker a mark of a type it

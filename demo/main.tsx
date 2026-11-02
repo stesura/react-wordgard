@@ -80,10 +80,7 @@ const ImageView = forwardRef<HTMLImageElement, { value: string }>(({ value }, re
     />
   );
 });
-const ReactImage = createWidgetType({
-  render: (src) => Object.assign(document.createElement("img"), { src }),
-  component: ImageView,
-});
+const ReactImage = createWidgetType({ component: ImageView });
 
 const calloutButton = Menu.Button.define({
   run: Command.bind(toggleBlock, Callout),
@@ -153,11 +150,9 @@ const config = [
   calloutButton,
   Wordgard.contentAttributes.of({ "aria-label": "Demo document" }),
   Decoration.Tag.shape(Callout, CalloutShape),
-  Decoration.Tag.shape(Figure, (tag) =>
-    ResizableFigure.of({ src: tag.param, width: tag.mark(ImageSize) })
-  ),
-  Decoration.Tag.shape(Mention, (tag) => MentionWidget.of(tag.param)),
-  Decoration.Tag.shape(Image, (tag) => ReactImage.of(tag.param)),
+  ResizableFigure.shape(Figure, (tag) => ({ src: tag.param, width: tag.mark(ImageSize) })),
+  MentionWidget.shape(Mention),
+  ReactImage.shape(Image),
   Decoration.Mark.shape(Link, LinkShape),
 ];
 

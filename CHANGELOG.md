@@ -1,3 +1,17 @@
+## Unreleased
+
+### Breaking changes
+
+`createWidgetType` no longer takes a `render` function: React draws its widgets, and plain Wordgard, given one, draws an empty placeholder.
+
+The component props types drop "View": `ShapeComponentProps`, `WrapperComponentProps`, `MarkComponentProps` and `WidgetComponentProps`.
+
+### New features
+
+A React widget type's `shape(nodeType, value?)` draws a node type as its widgets, their value the node's parameter or what `value` makes of its tag.
+
+`createWidgetType` infers its value and element types from its component.
+
 ## 0.1.0 (2026-11-01)
 
 ### New features

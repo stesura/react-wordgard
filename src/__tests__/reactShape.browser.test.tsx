@@ -14,9 +14,9 @@ import { GardState } from "wordgard/state";
 import { Blockquote, Cell, Image, Paragraph, Table, TableRow } from "wordgard/types";
 
 import { ReactWordgard } from "../ReactWordgard.js";
-import { type ShapeViewComponentProps, createShape } from "../decorations/ReactShapeType.js";
-import { type WidgetViewComponentProps, createWidgetType } from "../decorations/ReactWidgetType.js";
-import { type WrapperViewComponentProps, createWrapper } from "../decorations/ReactWrapperType.js";
+import { type ShapeComponentProps, createShape } from "../decorations/ReactShapeType.js";
+import { type WidgetComponentProps, createWidgetType } from "../decorations/ReactWidgetType.js";
+import { type WrapperComponentProps, createWrapper } from "../decorations/ReactWrapperType.js";
 import { useEditorStateSelector } from "../hooks/useEditorStateSelector.js";
 import { useWordgard } from "../hooks/useWordgard.js";
 import { composeIn, drawn, flushKeeps, textIn, typeInto } from "../testing/editing.js";
@@ -35,7 +35,7 @@ const rows = new Map<Wordgard, (exact: boolean) => void>();
 // A title bar shown from its own state, a label attribute from its own state,
 // a count of the document's blocks once there are more than two (editor
 // state), and the content in `div.body`.
-const Callout = forwardRef<HTMLDivElement, ShapeViewComponentProps<HTMLDivElement>>(
+const Callout = forwardRef<HTMLDivElement, ShapeComponentProps<HTMLDivElement>>(
   ({ nodeProps, children, ...attrs }, ref) => {
     const wg = useWordgard();
     const [bar, setBar] = useState(initial.bar);
@@ -71,7 +71,7 @@ const CalloutShape = createShape({ component: Callout });
 // their content in an extra element, so React remounts the content there.
 const Exact = createContext(false);
 
-const RowView = forwardRef<HTMLTableRowElement, ShapeViewComponentProps<HTMLTableRowElement>>(
+const RowView = forwardRef<HTMLTableRowElement, ShapeComponentProps<HTMLTableRowElement>>(
   ({ nodeProps, children, ...attrs }, ref) => {
     const wg = useWordgard();
     const [exact, setExact] = useState(initial.exact);
@@ -88,7 +88,7 @@ const RowView = forwardRef<HTMLTableRowElement, ShapeViewComponentProps<HTMLTabl
   }
 );
 
-const CellView = forwardRef<HTMLTableCellElement, ShapeViewComponentProps<HTMLTableCellElement>>(
+const CellView = forwardRef<HTMLTableCellElement, ShapeComponentProps<HTMLTableCellElement>>(
   ({ nodeProps, children, ...attrs }, ref) =>
     useContext(Exact) ? (
       <td {...attrs} ref={ref}>
@@ -107,7 +107,7 @@ const CellView = forwardRef<HTMLTableCellElement, ShapeViewComponentProps<HTMLTa
 // a lead shown from its own state before the paragraphs, a tail after them.
 const leads = new Map<Wordgard, (on: boolean) => void>();
 
-const QuoteView = forwardRef<HTMLQuoteElement, ShapeViewComponentProps<HTMLQuoteElement>>(
+const QuoteView = forwardRef<HTMLQuoteElement, ShapeComponentProps<HTMLQuoteElement>>(
   ({ nodeProps, children, ...attrs }, ref) => {
     const wg = useWordgard();
     const [lead, setLead] = useState(true);
@@ -148,8 +148,7 @@ const NativeMark = Widget.define<null>({
   disconnect: () => connected.native--,
 });
 const ReactMark = createWidgetType({
-  render: () => document.createElement("i"),
-  component: forwardRef<HTMLElement, WidgetViewComponentProps<null>>((_, ref) => (
+  component: forwardRef<HTMLElement, WidgetComponentProps<null>>((_, ref) => (
     <i ref={ref} className="react" />
   )),
 });
@@ -172,7 +171,7 @@ type FrameControl = {
 };
 const frames = new Map<Wordgard, FrameControl[]>();
 
-const Frame = forwardRef<HTMLElement, WrapperViewComponentProps>(
+const Frame = forwardRef<HTMLElement, WrapperComponentProps>(
   ({ nodeProps, children, ...attrs }, ref) => {
     const wg = useWordgard();
     const [header, setHeader] = useState(framed.header);
@@ -205,7 +204,7 @@ const FrameWrapper = createWrapper({ component: Frame, element: "section" });
 
 // Around an inline atom: a badge from its own state. It leaves out the
 // attributes, `contenteditable` among them: the build makes it uneditable.
-const InlineFrame = forwardRef<HTMLSpanElement, WrapperViewComponentProps<HTMLSpanElement>>(
+const InlineFrame = forwardRef<HTMLSpanElement, WrapperComponentProps<HTMLSpanElement>>(
   ({ nodeProps, children }, ref) => {
     const wg = useWordgard();
     const [badge, setBadge] = useState(framed.header);
@@ -228,8 +227,7 @@ const InlineFrame = forwardRef<HTMLSpanElement, WrapperViewComponentProps<HTMLSp
 );
 
 const Picture = createWidgetType({
-  render: () => document.createElement("img"),
-  component: forwardRef<HTMLImageElement, WidgetViewComponentProps<null>>((_, ref) => (
+  component: forwardRef<HTMLImageElement, WidgetComponentProps<null>>((_, ref) => (
     <img ref={ref} className="picture" alt="" />
   )),
 });
@@ -773,9 +771,7 @@ describe("React wrappers", () => {
   });
 
   it("says when the component doesn't draw what it wraps", () => {
-    const Bare = forwardRef<HTMLElement, WrapperViewComponentProps>((_, ref) => (
-      <section ref={ref} />
-    ));
+    const Bare = forwardRef<HTMLElement, WrapperComponentProps>((_, ref) => <section ref={ref} />);
     expect(() =>
       create(
         framedParagraphs(

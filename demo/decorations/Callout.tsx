@@ -4,7 +4,7 @@
 import React, { forwardRef, useRef, useState } from "react";
 
 import {
-  type ShapeViewComponentProps,
+  type ShapeComponentProps,
   createShape,
   useEditorEventCallback,
   useNodePos,
@@ -20,7 +20,7 @@ import {
 
 const kindNames = Object.keys(calloutKinds).filter(isCalloutKind);
 
-const CalloutView = forwardRef<HTMLElement, ShapeViewComponentProps>(
+const CalloutView = forwardRef<HTMLElement, ShapeComponentProps>(
   ({ nodeProps: { node, contentDOMRef }, children, className, ...attrs }, ref) => {
     const kind = node.tag.mark(CalloutKind) ?? "note";
     const title = node.tag.mark(CalloutTitle);

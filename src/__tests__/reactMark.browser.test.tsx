@@ -12,7 +12,7 @@ import type { GardState } from "wordgard/state";
 import { Color, Link } from "wordgard/types";
 
 import { ReactWordgard } from "../ReactWordgard.js";
-import { type MarkViewComponentProps, createMarkShape } from "../decorations/ReactMarkType.js";
+import { type MarkComponentProps, createMarkShape } from "../decorations/ReactMarkType.js";
 import { useEditorStateSelector } from "../hooks/useEditorStateSelector.js";
 import { useWordgard } from "../hooks/useWordgard.js";
 import { composeIn, drawn, flushKeeps, textIn, typeInto } from "../testing/editing.js";
@@ -32,7 +32,7 @@ const controls = new Map<Wordgard, Control[]>();
 // A link: an icon shown from its own state, a title from its own state, and
 // the content in `span.text`, or in `span.box > b` when boxed (React keeps the
 // span as the box and remounts the content in the `b`).
-const LinkView = forwardRef<HTMLAnchorElement, MarkViewComponentProps<HTMLAnchorElement>>(
+const LinkView = forwardRef<HTMLAnchorElement, MarkComponentProps<HTMLAnchorElement>>(
   ({ markProps, children, ...attrs }, ref) => {
     const wg = useWordgard();
     const [icon, setIcon] = useState(initial.icon);
@@ -69,7 +69,7 @@ const LinkView = forwardRef<HTMLAnchorElement, MarkViewComponentProps<HTMLAnchor
 );
 
 // Content in its root, no chrome.
-const ColorView = forwardRef<HTMLSpanElement, MarkViewComponentProps<HTMLSpanElement>>(
+const ColorView = forwardRef<HTMLSpanElement, MarkComponentProps<HTMLSpanElement>>(
   ({ markProps, children }, ref) => (
     <span ref={ref} className="color" data-color={String(markProps.mark.value)}>
       {children}
@@ -86,7 +86,7 @@ const NativeMark = Widget.define<null>({
 
 // Chrome from the editor state: a marker while the cursor is in "bc", as a
 // link's toolbar would show.
-const CursorView = forwardRef<HTMLSpanElement, MarkViewComponentProps<HTMLSpanElement>>(
+const CursorView = forwardRef<HTMLSpanElement, MarkComponentProps<HTMLSpanElement>>(
   ({ markProps, children }, ref) => {
     const here = useEditorStateSelector(
       ({ selection }) => selection.from > 2 && selection.from < 4

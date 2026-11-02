@@ -18,7 +18,7 @@ import { type Node as DocNode, Elt } from "wordgard/doc";
 
 import { idOf, reserved } from "./ReactShapeType.js";
 
-export type WrapperViewComponentProps<E extends Element = HTMLElement> =
+export type WrapperComponentProps<E extends Element = HTMLElement> =
   AllHTMLAttributes<HTMLElement> & {
     nodeProps: {
       node: DocNode;
@@ -28,7 +28,7 @@ export type WrapperViewComponentProps<E extends Element = HTMLElement> =
   } & RefAttributes<E>;
 
 export type WrapperSpec<E extends Element = HTMLElement> = {
-  component: ComponentType<WrapperViewComponentProps<E>>;
+  component: ComponentType<WrapperComponentProps<E>>;
   // The component's root element: `target` selectors match it, and plain
   // Wordgard draws it. `span` around an inline node.
   element?: string;
@@ -36,7 +36,7 @@ export type WrapperSpec<E extends Element = HTMLElement> = {
 
 type DrawProps = {
   attrs: HTMLProps<HTMLElement>;
-  nodeProps: WrapperViewComponentProps["nodeProps"];
+  nodeProps: WrapperComponentProps["nodeProps"];
   children: ReactNode;
   ref: RefCallback<Element>;
 };

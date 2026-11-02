@@ -10,13 +10,13 @@ import type { GardState } from "wordgard/state";
 import { Blockquote, Image, Link } from "wordgard/types";
 
 import { ReactWordgard } from "../ReactWordgard.js";
-import { type MarkViewComponentProps, createMarkShape } from "../decorations/ReactMarkType.js";
-import { type ShapeViewComponentProps, createShape } from "../decorations/ReactShapeType.js";
-import { type WidgetViewComponentProps, createWidgetType } from "../decorations/ReactWidgetType.js";
+import { type MarkComponentProps, createMarkShape } from "../decorations/ReactMarkType.js";
+import { type ShapeComponentProps, createShape } from "../decorations/ReactShapeType.js";
+import { type WidgetComponentProps, createWidgetType } from "../decorations/ReactWidgetType.js";
 
 // A callout as the README advises: its decorative icon hidden, its control
 // labelled.
-const Callout = forwardRef<HTMLElement, ShapeViewComponentProps>(
+const Callout = forwardRef<HTMLElement, ShapeComponentProps>(
   ({ nodeProps: { contentDOMRef }, children, ...attrs }, ref) => (
     <aside {...attrs} ref={ref}>
       <span aria-hidden="true">!</span>
@@ -28,7 +28,7 @@ const Callout = forwardRef<HTMLElement, ShapeViewComponentProps>(
   )
 );
 
-const LinkView = forwardRef<HTMLAnchorElement, MarkViewComponentProps<HTMLAnchorElement>>(
+const LinkView = forwardRef<HTMLAnchorElement, MarkComponentProps<HTMLAnchorElement>>(
   ({ markProps: { mark, contentDOMRef }, children }, ref) => (
     <a ref={ref} href={String(mark.value)}>
       <span ref={contentDOMRef}>{children}</span>
@@ -37,8 +37,7 @@ const LinkView = forwardRef<HTMLAnchorElement, MarkViewComponentProps<HTMLAnchor
 );
 
 const Picture = createWidgetType({
-  render: () => document.createElement("img"),
-  component: forwardRef<HTMLImageElement, WidgetViewComponentProps<null>>(
+  component: forwardRef<HTMLImageElement, WidgetComponentProps<null>>(
     ({ value: _, ...attrs }, ref) => <img {...attrs} ref={ref} src="data:," alt="A picture" />
   ),
 });

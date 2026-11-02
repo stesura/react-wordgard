@@ -22,7 +22,7 @@ import { Image, Paragraph, Strong } from "wordgard/types";
 
 import { WordgardDoc } from "../components/WordgardDoc.js";
 import { WordgardEditor } from "../components/WordgardEditor.js";
-import { createWidgetType } from "../decorations/ReactWidgetType.js";
+import { createWidgetTypeWithRender } from "../decorations/ReactWidgetType.js";
 import { useEditorEffect } from "../hooks/useEditorEffect.js";
 import { useEditorEventCallback } from "../hooks/useEditorEventCallback.js";
 import { useEditorLayoutEffect } from "../hooks/useEditorLayoutEffect.js";
@@ -50,7 +50,7 @@ const LabelView = forwardRef<HTMLSpanElement, { value: string }>(({ value }, ref
     {value}
   </span>
 ));
-const ReactLabel = createWidgetType({ render: label, component: LabelView });
+const ReactLabel = createWidgetTypeWithRender({ render: label, component: LabelView });
 const NativeLabel = Widget.define<string>({ render: label });
 
 // Marks, an image, a line break, a link and an inline plot, with React and
@@ -193,7 +193,7 @@ describe("WordgardEditor", () => {
   it("connects widgets once, when the editor is in the page", () => {
     const run = (mount: (extra: GardState.Extension) => Wordgard) => {
       const log: string[] = [];
-      const Tracked = createWidgetType({
+      const Tracked = createWidgetTypeWithRender({
         render: label,
         component: LabelView,
         connect: (value) => log.push(`connect ${value}`),
@@ -277,7 +277,7 @@ describe("WordgardEditor", () => {
         {`${useContext(Theme)}:${value}`}
       </span>
     ));
-    const ThemedLabel = createWidgetType({ render: label, component: Themed });
+    const ThemedLabel = createWidgetTypeWithRender({ render: label, component: Themed });
     let setTheme: (theme: string) => void = () => {};
     const App = () => {
       const [theme, set] = useState("light");
@@ -532,7 +532,7 @@ describe("hooks", () => {
         </span>
       );
     });
-    const HeightLabel = createWidgetType({ render: label, component: Height });
+    const HeightLabel = createWidgetTypeWithRender({ render: label, component: Height });
     const { wg } = render(
       <WordgardEditor
         doc="<p>one</p>"

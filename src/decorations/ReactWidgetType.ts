@@ -1,7 +1,6 @@
 // Named after react-prosemirror's ReactWidgetType, rewritten for Wordgard: a
 // React widget type is a real Wordgard widget type, made by Widget.define with
-// the same spec, whose `render` is the fallback plain Wordgard draws. The
-// React view draws its component instead, in the editor's own React tree. As
+// the same spec, drawn by its component in the editor's own React tree. As
 // in react-prosemirror, the component forwards its ref to its root element,
 // which becomes the widget's DOM. Wordgard ignores what the component changes
 // inside that element, so it may re-render on its own, but not swap the
@@ -16,8 +15,9 @@ import {
   type RefCallback,
   createElement,
 } from "react";
-import { Attributes, Elt } from "wordgard/doc";
-import { Widget } from "wordgard/editor";
+import { Attributes, type Node as DocNode, Elt } from "wordgard/doc";
+import { Decoration, Widget } from "wordgard/editor";
+import type { GardState } from "wordgard/state";
 
 import { stopsEvent } from "../contexts/DecorationContext.js";
 import { reserved } from "./ReactShapeType.js";
@@ -25,16 +25,31 @@ import { reserved } from "./ReactShapeType.js";
 // A widget drawing a node also gets the node's attributes (the selected-node
 // class, tag and mark attributes) as props, for its root element.
 // (`value` is the widget's.)
-export type WidgetViewComponentProps<Param, E extends Element = HTMLElement> = Omit<
+export type WidgetComponentProps<Param, E extends Element = HTMLElement> = Omit<
   AllHTMLAttributes<HTMLElement>,
   "value"
 > & {
   value: Param;
 } & RefAttributes<E>;
 
-export type WidgetTypeSpec<Param, E extends Element = HTMLElement> = Widget.Spec<Param> & {
-  component: ComponentType<WidgetViewComponentProps<Param, E>>;
+export type WidgetTypeSpec<Param, E extends Element = HTMLElement> = Omit<
+  Widget.Spec<Param>,
+  "render"
+> & {
+  component: ComponentType<WidgetComponentProps<Param, E>>;
 };
+
+type ShapeOf<Param> = {
+  // A node of `type` drawn as this widget, its value the node's parameter or
+  // what `value` makes of its tag.
+  <T extends DocNode.Type.Ref<Param>>(type: T): GardState.Extension;
+  <T extends DocNode.Type.Ref<unknown>>(
+    type: T,
+    value: (tag: DocNode.Tag.For<T>) => Param
+  ): GardState.Extension;
+};
+
+export type ReactWidgetType<Param> = Widget.Type<Param> & { shape: ShapeOf<Param> };
 
 type Draw = (
   widget: Widget,
@@ -44,9 +59,19 @@ type Draw = (
 
 const components = new WeakMap<Widget.Type<unknown>, Draw>();
 
+// Widget.define needs a `render`, which ReactWordgard never calls: only plain
+// Wordgard, given a React widget, draws this.
+const placeholder = () => document.createElement("span");
+
 export const createWidgetType = <Param, E extends Element = HTMLElement>(
   spec: WidgetTypeSpec<Param, E>
-): Widget.Type<Param> => {
+): ReactWidgetType<Param> => createWidgetTypeWithRender({ ...spec, render: placeholder });
+
+// For the tests comparing ReactWordgard with plain Wordgard, which draws
+// `render`.
+export const createWidgetTypeWithRender = <Param, E extends Element = HTMLElement>(
+  spec: WidgetTypeSpec<Param, E> & Pick<Widget.Spec<Param>, "render">
+): ReactWidgetType<Param> => {
   const { propagateEvent } = spec;
   // Its components' useStopEvent first, then the spec's.
   const type = Widget.define<Param>({
@@ -61,7 +86,18 @@ export const createWidgetType = <Param, E extends Element = HTMLElement>(
   components.set(type, (widget, ref, attrs) =>
     own(widget) ? createElement(spec.component, { ...attrs, value: widget.value, ref }) : null
   );
-  return type;
+  function shape(type: DocNode.Type.Ref<Param>): GardState.Extension;
+  function shape<T extends DocNode.Type.Ref<unknown>>(
+    type: T,
+    value: (tag: DocNode.Tag.For<T>) => Param
+  ): GardState.Extension;
+  function shape(
+    nodeType: DocNode.Type.Ref<Param>,
+    value?: (tag: DocNode.Tag.For<DocNode.Type.Ref<Param>>) => Param
+  ) {
+    return Decoration.Tag.shape(nodeType, (tag) => type.of(value ? value(tag) : tag.param));
+  }
+  return Object.assign(type, { shape });
 };
 
 export const isReactWidget = (widget: Widget) => components.has(widget.type);

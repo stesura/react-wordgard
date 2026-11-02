@@ -19,7 +19,7 @@ import { Attributes, type Node as DocNode, Elt } from "wordgard/doc";
 
 import { ignoresMutation } from "../contexts/DecorationContext.js";
 
-export type ShapeViewComponentProps<E extends Element = HTMLElement> =
+export type ShapeComponentProps<E extends Element = HTMLElement> =
   AllHTMLAttributes<HTMLElement> & {
     nodeProps: {
       node: DocNode;
@@ -30,7 +30,7 @@ export type ShapeViewComponentProps<E extends Element = HTMLElement> =
   } & RefAttributes<E>;
 
 export type ShapeSpec<E extends Element = HTMLElement> = {
-  component: ComponentType<ShapeViewComponentProps<E>>;
+  component: ComponentType<ShapeComponentProps<E>>;
   // The component's root element: `target` selectors match it, and plain
   // Wordgard draws it. `span` for an inline node.
   element?: string;
@@ -40,7 +40,7 @@ export const reserved = "data-wg-react";
 
 type DrawProps = {
   attrs: HTMLProps<HTMLElement>;
-  nodeProps: ShapeViewComponentProps["nodeProps"];
+  nodeProps: ShapeComponentProps["nodeProps"];
   children: ReactNode;
   ref: RefCallback<Element>;
 };

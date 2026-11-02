@@ -2,9 +2,9 @@
 // beside the marked text.
 import React, { forwardRef, useState } from "react";
 
-import { type MarkViewComponentProps, createMarkShape, useStopEvent } from "../../src/index.js";
+import { type MarkComponentProps, createMarkShape, useStopEvent } from "../../src/index.js";
 
-const LinkView = forwardRef<HTMLAnchorElement, MarkViewComponentProps<HTMLAnchorElement>>(
+const LinkView = forwardRef<HTMLAnchorElement, MarkComponentProps<HTMLAnchorElement>>(
   ({ markProps: { mark, contentDOMRef }, children, ...attrs }, ref) => {
     const [hover, setHover] = useState(false);
     const href = String(mark.value);

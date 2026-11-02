@@ -10,9 +10,9 @@ import { GardSelection, GardState } from "wordgard/state";
 import { Blockquote, Image, Link } from "wordgard/types";
 
 import { ReactWordgard } from "../ReactWordgard.js";
-import { type MarkViewComponentProps, createMarkShape } from "../decorations/ReactMarkType.js";
-import { type ShapeViewComponentProps, createShape } from "../decorations/ReactShapeType.js";
-import { type WidgetViewComponentProps, createWidgetType } from "../decorations/ReactWidgetType.js";
+import { type MarkComponentProps, createMarkShape } from "../decorations/ReactMarkType.js";
+import { type ShapeComponentProps, createShape } from "../decorations/ReactShapeType.js";
+import { type WidgetComponentProps, createWidgetType } from "../decorations/ReactWidgetType.js";
 import { useEditorEventListener } from "../hooks/useEditorEventListener.js";
 import { useIgnoreMutation } from "../hooks/useIgnoreMutation.js";
 import { useIsNodeSelected } from "../hooks/useIsNodeSelected.js";
@@ -38,7 +38,7 @@ const PositionOf = ({ name }: { name: string }) => {
 
 // A quote: a tool button whose events Wordgard doesn't handle, a label it
 // does, the selection as an attribute, two keydown listeners.
-const QuoteView = forwardRef<HTMLQuoteElement, ShapeViewComponentProps<HTMLQuoteElement>>(
+const QuoteView = forwardRef<HTMLQuoteElement, ShapeComponentProps<HTMLQuoteElement>>(
   ({ nodeProps: { contentDOMRef }, children, ...attrs }, ref) => {
     const selected = useIsNodeSelected();
     useStopEvent((_, event) => event.target instanceof Element && !!event.target.closest(".tool"));
@@ -68,7 +68,7 @@ const QuoteView = forwardRef<HTMLQuoteElement, ShapeViewComponentProps<HTMLQuote
 );
 
 // A link, its root in an object ref and a callback too.
-const LinkView = forwardRef<HTMLAnchorElement, MarkViewComponentProps<HTMLAnchorElement>>(
+const LinkView = forwardRef<HTMLAnchorElement, MarkComponentProps<HTMLAnchorElement>>(
   ({ children }, ref) => {
     const root = useRef<HTMLAnchorElement | null>(null);
     // The callback, last, sees the object ref set.
@@ -85,7 +85,7 @@ const LinkView = forwardRef<HTMLAnchorElement, MarkViewComponentProps<HTMLAnchor
   }
 );
 
-const PictureView = forwardRef<HTMLImageElement, WidgetViewComponentProps<null>>((_, ref) => {
+const PictureView = forwardRef<HTMLImageElement, WidgetComponentProps<null>>((_, ref) => {
   useStopEvent(() => true);
   const selected = useIsNodeSelected();
   return <img ref={ref} alt="" className="picture" data-selected={String(selected)} />;
@@ -94,23 +94,20 @@ const PictureView = forwardRef<HTMLImageElement, WidgetViewComponentProps<null>>
 // The node's attributes (the selected class) on its root, its mounts counted.
 const mounts = { picture: 0 };
 const Picture = createWidgetType({
-  render: () => document.createElement("img"),
-  component: forwardRef<HTMLSpanElement, WidgetViewComponentProps<null>>(
-    ({ value, ...attrs }, ref) => {
-      useIgnoreMutation(() => obey.ignoreAll);
-      useSelectNode(
-        () => seen.selections.push(`picture select ${mount}`),
-        () => seen.selections.push(`picture deselect ${mount}`)
-      );
-      const [mount] = useState(() => ++mounts.picture);
-      return (
-        <span {...attrs} ref={ref} data-frame="">
-          <PositionOf name="picture" />
-          <PictureView value={value} />
-        </span>
-      );
-    }
-  ),
+  component: forwardRef<HTMLSpanElement, WidgetComponentProps<null>>(({ value, ...attrs }, ref) => {
+    useIgnoreMutation(() => obey.ignoreAll);
+    useSelectNode(
+      () => seen.selections.push(`picture select ${mount}`),
+      () => seen.selections.push(`picture deselect ${mount}`)
+    );
+    const [mount] = useState(() => ++mounts.picture);
+    return (
+      <span {...attrs} ref={ref} data-frame="">
+        <PositionOf name="picture" />
+        <PictureView value={value} />
+      </span>
+    );
+  }),
 });
 
 // The events Wordgard's own handlers get, as a keymap would.

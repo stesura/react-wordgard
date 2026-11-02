@@ -1,23 +1,24 @@
 export { WordgardDoc } from "./components/WordgardDoc.js";
 export { WordgardEditor } from "./components/WordgardEditor.js";
 export {
-  type MarkViewComponentProps,
+  type MarkComponentProps,
   type MarkShapeSpec,
   createMarkShape,
 } from "./decorations/ReactMarkType.js";
 export {
   type ShapeSpec,
-  type ShapeViewComponentProps,
+  type ShapeComponentProps,
   createShape,
 } from "./decorations/ReactShapeType.js";
 export {
+  type ReactWidgetType,
   type WidgetTypeSpec,
-  type WidgetViewComponentProps,
+  type WidgetComponentProps,
   createWidgetType,
 } from "./decorations/ReactWidgetType.js";
 export {
   type WrapperSpec,
-  type WrapperViewComponentProps,
+  type WrapperComponentProps,
   createWrapper,
 } from "./decorations/ReactWrapperType.js";
 export { useEditorEffect } from "./hooks/useEditorEffect.js";
