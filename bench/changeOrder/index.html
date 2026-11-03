@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="data:," />
+    <title>Wordgard: change order in one transaction</title>
+  </head>
+
+  <body>
+    <h1>Wordgard: change order in one transaction</h1>
+    <p>
+      One transaction inserts a character at the start of every paragraph, its changes listed in
+      descending, then in ascending, document order. Both give the same document.
+    </p>
+    <table id="output">
+      <tr>
+        <th>Paragraphs</th>
+        <th>Order</th>
+        <th>Build the transaction (ms)</th>
+        <th>Dispatch and draw (ms)</th>
+      </tr>
+    </table>
+    <div id="editor-parent"></div>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

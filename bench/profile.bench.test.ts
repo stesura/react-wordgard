@@ -8,10 +8,10 @@ import { commands } from "vitest/browser";
 
 import {
   type Mount,
+  documentHTML,
   editors,
   heap,
   mountPoint,
-  paragraphs,
   reactBuild,
   settle,
   sizes,
@@ -43,11 +43,11 @@ const ours = (name: string) =>
 
 // In its own function: a suspended async function keeps its locals, so the
 // test's loop would hold the last editor while the next is measured.
-const measure = async (mount: Mount, html: string, n: number) => {
+const measure = async (mount: Mount, n: number) => {
   const parent = mountPoint();
   const before = heap();
   await commands.profileStart();
-  const editor = await mount(html, n, parent);
+  const editor = await mount(documentHTML(n), parent, false);
   const load = await commands.profileStop();
   const held = heap() - before;
   for (let i = 0; i < warmup; i++) editor.type(i);
@@ -112,26 +112,24 @@ const table = (title: string, profile: CpuProfile, count: number, what: string) 
 it("profiles load, a keystroke and formatting the whole document", async () => {
   const build = reactBuild();
   // A first mount compiles each editor's code: done here, so it isn't counted.
-  for (const html of Object.values(paragraphs))
-    for (const [, mount] of editors) await measure(mount, html, 20);
+  for (const [, mount] of editors) await measure(mount, 20);
   const tables: string[] = [];
-  for (const [docName, html] of Object.entries(paragraphs))
-    for (const n of sizes)
-      for (const [name, mount] of editors) {
-        const title = `${docName}, ${n} paragraphs, ${name}`;
-        const { load, typing, formatting } = await measure(mount, html, n);
-        const output = [
-          table(title, load, 1, "to load"),
-          table(title, typing, keystrokes, "per keystroke"),
-          formatting
-            ? table(title, formatting, formats, "per whole-document format change")
-            : `${title}: formatting skipped (> ${formatLimit} MB held)`,
-        ].join("\n\n");
-        tables.push(output);
-        // As it goes, so a crash keeps the tables before it.
-        // eslint-disable-next-line no-console
-        console.log(output);
-      }
+  for (const n of sizes)
+    for (const [name, mount] of editors) {
+      const title = `${n} paragraphs, ${name}`;
+      const { load, typing, formatting } = await measure(mount, n);
+      const output = [
+        table(title, load, 1, "to load"),
+        table(title, typing, keystrokes, "per keystroke"),
+        formatting
+          ? table(title, formatting, formats, "per whole-document format change")
+          : `${title}: formatting skipped (> ${formatLimit} MB held)`,
+      ].join("\n\n");
+      tables.push(output);
+      // As it goes, so a crash keeps the tables before it.
+      // eslint-disable-next-line no-console
+      console.log(output);
+    }
   // The benchmark's output.
   // eslint-disable-next-line no-console
   console.log(

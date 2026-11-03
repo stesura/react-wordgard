@@ -9,10 +9,10 @@ import { commands } from "vitest/browser";
 
 import {
   type Mount,
+  documentHTML,
   editors,
   heap,
   mountPoint,
-  paragraphs,
   reactBuild,
   settle,
   sizes,
@@ -61,11 +61,11 @@ const cell = ({ count, size }: { count: number; size: number }) =>
 
 // In its own function: a suspended async function keeps its locals, so the
 // test's loop would hold the last editor while the next is measured.
-const measure = async (mount: Mount, html: string, n: number) => {
+const measure = async (mount: Mount, n: number) => {
   await commands.heapBaseline();
   const parent = mountPoint();
   const start = heap();
-  const editor = await mount(html, n, parent);
+  const editor = await mount(documentHTML(n), parent, false);
   const held = heap() - start > snapshotLimit ? null : await commands.heapHeld();
   expect(parent.querySelectorAll("p").length).toBe(n);
   editor.destroy();
@@ -81,53 +81,51 @@ it("snapshots the editors' heaps", async () => {
   const label = (key: string) =>
     (key == fiber ? `${key} (React's FiberNode)` : key).replaceAll("|", "\\|");
   const tables: string[] = [];
-  // MB of JS heap per paragraph, by document and editor.
+  // MB of JS heap per paragraph, by editor.
   const projected = new Map<string, number>();
   // A first mount compiles each editor's code: done here, so it isn't counted.
-  for (const html of Object.values(paragraphs))
-    for (const [, mount] of editors) await measure(mount, html, 20);
-  for (const [docName, html] of Object.entries(paragraphs))
-    for (const n of sizes) {
-      const held = new Map<string, HeapCounts | null>();
-      for (const [name, mount] of editors) {
-        // Not even mounted when a smaller document predicts it's over the limit.
-        const perParagraph = projected.get(`${docName}/${name}`) ?? 0;
-        if (perParagraph * n > snapshotLimit) {
-          held.set(name, null);
-          continue;
-        }
-        const counts = await measure(mount, html, n);
-        held.set(name, counts);
-        if (counts) projected.set(`${docName}/${name}`, total(counts, false).size / 1e6 / n);
+  for (const [, mount] of editors) await measure(mount, 20);
+  for (const n of sizes) {
+    const held = new Map<string, HeapCounts | null>();
+    for (const [name, mount] of editors) {
+      // Not even mounted when a smaller document predicts it's over the limit.
+      const perParagraph = projected.get(name) ?? 0;
+      if (perParagraph * n > snapshotLimit) {
+        held.set(name, null);
+        continue;
       }
-      const keys = new Set<string>();
-      for (const counts of held.values())
-        if (counts)
-          for (const [key] of Object.entries(counts)
-            .filter(([key]) => !key.startsWith("native "))
-            .sort(([, a], [, b]) => b.size - a.size)
-            .slice(0, top))
-            keys.add(key);
-      const largest = (key: string) =>
-        Math.max(...[...held.values()].map((counts) => counts?.[key]?.size ?? 0));
-      const row = (label: string, f: (counts: HeapCounts) => { count: number; size: number }) =>
-        `| ${label} | ${[...held.values()].map((counts) => (counts ? cell(f(counts)) : `skipped (> ${snapshotLimit} MB)`)).join(" | ")} |`;
-      const table = [
-        `${docName}, ${n} paragraphs: objects held · their own size`,
-        "",
-        `| Class | ${[...held.keys()].join(" | ")} |`,
-        `|---|${[...held.keys()].map(() => "---|").join("")}`,
-        row("**JS total**", (counts) => total(counts, false)),
-        row("**DOM (native) total**", (counts) => total(counts, true)),
-        ...[...keys]
-          .sort((a, b) => largest(b) - largest(a))
-          .map((key) => row(label(key), (counts) => counts[key] ?? { count: 0, size: 0 })),
-      ].join("\n");
-      tables.push(table);
-      // As it goes, so a crash keeps the tables before it.
-      // eslint-disable-next-line no-console
-      console.log(table);
+      const counts = await measure(mount, n);
+      held.set(name, counts);
+      if (counts) projected.set(name, total(counts, false).size / 1e6 / n);
     }
+    const keys = new Set<string>();
+    for (const counts of held.values())
+      if (counts)
+        for (const [key] of Object.entries(counts)
+          .filter(([key]) => !key.startsWith("native "))
+          .sort(([, a], [, b]) => b.size - a.size)
+          .slice(0, top))
+          keys.add(key);
+    const largest = (key: string) =>
+      Math.max(...[...held.values()].map((counts) => counts?.[key]?.size ?? 0));
+    const row = (label: string, f: (counts: HeapCounts) => { count: number; size: number }) =>
+      `| ${label} | ${[...held.values()].map((counts) => (counts ? cell(f(counts)) : `skipped (> ${snapshotLimit} MB)`)).join(" | ")} |`;
+    const table = [
+      `${n} paragraphs: objects held · their own size`,
+      "",
+      `| Class | ${[...held.keys()].join(" | ")} |`,
+      `|---|${[...held.keys()].map(() => "---|").join("")}`,
+      row("**JS total**", (counts) => total(counts, false)),
+      row("**DOM (native) total**", (counts) => total(counts, true)),
+      ...[...keys]
+        .sort((a, b) => largest(b) - largest(a))
+        .map((key) => row(label(key), (counts) => counts[key] ?? { count: 0, size: 0 })),
+    ].join("\n");
+    tables.push(table);
+    // As it goes, so a crash keeps the tables before it.
+    // eslint-disable-next-line no-console
+    console.log(table);
+  }
   // The benchmark's output.
   // eslint-disable-next-line no-console
   console.log(

@@ -4,9 +4,10 @@
 // starting with "heap" or "profile" run the heap breakdown or the keystroke's
 // CPU profile instead of the timings.
 //
-// react-prosemirror and ProseMirror come from a react-prosemirror checkout
-// (our fork, ../react-prosemirror or REACT_PROSEMIRROR_REPO): its source, and
-// the ProseMirror packages it's tested with, from its node_modules.
+// react-prosemirror is @handlewithcare/react-prosemirror from npm. Stesura's
+// fork joins it when a checkout with its dependencies is found
+// (../react-prosemirror, or REACT_PROSEMIRROR_REPO): its source, on our copy of
+// ProseMirror.
 import react from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
 import { existsSync } from "node:fs";
@@ -14,18 +15,14 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
+import { allocationsStart, allocationsStop } from "./allocations.js";
 import { profileStart, profileStop } from "./cpuProfile.js";
 import { heapBaseline, heapHeld } from "./heapSnapshot.js";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
-const reactProseMirror = resolve(
-  root,
-  process.env.REACT_PROSEMIRROR_REPO ?? "../react-prosemirror"
-);
-if (!existsSync(resolve(reactProseMirror, "node_modules/prosemirror-view")))
-  throw new Error(
-    `No react-prosemirror checkout with its dependencies installed at ${reactProseMirror}`
-  );
+const forkRepo = resolve(root, process.env.REACT_PROSEMIRROR_REPO ?? "../react-prosemirror");
+const fork =
+  existsSync(resolve(forkRepo, "src/index.ts")) && existsSync(resolve(forkRepo, "node_modules"));
 
 export default defineConfig(({ mode }) => {
   const nodeEnv = mode.endsWith("development") ? "development" : "production";
@@ -38,27 +35,40 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     resolve: {
       alias: [
-        { find: "@stesura/react-prosemirror", replacement: `${reactProseMirror}/src/index.ts` },
-        { find: /^(prosemirror-[a-z-]+)$/, replacement: `${reactProseMirror}/node_modules/$1` },
+        {
+          find: "@stesura/react-prosemirror",
+          replacement: fork ? `${forkRepo}/src/index.ts` : `${root}/bench/noFork.ts`,
+        },
+        // One ProseMirror: the fork's source would otherwise get its own.
+        { find: /^(prosemirror-[a-z-]+)$/, replacement: `${root}/node_modules/$1` },
       ],
-      // One React: react-prosemirror's source would otherwise get its own.
+      // One React: the fork's source would otherwise get its own.
       dedupe: ["react", "react-dom"],
     },
-    server: { fs: { allow: [root, reactProseMirror] } },
-    define: { "process.env.NODE_ENV": JSON.stringify(nodeEnv) },
+    server: { fs: { allow: [root, ...(fork ? [forkRepo] : [])] } },
+    define: {
+      "process.env.NODE_ENV": JSON.stringify(nodeEnv),
+      "import.meta.env.VITE_BENCH_FORK": JSON.stringify(String(fork)),
+    },
     optimizeDeps: {
       include: [
         "react",
         "react-dom",
         "react-dom/client",
+        "@handlewithcare/react-prosemirror",
+        "wordgard/command",
         "wordgard/doc",
         "wordgard/editor",
+        "wordgard/history",
         "wordgard/schema",
         "wordgard/state",
         "wordgard/types",
+        "prosemirror-commands",
+        "prosemirror-history",
         "prosemirror-model",
         "prosemirror-schema-basic",
         "prosemirror-state",
+        "prosemirror-transform",
         "prosemirror-view",
       ],
     },
@@ -72,16 +82,23 @@ export default defineConfig(({ mode }) => {
             : "bench/editors.bench.test.ts",
       ],
       reporters: ["verbose"],
-      testTimeout: 30 * 60 * 1000,
+      testTimeout: 4 * 60 * 60 * 1000,
       browser: {
         enabled: true,
-        // Exact heap sizes and `gc()`, for the memory column.
+        // Exact heap sizes and `gc()`, for the memory columns.
         provider: playwright({
           launchOptions: { args: ["--enable-precise-memory-info", "--js-flags=--expose-gc"] },
         }),
         headless: true,
         instances: [{ browser: "chromium" }],
-        commands: { heapBaseline, heapHeld, profileStart, profileStop },
+        commands: {
+          allocationsStart,
+          allocationsStop,
+          heapBaseline,
+          heapHeld,
+          profileStart,
+          profileStop,
+        },
       },
     },
   };
