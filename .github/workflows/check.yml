@@ -2,11 +2,9 @@
 
 name: check
 
+# Not on every push: on pull requests, by hand, and from the release script
+# (scripts/release.js), on the release commit.
 on:
-  push:
-    branches:
-      - "**"
-
   pull_request:
     branches:
       - "**"

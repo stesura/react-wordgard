@@ -64,6 +64,8 @@
     "bench:profile-dev": "vitest run --config bench/vitest.config.ts --mode profile-development",
     "sync-wordgard-tests": "node scripts/sync-wordgard-tests.js",
     "update-wordgard": "node scripts/update-wordgard.js",
+    "release:prepare": "node scripts/release.js prepare",
+    "release:publish": "node scripts/release.js publish",
     "prepack": "npm run build"
   },
   "devDependencies": {

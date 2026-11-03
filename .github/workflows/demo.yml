@@ -1,10 +1,9 @@
 name: demo
 
+# The demo of the latest release: started by the release script
+# (scripts/release.js) on master, the release commit, or by hand. The Pages
+# environment deploys from master only.
 on:
-  push:
-    branches:
-      - master
-
   workflow_dispatch:
 
 permissions:

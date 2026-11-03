@@ -137,13 +137,16 @@ range, since the library uses Wordgard's internals.
 
 ## Releases
 
-Versions follow semver; while on 0.x, a breaking change goes in a minor version. To release:
+Versions follow semver; while on 0.x, a breaking change goes in a minor version. CI runs on pull
+requests and by hand, not on every push; a release runs it on the release commit. To release, on
+`master`, logged in to npm (`npm whoami`) and GitHub (`gh auth status`):
 
-1. In `CHANGELOG.md`, rename `## Unreleased` to the version and date.
-2. Set the version in `package.json` (`npm version <version> --no-git-tag-version`).
-3. Commit, push, and wait for CI.
-4. `npm publish` (its `prepack` builds `dist/`), then tag the commit (`v<version>`) and push the
-   tag.
+1. `npm run release:prepare -- <version>`: renames `## Unreleased` in `CHANGELOG.md` to the
+   version and date, sets the version in `package.json`, and runs the checks and tests.
+2. Commit and push.
+3. `npm run release:publish`: runs CI on that commit and waits for it, asks before publishing to
+   npm (a version can't be published twice), then tags the commit (`v<version>`), pushes the tag,
+   creates the GitHub release from the changelog section, and deploys the demo.
 
 ## Security
 
