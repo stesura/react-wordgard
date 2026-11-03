@@ -5,13 +5,14 @@
 // node's shape or inside it, are drawn by their component when they're React
 // widgets, else draw nothing: ReactDocTile puts their DOM in place. React
 // shapes and wrappers in the shape are drawn by ShapeView and WrapperView.
-import React, { type ReactElement, type ReactNode, createElement, memo } from "react";
+import React, { Component, type ReactElement, type ReactNode, createElement } from "react";
 import { Attributes, Elt, type Node } from "wordgard/doc";
 
 import { isReactShape, shapeAttributes } from "../../decorations/ReactShapeType.js";
 import { attributedWidget, isReactWidget } from "../../decorations/ReactWidgetType.js";
 import { isReactWrapper } from "../../decorations/ReactWrapperType.js";
-import { type NodeView, sameNodeView, uneditable } from "../../decorations/iterDeco.js";
+import type { NodeCell } from "../../contexts/RenderStoreContext.js";
+import { type NodeView, uneditable } from "../../decorations/iterDeco.js";
 import { attrsToRecord, htmlAttrsToReactProps } from "../../helpers/index.js";
 import type { DecoElt } from "../../wordgardInternals.js";
 import { ChildNodeViews } from "../ChildNodeViews.js";
@@ -21,7 +22,7 @@ import { WrapperView } from "../WrapperView.js";
 import { viewRoot } from "../../viewRoots.js";
 
 type Props = {
-  view: NodeView;
+  cell: NodeCell;
 };
 
 // What every part of a node's shape is drawn with: the node, its content for
@@ -127,23 +128,58 @@ const isSelected = (shape: DecoElt): boolean =>
   (Attributes.get(shape.attrs, "class") ?? "").split(" ").includes("wg-selected-node") ||
   shape.children.some((child) => child instanceof Elt && isSelected(child));
 
-// Skips nodes whose layout is the same: Wordgard's documents share unchanged
-// nodes between states, and their layouts are kept outside redrawn ranges.
-export const DefaultNodeView = memo(
-  ({ view }: Props) => {
-    const { node, shape, children } = view;
-    if (!(shape instanceof Elt)) return isReactWidget(shape) ? <WidgetView widget={shape} /> : null;
-    // Keyed, so React keeps the content where a shape moves its hole: the tile
-    // build counts on an element React kept keeping its content.
-    const content =
-      node.isPlot && children ? <ChildNodeViews key="content" views={children} /> : null;
-    return renderShape(
-      { node, content, selected: isSelected(shape) },
-      shape,
-      true,
-      undefined,
-      viewRoot
-    );
-  },
-  (a, b) => sameNodeView(a.view, b.view)
-);
+const draw = ({ node, shape, children }: NodeView) => {
+  if (!(shape instanceof Elt)) return isReactWidget(shape) ? <WidgetView widget={shape} /> : null;
+  // Keyed, so React keeps the content where a shape moves its hole: the tile
+  // build counts on an element React kept keeping its content.
+  const content =
+    node.isPlot && children ? <ChildNodeViews key="content" views={children} /> : null;
+  return renderShape(
+    { node, content, selected: isSelected(shape) },
+    shape,
+    true,
+    undefined,
+    viewRoot
+  );
+};
+
+// Renders when its cell gets a new view, not when its list renders again:
+// Wordgard's documents share unchanged nodes between states, and their layouts
+// are kept outside redrawn ranges. A class, so a node's listener costs no hook
+// state and an update no effect (useSyncExternalStore made Bold all over 5,000
+// paragraphs about 15% slower, and held more memory).
+export class DefaultNodeView extends Component<Props> {
+  // What it drew last, to catch a view its cell got before it listened.
+  private drawn: NodeView | null = null;
+  private readonly redraw = () => this.forceUpdate();
+
+  shouldComponentUpdate(next: Props) {
+    return next.cell != this.props.cell;
+  }
+
+  componentDidMount() {
+    this.listen();
+  }
+
+  componentDidUpdate(prev: Props) {
+    if (prev.cell == this.props.cell) return;
+    if (prev.cell.listener == this.redraw) prev.cell.listener = null;
+    this.listen();
+  }
+
+  componentWillUnmount() {
+    const { cell } = this.props;
+    if (cell.listener == this.redraw) cell.listener = null;
+  }
+
+  private listen() {
+    const { cell } = this.props;
+    cell.listener = this.redraw;
+    if (cell.view != this.drawn) this.forceUpdate();
+  }
+
+  render() {
+    this.drawn = this.props.cell.view;
+    return draw(this.drawn);
+  }
+}

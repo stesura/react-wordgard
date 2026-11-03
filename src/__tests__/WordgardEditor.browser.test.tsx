@@ -30,7 +30,7 @@ import { useEditorLayoutEffect } from "../hooks/useEditorLayoutEffect.js";
 import { useEditorState } from "../hooks/useEditorState.js";
 import { useEditorStateSelector } from "../hooks/useEditorStateSelector.js";
 import { useWordgard } from "../hooks/useWordgard.js";
-import { renderedNodes } from "../testing/renders.js";
+import { renderedLists, renderedNodes } from "../testing/renders.js";
 import { docTileOf, drawing } from "../testing/tiles.js";
 import { ReactDocTile } from "../tile.js";
 
@@ -332,6 +332,28 @@ describe("renders", () => {
       wg.state.doc.content.map((node) => (node instanceof Plot ? node.textContent() : ""))
     ).toEqual(["oxne", "txwo", "txxhree"]);
   });
+
+  it("renders no list but the text's for a keystroke, and the lists whose shape changes", () => {
+    const { wg } = render(
+      <WordgardEditor
+        doc="<p>one</p><blockquote><p>two</p><p>three</p></blockquote><p>four</p>"
+        config={[basicSchema(), blockquote()]}
+      >
+        <Grab />
+        <WordgardDoc />
+      </WordgardEditor>
+    );
+    const lists = (spec: Transaction.Spec) => {
+      edit(wg, spec);
+      return renderedLists(wg.dom);
+    };
+    expect(lists({ changes: { from: 2, insert: [Leaf.text("x")] } })).toBe(1);
+    expect(lists({ changes: { from: 9, insert: [Leaf.text("x")] } })).toBe(1);
+    // A paragraph more in the blockquote: its list, not the document's.
+    expect(lists({ changes: { from: 7, insert: [Paragraph.create([Leaf.text("new")])] } })).toBe(2);
+    expect(lists({ changes: { from: 0, insert: [Paragraph.create([Leaf.text("top")])] } })).toBe(2);
+    expect(wg.contentDOM.textContent).toBe("topoxnenewtxwothreefour");
+  });
 });
 
 describe("hooks", () => {
@@ -621,6 +643,36 @@ describe("hooks", () => {
     await frame();
     edit(reference, { changes: { from: 1, insert: [Leaf.text("x")] } });
     expect(drawing(wg)).toEqual(drawing(reference));
+  });
+
+  it("catches up on an update refused in one block after an edit in another", async () => {
+    const probe = { update: () => {} };
+    const Probe = () => {
+      const wg = useWordgard();
+      const [count, setCount] = useState(0);
+      useLayoutEffect(() => {
+        probe.update = () => flushSync(() => setCount((count) => count + 1));
+      }, []);
+      useLayoutEffect(() => {
+        if (!count) return;
+        wg.dispatch({ changes: { from: 1, insert: [Leaf.text("x")] } });
+        expect(() => wg.coordsAtPos(1)).toThrow(/can't update while React renders/);
+      }, [count, wg]);
+      return null;
+    };
+    const { wg } = hosted(<Probe />);
+    const reference = plain();
+    // Where the second paragraph's text starts.
+    const second = (wg: Wordgard) => (wg.state.doc.content[0]?.length ?? 0) + 1;
+    edit(wg, { changes: { from: second(wg), insert: [Leaf.text("y")] } });
+    probe.update();
+    edit(wg, { changes: { from: second(wg) + 1, insert: [Leaf.text("z")] } });
+    await frame();
+    await frame();
+    edit(reference, { changes: { from: second(reference), insert: [Leaf.text("yz")] } });
+    edit(reference, { changes: { from: 1, insert: [Leaf.text("x")] } });
+    expect(drawing(wg)).toEqual(drawing(reference));
+    expect(wg.state.doc.eq(reference.state.doc)).toBe(true);
   });
 
   it("selects through the state the hooks read", () => {

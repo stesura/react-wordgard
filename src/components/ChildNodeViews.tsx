@@ -4,8 +4,9 @@
 // place after the commit.
 import React, { memo } from "react";
 
+import { cellOf } from "../contexts/RenderStoreContext.js";
 import { isReactWidget } from "../decorations/ReactWidgetType.js";
-import type { ChildView } from "../decorations/iterDeco.js";
+import { type ChildView, shapeOf } from "../decorations/iterDeco.js";
 import { childViewKeys } from "../reactKeys.js";
 import { SeparatorHackView } from "./SeparatorHackView.js";
 import { TextNodeView } from "./TextNodeView.js";
@@ -22,7 +23,7 @@ export const renderChildViews = (views: readonly ChildView[]) =>
   childViewKeys(views).map(({ view, key }) => {
     switch (view.type) {
       case "node":
-        return <DefaultNodeView key={key} view={view} />;
+        return <DefaultNodeView key={key} cell={cellOf(view)} />;
       case "text":
         return <TextNodeView key={key} text={view.text} />;
       case "wrapper":
@@ -40,6 +41,9 @@ export const renderChildViews = (views: readonly ChildView[]) =>
     }
   });
 
-// Skipped when a plot's content keeps its layout while the node around it
-// changes (iterDeco keeps the views of content that draws the same).
-export const ChildNodeViews = memo(({ views }: Props) => <>{renderChildViews(views)}</>);
+// Skipped when a plot's content keeps its shape (iterDeco's shapeOf): the
+// nodes that changed in it get their views from their cells.
+export const ChildNodeViews = memo(
+  ({ views }: Props) => <>{renderChildViews(views)}</>,
+  (a, b) => shapeOf(a.views) == shapeOf(b.views)
+);

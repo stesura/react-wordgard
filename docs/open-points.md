@@ -13,8 +13,9 @@ point when it's done or dropped.
 
 ## Performance
 
-- **Chunking parked** (not for v0): about 3 ms per keystroke at 15,000 paragraphs, nothing at load
-  or when formatting the whole document.
+- **Chunking:** Phase 2 of `docs/partially-executed/per-node-update.md`, deferred. Since Phase 1
+  a keystroke renders no list but the text's, but React still clones the fibers of the edited
+  node's siblings, and Enter or a paste renders the whole parent list.
 - **Updates that take the slow path:** two edits in one transaction re-walk every plot between
   them. Correct, only slower.
 - **A development-build profile** (`npm run bench:profile-dev`): the baseline asked for both

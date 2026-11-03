@@ -1,4 +1,4 @@
-# How react-wordgard works (2026-11-01)
+# How react-wordgard works (2026-11-03)
 
 How the library draws Wordgard with React, end to end, and the decisions behind it. For what's
 still open, see `docs/open-points.md`. Keep this file in step when the design changes.
@@ -72,7 +72,7 @@ at once when something needs layout, `ensureFlushed`). Then:
    attributes. React then diffs against what it believes is there. Not for a composition's text
    node, which stays as the browser left it.
 6. **Keys** (`mapKeys`): every plot keeps an array of React keys for its children, mapped through
-   the changes; unchanged ends copy their keys, the middle maps them. A node whose start survived
+   the changes; unchanged ends copy their keys, and only the middle is walked node by node. A node whose start survived
    keeps its key; so does a retag (its opening token replaced by one of the same type, or a leaf
    in a replaced range of unchanged length), and a node moved within its parent (the same object,
    each old key used once). React then moves the moved node's DOM, and the build rebuilds its tiles
@@ -83,16 +83,27 @@ at once when something needs layout, `ensureFlushed`). Then:
    - a plot outside every redrawn range, in the same place, keeps its last layout object;
    - a *flat* plot (one node view per child: the document, block containers) keeps the views of
      its unchanged ends and walks the middle only (`unchangedEnds`);
-   - `keepSame` keeps each old view that draws the same, so React can skip it.
-8. **Render** (`ReactDocTile.render`): inside `flushSync`, publish the state to the hooks' store
-   and commit the document element. React renders only what changed: `DefaultNodeView` is
-   memoised on its view (`sameNodeView`), `ChildNodeViews` and `MarkView` on their view lists,
-   `TextNodeView` on its text. If React couldn't commit (a flush from inside a React render or
-   commit), the update is refused (`RefusedUpdate`): the store and element go back, and Wordgard
+   - `keepSame` keeps each old view that draws the same, so React can skip it (for a flat plot,
+     in the middle only). A node that keeps its key keeps its *cell*, the place its component
+     reads its view from; a node view that changed is handed to its cell, and a list whose keys
+     each still hold the same view or the same cell keeps its *shape* (`shapeOf`).
+8. **Render** (`ReactDocTile.render`): inside `flushSync`, give the cells their new views
+   (`publishCells`, which notifies their components), publish the state to the hooks' store and
+   commit the document element. React renders only what changed: `ChildNodeViews` and `MarkView`
+   are memoised on their list's shape, so typing in one of 5,000 paragraphs renders that
+   paragraph (through its cell) and its ancestors, not the document's list; `DefaultNodeView`
+   reads its view from its cell and listens to it (a class: no hook state per node),
+   `TextNodeView` is memoised on its text.
+   React still clones the fibers of the changed node's siblings on the way down, which no store
+   avoids: that's what chunking long lists would cut. If React couldn't commit (a flush from
+   inside a React render or commit), the update is refused (`RefusedUpdate`): the cells, the
+   store and the element go back, the cells' new views stay pending for the retry, and Wordgard
    retries on its next frame.
 9. **Build** (`ReactDocTile.build`): walk React's DOM alongside the views and build Wordgard's
    tiles over it (`addChildTiles`, `shapeTile`), the same tiles, flags and lengths Wordgard would
    build. A node view that's the same object as before keeps its old tile without reading the DOM.
+   The build keys only lists holding text or wrappers (`childViewKeys`): a list of blocks needs
+   none.
    Native widgets, which React doesn't draw, are rendered or reused here and put in place
    (`placeWidgets`), then connected and disconnected as Wordgard would.
 10. Back in Wordgard: it sets the DOM selection, runs its read/write phases (our measures run
@@ -101,7 +112,7 @@ at once when something needs layout, `ensureFlushed`). Then:
 ## What React renders
 
 `DocNodeView` → `ChildNodeViews` (one element per view, keyed by `childViewKeys`) →
-`DefaultNodeView` for a node: its shape (`Elt`) as elements, the content in the hole (a keyed
+`DefaultNodeView` for a node, given its cell: its shape (`Elt`) as elements, the content in the hole (a keyed
 `ChildNodeViews`), React widgets inside the shape as `WidgetView`. `MarkView` draws a wrapper (an
 element-shaped mark, or the span carrying a text run's attribute-shaped marks; adjacent runs with
 equal attributes share one span, as in Wordgard). `TextNodeView` is a bare text node.

@@ -25,7 +25,11 @@ import { ErrorBoundary } from "./components/ErrorBoundary.js";
 import { DocNodeView } from "./components/nodes/DocNodeView.js";
 import { stopsEvent } from "./contexts/DecorationContext.js";
 import { EditorContext, editorOf } from "./contexts/EditorContext.js";
-import { type RenderStore, RenderStoreContext } from "./contexts/RenderStoreContext.js";
+import {
+  type RenderStore,
+  RenderStoreContext,
+  publishCells,
+} from "./contexts/RenderStoreContext.js";
 import { viewRoots } from "./viewRoots.js";
 import { contentOf, isReactShape, shapeOfRoot, sortRecords } from "./decorations/ReactShapeType.js";
 import { attributedWidget, isReactWidget, widgetRoots } from "./decorations/ReactWidgetType.js";
@@ -372,7 +376,12 @@ const addChildTiles = (
     parent.addChild(tile);
     pos += tile.length;
   };
-  for (const { view, key } of childViewKeys(views)) {
+  // Only text and wrappers record their keys: a list of blocks needs none.
+  let keyed: ReturnType<typeof childViewKeys> | null = null;
+  const keyAt = (i: number) => (keyed ??= childViewKeys(views))[i]?.key ?? "";
+  for (let i = 0; i < views.length; i++) {
+    const view = views[i];
+    if (!view) continue;
     if (view.type == "composition" && !context.composition?.node) continue;
     if (view.type == "widget") {
       // TilePointer.matchingWidget: an equal point widget on the same side,
@@ -453,7 +462,7 @@ const addChildTiles = (
     if (same) cursor.skip(same.dom);
     if (view.type == "text") {
       if (!(dom instanceof Text)) throw new Error("Expected a text node");
-      context.rendered.texts.set(dom, { key, text: view.text });
+      context.rendered.texts.set(dom, { key: keyAt(i), text: view.text });
       add(synced(new TextTile(view.text, dom)));
     } else if (view.type == "composition") {
       if (!context.composition || dom !== context.composition.node)
@@ -504,7 +513,7 @@ const addChildTiles = (
     } else if (view.type == "wrapper") {
       const flags = TileFlag.Wrapper | (view.spanning ? TileFlag.Spanning : 0);
       const element = elementOf(dom, "a wrapper");
-      context.rendered.wrappers.set(element, key);
+      context.rendered.wrappers.set(element, keyAt(i));
       const wrapperKept = kept && !!element.wgTile;
       if (view.mark) {
         const fill = (tile: CompositeTile, content: ChildCursor, contentKept: boolean) =>
@@ -1056,7 +1065,7 @@ const layout = (
     {
       deco: new DecoIterator(state, decoSet),
       pass: {},
-      keys: entry.store.keys,
+      store: entry.store,
       changes,
       layouts: entry.layouts,
       composition,
@@ -1074,7 +1083,7 @@ const newEntry = (commit: Entry["commit"]): Entry => ({
   reached: () => true,
   revert: () => {},
   last: null,
-  store: { keys: new WeakMap() },
+  store: { keys: new WeakMap(), pending: new Map() },
   rendered: { texts: new WeakMap(), wrappers: new WeakMap() },
   layouts: new WeakMap(),
   composition: null,
@@ -1233,7 +1242,9 @@ export class ReactDocTile extends DocTile {
     const element = docElement(options.wg, entry, views);
     const before = { state: editor.store.getState(), last: entry.last };
     entry.last = { state, decoSet, views };
+    let takeBack = () => {};
     flushSync(() => {
+      takeBack = publishCells(entry.store);
       editor.publish(state);
       entry.commit(element);
     });
@@ -1243,6 +1254,7 @@ export class ReactDocTile extends DocTile {
     // then hold, so it gets back what it last committed, and Wordgard, which
     // keeps the update pending, redraws on its next flush.
     if (!entry.reached(element)) {
+      takeBack();
       entry.last = before.last;
       entry.revert();
       editor.publish(before.state);
@@ -1250,6 +1262,7 @@ export class ReactDocTile extends DocTile {
         "ReactWordgard can't update while React renders or commits: read the editor's layout from useEditorEffect or useEditorLayoutEffect, not from a React effect"
       );
     }
+    entry.store.pending.clear();
     return ReactDocTile.build(state, dom, decoSet, views, options);
   };
 

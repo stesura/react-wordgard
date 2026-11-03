@@ -9,7 +9,8 @@ import { type Decoration, Widget } from "wordgard/editor";
 
 import { isKept, pointMapper, samePlace, unchangedEnds } from "../changes.js";
 import type { CompositionView } from "../composition.js";
-import { type ReactKeys, childViewKeys, createNodeKey } from "../reactKeys.js";
+import { type RenderStore, moveCell } from "../contexts/RenderStoreContext.js";
+import { childViewKeys, createNodeKey } from "../reactKeys.js";
 import type { DecoElt } from "../wordgardInternals.js";
 import {
   type DecoIterator,
@@ -162,30 +163,65 @@ const sameView = (view: ChildView, other: ChildView): boolean => {
   }
 };
 
+// What makes a list draw as before: the same keys, each for the same view or
+// for a node that kept its cell (moveCell). A list whose shape is another's
+// last one's shares it.
+const shapes = new WeakMap<readonly ChildView[], object>();
+
+export const shapeOf = (views: readonly ChildView[]) => shapes.get(views) ?? views;
+
 // A plot's content laid out again, keeping the old view of each child that
 // draws the same, matched by its React key (which React keeps the component
 // for), and the old list when they all do. A wrapper that changed keeps the
 // children that didn't. React then skips what's kept (the views' memos): a
 // plot can change while its content doesn't (a paragraph's alignment, a mark
-// on its tag), and typing changes one text run of a paragraph.
-const keepSame = (before: readonly ChildView[], after: ChildView[]): readonly ChildView[] => {
-  const old = new Map(childViewKeys(before).map(({ view, key }) => [key, view]));
-  let changed = before.length != after.length;
-  const kept = childViewKeys(after).map(({ view, key }, i) => {
-    const match = old.get(key);
-    let found = view;
-    if (match && sameView(match, view)) found = match;
-    else if (
-      match?.type == "wrapper" &&
-      view.type == "wrapper" &&
-      match.elt.eq(view.elt) &&
-      sameMark(match.mark, view.mark)
+// on its tag), and typing changes one text run of a paragraph. A node that
+// keeps its key keeps its cell, so a list whose shape is the same isn't drawn
+// again for it. `after` holds `before`'s first `head` and last `tail` views
+// (iterDeco's unchanged ends, all nodes): only the middle is matched. Writes
+// what it keeps into `after`.
+const keepSame = (
+  store: RenderStore,
+  before: readonly ChildView[],
+  after: ChildView[],
+  head = 0,
+  tail = 0
+): readonly ChildView[] => {
+  const whole = !head && !tail;
+  const old = new Map(
+    childViewKeys(whole ? before : before.slice(head, before.length - tail)).map(
+      ({ view, key }) => [key, view]
     )
-      found = { ...view, children: [...keepSame(match.children, view.children)] };
-    if (found != before[i]) changed = true;
-    return found;
-  });
-  return changed ? kept : before;
+  );
+  let changed = before.length != after.length;
+  let sameShape = !changed;
+  childViewKeys(whole ? after : after.slice(head, after.length - tail)).forEach(
+    ({ view, key }, at) => {
+      const i = head + at;
+      const match = old.get(key);
+      let found = view;
+      if (match && sameView(match, view)) found = match;
+      else if (
+        match?.type == "wrapper" &&
+        view.type == "wrapper" &&
+        match.elt.eq(view.elt) &&
+        sameMark(match.mark, view.mark)
+      )
+        keepSame(store, match.children, view.children);
+      if (match?.type == "node" && found.type == "node") moveCell(store, match, found);
+      if (found != before[i]) {
+        changed = true;
+        if (found.type != "node" || match != before[i]) sameShape = false;
+      }
+      after[i] = found;
+    }
+  );
+  if (!changed) {
+    shapes.set(after, shapeOf(before));
+    return before;
+  }
+  if (sameShape) shapes.set(after, shapeOf(before));
+  return after;
 };
 
 const isPoint = (view: ChildView | undefined) => view?.type == "buffer" || view?.type == "widget";
@@ -256,7 +292,7 @@ const needsTrailingHack = (views: readonly ChildView[]): boolean | undefined => 
 
 export type LayoutContext = {
   deco: DecoIterator;
-  keys: ReactKeys;
+  store: RenderStore;
   // The ranges this update redraws, as change sections, or null for all.
   changes: readonly number[] | null;
   // Each plot's content as last laid out, and where it started.
@@ -366,7 +402,7 @@ export const iterDeco = (
   const oldPlot = context.replaced.get(plot) ?? plot;
   const old = fromLast(context.layouts.get(oldPlot));
   const oldStart = oldStartOf(old);
-  const nodeKeys = context.keys.get(plot);
+  const nodeKeys = context.store.keys.get(plot);
   if (!nodeKeys) throw new Error(`No keys for ${plot.name}`);
   // A flat plot's unchanged ends keep their views; the walk covers the rest.
   let head = 0;
@@ -498,7 +534,7 @@ export const iterDeco = (
   // From this place only: two copies of a plot mustn't share view objects.
   const fromHere =
     old && oldStart !== null && context.changes && samePlace(context.changes, oldStart, start);
-  const laid = old && fromHere ? keepSame(old.views, views) : views;
+  const laid = old && fromHere ? keepSame(context.store, old.views, views, head, tail) : views;
   context.layouts.set(plot, {
     offset: start - parent.start,
     pass: context.pass,

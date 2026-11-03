@@ -44,8 +44,14 @@ export const mapKeys = (
     // The children at both ends are the same nodes at the same places: they
     // keep their keys, and only the middle is mapped.
     const { head, tail } = unchangedEnds(changes, oldPlot, oldStart, newPlot);
-    const oldTail = oldPlot.content.length - tail;
-    const newTail = newPlot.content.length - tail;
+    const before = oldPlot.content;
+    const after = newPlot.content;
+    const oldTail = before.length - tail;
+    const newTail = after.length - tail;
+    // Only the middle is walked node by node: typing in one of 5,000 blocks
+    // mustn't allocate per block.
+    let headSize = 0;
+    for (let i = 0; i < head; i++) headSize += before[i]?.length ?? 0;
     // Old children whose start survived, by where it went; those of replaced
     // ranges by identity, for a node moved within this plot, and the leaves
     // among them by where a retag put them.
@@ -53,10 +59,11 @@ export const mapKeys = (
     const found = new Map<number, Old>();
     const byNode = new Map<Node, Old[]>();
     const retagged = new Map<number, Old>();
-    let pos = oldStart;
-    oldPlot.content.forEach((node, i) => {
+    for (let i = head, pos = oldStart + headSize; i < oldTail; i++) {
+      const node = before[i];
+      if (!node) continue;
       const key = oldKeys[i];
-      if (key && !node.isText && i >= head && i < oldTail) {
+      if (key && !node.isText) {
         const old = { key, node, start: pos };
         const mapped = mapNodePos(changes, pos, node.isLeaf);
         if (mapped && !mapped.retagged) found.set(mapped.pos, old);
@@ -66,25 +73,38 @@ export const mapKeys = (
         }
       }
       pos += node.length;
-    });
+    }
     // Each old key goes once: to its node where it's still there (moved),
     // else to what a retag put in its place, if of its type.
     const claimed = new Set<Old>();
-    const middle = newPlot.content.map((child, i) => {
-      if (child.isText || i < head || i >= newTail) return undefined;
-      const old = byNode.get(child)?.find((old) => !claimed.has(old));
+    const moved: (Old | undefined)[] = [];
+    for (let i = head; i < newTail; i++) {
+      const child = after[i];
+      const old =
+        child && !child.isText ? byNode.get(child)?.find((old) => !claimed.has(old)) : undefined;
       if (old) claimed.add(old);
-      return old;
-    });
-    pos = newStart;
-    const newKeys = newPlot.content.map((child, i) => {
+      moved.push(old);
+    }
+    const same = (child: Node, key: string | undefined) => {
+      if (key !== undefined) return key;
+      if (child.isPlot) addFreshKeys(keys, child);
+      return child.isText ? "" : createNodeKey();
+    };
+    const newKeys: string[] = [];
+    for (let i = 0; i < head; i++) {
+      const child = after[i];
+      if (child) newKeys.push(same(child, oldKeys[i]));
+    }
+    for (let i = head, pos = newStart + headSize; i < newTail; i++) {
+      const child = after[i];
+      if (!child) continue;
       const start = pos;
       pos += child.length;
-      const same =
-        i < head ? oldKeys[i] : i >= newTail ? oldKeys[i - newTail + oldTail] : undefined;
-      if (same !== undefined) return same;
-      if (child.isText) return "";
-      let kept = found.get(start) ?? middle[i];
+      if (child.isText) {
+        newKeys.push("");
+        continue;
+      }
+      let kept = found.get(start) ?? moved[i - head];
       const retag = kept ? undefined : retagged.get(start);
       if (retag && !claimed.has(retag) && retag.node.type == child.type) {
         claimed.add(retag);
@@ -94,8 +114,12 @@ export const mapKeys = (
       if (child.isPlot && kept?.node.isPlot && kept.node != child)
         mapChildren(kept.node, kept.start + 1, child, start + 1);
       else if (child.isPlot) addFreshKeys(keys, child);
-      return kept ? kept.key : createNodeKey();
-    });
+      newKeys.push(kept ? kept.key : createNodeKey());
+    }
+    for (let i = newTail; i < after.length; i++) {
+      const child = after[i];
+      if (child) newKeys.push(same(child, oldKeys[i - newTail + oldTail]));
+    }
     keys.set(newPlot, newKeys);
   };
   mapChildren(oldDoc, 0, newDoc, 0);

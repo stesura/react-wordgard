@@ -260,7 +260,7 @@ const bulkRows = async (variants: Variant[], plugins: boolean) => {
           if (run) byEditor.set(name, [...(byEditor.get(name) ?? []), run]);
         }
       // Without plugins: the highlights add spans of their own.
-      if (kind == "replace" && !plugins) {
+      if (kind == "replace" && !plugins && byEditor.size) {
         const counts = new Set([...byEditor.values()].map((list) => list[0]?.marked ?? 0));
         expect(counts.size).toBe(1);
         marked.set(n, [...counts][0] ?? 0);

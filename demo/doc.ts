@@ -4,18 +4,12 @@ const image = (width: number, height: number, color: string) =>
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="${width}" height="${height}" rx="4" fill="${color}"/></svg>`
   );
 
-const flower =
-  "data:image/svg+xml," +
-  encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="480" height="270" viewBox="0 0 480 270"><defs><linearGradient id="g" x2="0" y2="1"><stop offset="0" stop-color="#9ad4ff"/><stop offset="1" stop-color="#e8f6ff"/></linearGradient></defs><rect width="480" height="270" fill="url(#g)"/><rect y="200" width="480" height="70" fill="#7cc576"/><rect x="236" y="120" width="8" height="90" fill="#3f8f3a"/><g fill="#ff7aa8">${[0, 60, 120, 180, 240, 300].map((a) => `<ellipse cx="240" cy="92" rx="14" ry="30" transform="rotate(${a} 240 120)"/>`).join("")}</g><circle cx="240" cy="120" r="14" fill="#ffd34d"/></svg>`
-  );
-
 export const doc = `<h2>react-wordgard</h2>
 <p>Wordgard, drawn by React. Select some text for the <strong>text menu</strong>, type
 <code>@</code> to mention someone, like <span data-mention="ada"></span>, and hover
 <a href="https://wordgard.net">a link</a> for its card.</p>
 <p>Select the figure below and drag its handles to resize it.</p>
-<figure><img src="${flower}"></figure>
+<figure><img src="https://plus.unsplash.com/premium_photo-1661954483883-edd65eac3577?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=NHwxMjA3fDA%3D"></figure>
 <aside class="callout" data-kind="tip" data-title="Callouts"><p>A callout is a React
 shape: its title bar is chrome, its content is <em>editable</em>. Click the icon to change
 its kind, double-click the title to rename it.</p></aside>
