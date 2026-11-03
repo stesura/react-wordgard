@@ -19,7 +19,7 @@ builds on.
 ## Install
 
 ```sh
-npm install react-wordgard wordgard react react-dom
+npm install @stesura/react-wordgard wordgard react react-dom
 ```
 
 Peer dependencies: `wordgard` 0.6 (`~0.6.2`: react-wordgard reaches into Wordgard's internals, so
@@ -27,7 +27,7 @@ only its patches), `react` and `react-dom` 18 or 19. An app must have one copy o
 one react-wordgard uses. With TypeScript, Wordgard's own typings need `skipLibCheck`.
 
 With an AI coding agent: the package ships a skill for building editors with Wordgard and
-react-wordgard, `skills/react-wordgard/SKILL.md` (in `node_modules/react-wordgard/`). Point your
+react-wordgard, `skills/react-wordgard/SKILL.md` (in `node_modules/@stesura/react-wordgard/`). Point your
 agent to it, or copy the `react-wordgard` folder into your project's `.claude/skills/` for Claude
 Code.
 
@@ -45,7 +45,7 @@ import {
   WordgardEditor,
   createShape,
   useEditorStateSelector,
-} from "react-wordgard";
+} from "@stesura/react-wordgard";
 
 // An image's shape, drawn by a React component with state of its own: hovering outlines it.
 // DecorationRoot is its root: the node type's element, an <img>, with the node's attributes (its
@@ -131,7 +131,7 @@ which you pass to Wordgard's decorations:
 ```tsx
 import { Decoration } from "wordgard/editor";
 import { Blockquote, Link } from "wordgard/types";
-import { DecorationRoot, createMarkShape, createShape } from "react-wordgard";
+import { DecorationRoot, createMarkShape, createShape } from "@stesura/react-wordgard";
 
 // A blockquote drawn as a callout: a decorative icon, then the content.
 const CalloutShape = createShape(function Callout({ nodeProps: { contentDOMRef }, children }) {
@@ -213,7 +213,7 @@ draws the root itself. It gets Wordgard's attributes as props and a `ref` for th
 
 ```tsx
 import { forwardRef } from "react";
-import { type ShapeComponentProps, createShape } from "react-wordgard";
+import { type ShapeComponentProps, createShape } from "@stesura/react-wordgard";
 
 // An image whose root drops the `title` a decoration gives it and adds a class of its own.
 const ImageShape = createShape(
@@ -242,7 +242,11 @@ const ImageShape = createShape(
 ```tsx
 import { Decoration } from "wordgard/editor";
 import { Paragraph } from "wordgard/types";
-import { DecorationRoot, type WidgetComponentProps, createWidgetType } from "react-wordgard";
+import {
+  DecorationRoot,
+  type WidgetComponentProps,
+  createWidgetType,
+} from "@stesura/react-wordgard";
 
 // A pilcrow at the start of every paragraph.
 const Pilcrow = createWidgetType({

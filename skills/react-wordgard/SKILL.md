@@ -15,7 +15,7 @@ component be the decoration.
 Wordgard's own API: its docs (https://wordgard.net/docs/) and its typings in
 `node_modules/wordgard/dist/*.d.ts` (`wordgard/editor`, `wordgard/state`, `wordgard/doc`,
 `wordgard/schema`, `wordgard/types`, `wordgard/command`). react-wordgard's: its README and
-`node_modules/react-wordgard/dist/index.d.ts`. Read them rather than guessing a signature.
+`node_modules/@stesura/react-wordgard/dist/index.d.ts`. Read them rather than guessing a signature.
 
 **New to Wordgard, or porting ProseMirror code?** Read `references/wordgard.md`, next to this file:
 Wordgard's model (plots, leaves, tags, marks on tags), changes, configuration, commands and the
@@ -24,7 +24,7 @@ editor, each against its ProseMirror counterpart, with the traps.
 ## Setup
 
 ```sh
-npm install react-wordgard wordgard react react-dom
+npm install @stesura/react-wordgard wordgard react react-dom
 ```
 
 - Peers: `wordgard` `~0.6.2` (react-wordgard uses its internals: only its patches), React 18 or 19.
@@ -36,7 +36,7 @@ npm install react-wordgard wordgard react react-dom
 ## Hosting the editor
 
 ```tsx
-import { WordgardDoc, WordgardEditor } from "react-wordgard";
+import { WordgardDoc, WordgardEditor } from "@stesura/react-wordgard";
 import { basicSchema } from "wordgard/schema";
 
 export const Editor = () => (
@@ -60,7 +60,7 @@ export const Editor = () => (
 
 ```tsx
 import { Command, toggleStrong } from "wordgard/command";
-import { useEditorEventCallback, useEditorStateSelector } from "react-wordgard";
+import { useEditorEventCallback, useEditorStateSelector } from "@stesura/react-wordgard";
 
 const Toolbar = () => {
   const empty = useEditorStateSelector((state) => state.selection.empty);
@@ -135,7 +135,7 @@ component's own state, contexts and hooks.
 import { Decoration } from "wordgard/editor";
 import { basicSchema, blockquote, image } from "wordgard/schema";
 import { Blockquote, Image, Link } from "wordgard/types";
-import { DecorationRoot, createMarkShape, createShape } from "react-wordgard";
+import { DecorationRoot, createMarkShape, createShape } from "@stesura/react-wordgard";
 
 const CalloutShape = createShape(function Callout({ nodeProps: { contentDOMRef }, children }) {
   return (
@@ -244,7 +244,11 @@ puts both on the `<img>`. Check the parameter types of the node and mark types y
 ```tsx
 import { Decoration } from "wordgard/editor";
 import { Paragraph } from "wordgard/types";
-import { DecorationRoot, type WidgetComponentProps, createWidgetType } from "react-wordgard";
+import {
+  DecorationRoot,
+  type WidgetComponentProps,
+  createWidgetType,
+} from "@stesura/react-wordgard";
 
 // The root is a DecorationRoot, a <span> unless the spec gives an `element`.
 const Badge = createWidgetType({
