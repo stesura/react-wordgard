@@ -39,6 +39,7 @@ import {
   Figure,
   HeaderCell,
   Image,
+  ImageAlt,
   ImageSize,
   Link,
   Table,
@@ -52,6 +53,7 @@ import {
   useEditorEffect,
   useEditorStateSelector,
 } from "../src/index.js";
+import { InsertImage, insertImage } from "./InsertImage.js";
 import { MentionMenu } from "./MentionMenu.js";
 import { TextMenu } from "./TextMenu.js";
 import { CalloutShape } from "./decorations/Callout.js";
@@ -137,6 +139,7 @@ const config = [
     Mention,
     Image,
     Figure,
+    ImageAlt,
     ImageSize,
     CaptionedFigure,
     Table,
@@ -148,10 +151,11 @@ const config = [
   menuBar(),
   dropCursor(),
   calloutButton,
+  insertImage,
   Wordgard.contentAttributes.of({ "aria-label": "Demo document" }),
   Decoration.Tag.shape(Callout, CalloutShape),
   Decoration.Tag.shape(Figure, (tag) =>
-    ResizableFigure.of({ src: tag.param, width: tag.mark(ImageSize) })
+    ResizableFigure.of({ src: tag.param, alt: tag.mark(ImageAlt), width: tag.mark(ImageSize) })
   ),
   Decoration.Tag.shape(Mention, (tag) => MentionWidget.of(tag.param)),
   Decoration.Tag.shape(Image, (tag) => ReactImage.of(tag.param)),
@@ -166,6 +170,7 @@ createRoot(root).render(
     <WordgardEditor doc={doc} config={config}>
       <Expose />
       <WordgardDoc />
+      <InsertImage />
       <TextMenu />
       <MentionMenu />
       <WordCount />

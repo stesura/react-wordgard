@@ -14,7 +14,7 @@ import {
   useStopEvent,
 } from "../../src/index.js";
 
-export type FigureValue = { src: string; width: number | undefined };
+export type FigureValue = { src: string; alt: string | undefined; width: number | undefined };
 
 const MIN_WIDTH = 50;
 
@@ -31,7 +31,7 @@ const handles = [
 type Drag = { pointerId: number; startX: number; startWidth: number; sign: number; width: number };
 
 const FigureView = forwardRef<HTMLElement, WidgetComponentProps<FigureValue>>(
-  ({ value: { src, width }, className, ...props }, ref) => {
+  ({ value: { src, alt, width }, className, ...props }, ref) => {
     const getPos = useNodePos();
     const selected = useIsNodeSelected();
     const figureRef = useRef<HTMLElement>(null);
@@ -94,7 +94,7 @@ const FigureView = forwardRef<HTMLElement, WidgetComponentProps<FigureValue>>(
         className={`resizable ${selected || drag ? "active" : ""} ${className ?? ""}`}
       >
         <span className="resize-frame">
-          <img ref={imgRef} src={src} draggable={false} style={{ width: shown }} />
+          <img ref={imgRef} src={src} alt={alt} draggable={false} style={{ width: shown }} />
           {handles.map(({ name, sign }) => (
             <span
               key={name}
@@ -114,6 +114,6 @@ const FigureView = forwardRef<HTMLElement, WidgetComponentProps<FigureValue>>(
 );
 
 export const ResizableFigure = createWidgetType({
-  eq: (a, b) => a.src == b.src && a.width == b.width,
+  eq: (a, b) => a.src == b.src && a.alt == b.alt && a.width == b.width,
   component: FigureView,
 });

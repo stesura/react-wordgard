@@ -79,6 +79,7 @@ main {
 
 /* Popovers and floating menus. */
 .popover,
+.image-form,
 .text-menu,
 .mention-menu,
 .link-card,
@@ -288,4 +289,46 @@ figure.active .resize-handle {
   color: white;
   font-size: 11px;
   line-height: 1.6;
+}
+
+/* The insert image form. */
+.image-form {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 280px;
+  padding: 10px;
+  transform: translateX(-100%);
+}
+.image-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.image-form small {
+  color: #6b7280;
+}
+.image-form input {
+  font: inherit;
+  padding: 4px 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+}
+.image-form div {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+.image-form button {
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 4px 10px;
+  background: white;
+  cursor: pointer;
+}
+.image-form button[type="submit"] {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: white;
 }
