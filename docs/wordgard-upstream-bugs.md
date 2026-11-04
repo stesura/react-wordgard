@@ -305,6 +305,30 @@ should throw instead of dropping them.
 - **Once answered:** if documents can carry marks that changes reach, `DocSettings` and its guards
 go.
 
+## 21. A change spec can't remove a set-valued mark (2026-11-04)
+
+- **Repro:** a set-valued mark on paragraphs, `Tags = Mark.Type.define<string[]>("Tags", {target:
+Paragraph, set: {compare: (a, b) => (a < b ? -1 : a > b ? 1 : 0)}, shape: {attribute: "data-tags",
+value: (v) => v.join(" ")}})`, with `basicSchema()`. After `{changes: {from: 0, add: Tags.of(["a",
+"b"])}}`, both `{from: 0, remove: Tags.of(["a"])}` and `{from: 0, remove: Tags.of(["a", "b"])}`
+leave the paragraph's `Tags` at `["a", "b"]`. `Tags.of(["a"]).removeFromSet(tag.marks)` gives
+`[["b"]]`, as documented.
+- **Cause:** `createChangeSet`'s `remove` branch (`src/doc/change.ts`) looks the mark up with
+`remove.isInSet(marks)`, which needs the whole value equal, so a subset finds nothing. When the
+whole value is given, it then takes `subtractSet(remove.value, has.value)`, the values to remove
+that the node *doesn't* have, which is empty, and skips the node.
+- **Fix (checked on a patched copy of 0.6.2's dist):** for a set type, look up with
+`remove.type.isInSet(marks)` and remove the intersection (`remove.value` filtered to the values
+`has.value` holds by `compare`). Both repros then remove; and two `wordgard/collab` clients editing
+different entries of one set-valued mark at once (each edit a remove of the old entry and an add
+of the new) converge with both edits.
+- **What we do:** Stesura keeps its style sheet and list definitions as single-valued marks on its
+settings node, so two concurrent edits to different styles keep only one. The kit's collab test
+(`packages/kit/src/extensions/document/collab.test.ts`) has the set-valued cases as expected
+failures.
+- **Once fixed:** those cases pass (flip them from `it.fails`); then `StyleSheet` (pro) and
+`ListConfigs` (kit) become set-valued marks of `[id, definition]` entries.
+
 ## Documentation [reported 03-11, #109]
 
 ### System guide: Editor State > Transactions
