@@ -110,6 +110,9 @@ export const editorOf = (wg: Wordgard): Editor => {
   return editor;
 };
 
+// The editor's value when react-wordgard drives it (WordgardEditor made it).
+export const findEditor = (wg: Wordgard): EditorContextValue | undefined => editors.get(wg);
+
 export const EditorContext = createContext<EditorContextValue | null>(null);
 
 export const useEditorContext = () => {

@@ -1,6 +1,7 @@
 export { DecorationRoot, type DecorationRootProps } from "./components/DecorationRoot.js";
 export { WordgardDoc } from "./components/WordgardDoc.js";
 export { WordgardEditor } from "./components/WordgardEditor.js";
+export { WordgardScope } from "./components/WordgardScope.js";
 export {
   type MarkComponentProps,
   type MarkShapeOptions,

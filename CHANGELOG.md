@@ -1,3 +1,9 @@
+## Unreleased
+
+### New features
+
+`WordgardScope` gives the components it holds an editor another `WordgardEditor` made, in place of the one around them: a toolbar acting on whichever of a page's editors has focus. Its hooks follow when the editor changes, and `useEditorEffect` runs again for a new editor.
+
 ## 0.1.0 (2026-11-03)
 
 ### New features

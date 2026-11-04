@@ -115,6 +115,10 @@ export function Editor() {
     before Wordgard's handlers and keymaps; returning true handles the event. Key events during
     a composition don't come; handling `input`, `beforeinput` or composition events skips
     Wordgard's own handling of them.
+- `<WordgardScope wg={editor}>` gives what it holds another editor a `<WordgardEditor>` made (a
+  sub-editor's, from a store the app keeps), in place of the one around it: the hooks under it act
+  on that editor and follow when `wg` changes (`useEditorEffect` runs again). For a toolbar acting
+  on whichever editor has focus; `WordgardDoc` stays under its own `WordgardEditor`.
 - In React's StrictMode (development only), `<WordgardEditor>` creates its editor twice and
   drops one, which is never put in the page.
 - Don't read the editor's layout from a plain React effect: it runs inside Wordgard's update,

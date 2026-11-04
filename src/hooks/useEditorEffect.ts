@@ -13,17 +13,21 @@ export const useEditorEffect = (
   dependencies?: DependencyList
 ) => {
   const { wg, afterFlush, cancel } = useEditorContext();
-  useLayoutEffect(() => {
-    let cleanup: void | (() => void);
-    const run = () => {
-      cleanup = effect(wg);
-    };
-    afterFlush(run);
-    return () => {
-      cancel(run);
-      if (typeof cleanup == "function") cleanup();
-    };
-    // The caller's dependencies, as with React's own effects.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, dependencies);
+  useLayoutEffect(
+    () => {
+      let cleanup: void | (() => void);
+      const run = () => {
+        cleanup = effect(wg);
+      };
+      afterFlush(run);
+      return () => {
+        cancel(run);
+        if (typeof cleanup == "function") cleanup();
+      };
+      // The caller's dependencies, as with React's own effects, and the editor:
+      // a WordgardScope can change it.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    },
+    dependencies && [wg, ...dependencies]
+  );
 };

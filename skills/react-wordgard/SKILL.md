@@ -93,6 +93,14 @@ const Toolbar = () => {
   composition don't come. Handling `input`, `beforeinput` or a composition event skips Wordgard's
   own handling of it: leave typing to Wordgard.
 
+### Several editors on a page
+
+A sub-editor (a header's, a note's) is its own `WordgardEditor`, often drawn inside a React shape
+of the main one. To have a toolbar act on whichever editor has focus, keep the focused one in a
+store of the app's (set from `useEditorEventListener("focus", …)` in each) and wrap the toolbar in
+`<WordgardScope wg={focused}>`: the hooks under it read, dispatch to and listen to that editor,
+and follow when it changes. Keep `WordgardDoc` out of the scope: it belongs to its own editor.
+
 ### Effects and layout
 
 Wordgard drives the update and React draws inside it, so there are two effect hooks:
