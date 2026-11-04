@@ -201,6 +201,110 @@ atom, between two `<strong>`s. With an inline leaf (`Image`) instead, both steps
 - **What we do:** nothing; not checked on ReactWordgard yet.
 - **Once fixed:** check ReactWordgard draws the same steps as fixed Wordgard.
 
+## 14. Changes out of document order make building a transaction quadratic (2026-11-03)
+
+- **Repro:** `bench/changeOrder/` (`npm run demo`, then open `/bench/changeOrder/`): plain
+`[basicSchema(), history()]`, `"<p>Lorem ipsum dolor sit amet.</p>"` repeated, and one transaction
+inserting `Leaf.text("x")` at the start of every paragraph. With the changes in descending order,
+building it (`wg.state.update({changes})`) takes 1.85 s at 8,000 paragraphs, against 8.5 ms in
+ascending order; same document either way.
+- **Cause:** `createChangeSet` (`src/doc/change.ts`) builds in one pass while positions ascend;
+each change that goes back flushes and starts a change set of its own, composed into the ones
+before it.
+- **What we do:** every command, extender and correction in Stesura's kit emits its changes in
+ascending document order (rule 4 of `stesura/docs/wordgard-migration-plan.md`).
+- **Once fixed:** nothing to change; the rule can be relaxed.
+- **Fix:** sort plain changes by `from` before building (stable, so equal positions keep their
+order), or merge out-of-order runs once instead of composing per change.
+
+## 15. A range wrapper keeps stale attributes after a mark change under it (2026-11-03)
+
+- **Repro:** plain Wordgard, a state field holding a range set with one range decoration
+wrapping a word (`Decoration.Range.wrapper`, with a `class`), provided as
+`Decoration.Range.source.of((state) => state.field(f))`, the field mapping its set through
+`tr.changes`. Text styled with `font-size: 12px` (an attribute mark), then one transaction setting
+the font size of all the text to `14px`. The document is right; the wrapper is drawn as
+`<span style="…font-size: 12px">` (the old size, its `class` gone) around the new
+`font-size: 14px` text. A fresh editor draws it right. Found by the benchmark's plugin pass
+(`bench/plugins.ts`, the highlights stand-in; `docs/benchmark-results.md`).
+- **Cause:** not traced. Likely the same family as item 3: the reused wrapper takes the merged
+attributes of the mark it wrapped instead of its own.
+- **What we do:** nothing; react-wordgard draws it right. It bites comments, search and track
+changes in Stesura's port, whose decorations are range wrappers.
+- **Once fixed:** check ReactWordgard still draws the same as fixed Wordgard.
+
+## 16. An Enter splitting a range wrapper, with a correction in the transaction, doubles it (2026-11-03)
+
+- **Repro:** plain Wordgard, a range wrapper over a paragraph's first word (as in item 15) and a
+correction marking every touched paragraph (`Correction.onContent(Paragraph, …)` adding a tag
+mark, as `bench/plugins.ts`'s "edited" stand-in). Type inside the word and press Enter there, in
+the wrapper: each Enter doubles the wrapper's drawing, 2, 4, 8 … 2,048 wrapper elements by the
+11th Enter, and the page crashes at the 12th. The range set holds one range; only the drawing
+multiplies. Without the correction, or with the wrapper away from the split, it doesn't happen.
+- **Cause:** not traced: the correction's mark change and the split in one change set.
+- **What we do:** the benchmark keeps its wrapper on each paragraph's last word. react-wordgard
+nests the wrappers instead and overflows the stack at the 11th Enter: it inherits the bad
+decoration set, so check after the fix.
+- **Once fixed:** the benchmark's highlight can go back on the first word.
+
+## 17. Every transaction costs in proportion to the document (2026-11-03)
+
+- **Repro:** at 5,000 paragraphs, one keystroke on plain Wordgard allocates about 0.4 MB in the
+state alone (Chromium's sampling heap profiler; `npm run bench:heap`), against ProseMirror's
+172 KB for the whole keystroke.
+- **Cause:** each new document is validated against the schema in its constructor, walking every
+top-level child (unchanged ones are cached, but the loop and its allocations aren't), and its
+child list is rebuilt by pushing one entry at a time.
+- **What we do:** nothing.
+- **Fix:** validate only the children a change set touched, and copy the unchanged runs of the
+child list in slices.
+
+## 18. A change adding a mark the schema lacks is dropped silently (2026-11-03; not a bug)
+
+- **Repro:** `[basicSchema(), figure()]`, a `Figure` leaf at 3:
+`{changes: {from: 3, add: ImageSize.of(300)}}` leaves the leaf unchanged, while
+`{from: 3, add: ImageAlt.of("alt")}` lands. `ImageSize` is only in the schema with
+`imageResizing()`; JSON with the mark throws (`Unrecognized mark ImageSize in JSON`).
+`{from: pos}` and `{from: pos, to: pos + 1}` both mark a leaf, as they mark a plot's tag.
+- **Cause:** `createChangeSet` skips nodes for which `schema.markAllowed` is false, which is also
+false for a mark type missing from the schema.
+- **What we do:** marks on leaves are settled: Stesura's image and file data go in leaf tag marks
+(rule 2). The kit's tests check that every mark a feature sets is in its schema.
+- **Ask:** throw (as JSON does) when a change's mark type isn't in the schema at all, rather
+than when it's only not allowed on that node.
+
+## 19. The opening smart quote rules eat the character before the quote (2026-11-03)
+
+- **Repro:** plain `[basicSchema(), InputRule.smartQuotes]`, an empty paragraph, then type
+`say "hi"` (insertText with `userEvent: "input.type"`, appenders applied): the document reads
+`say“hi”`, the space before the opening quote gone. Same with `'`.
+- **Cause:** `openDoubleQuote` and `openSingleQuote` (`src/editor/inputrule.ts`) match
+`(?:^|[\s{[(<'"\u2018\u201C])(")$` and apply a string, and `applyString` replaces the whole
+match (`match[0]`), the preceding character included, not the quote's group.
+- **What we do:** Stesura's kit defines its own quote rules, replacing only the group
+(`packages/kit/src/extensions/input-rules`).
+- **Fix:** have a string `apply` replace the last group when the expression has one, or use a
+lookbehind (`(?<=^|[\s…])"$`) in those two rules.
+
+## 20. `docFromJSON` drops marks on the document silently (2026-11-04) [reported 04-11, issue and forum]
+
+- **Repro:** a mark with `target: Doc` (`Lang`, `validate: "string"`), in a schema with
+`basicSchema()`. `schema.docFromJSON({type: "Doc", marks: {Lang: "en"}, content: [{type: "Paragraph"}]})`
+loads without an error, and `doc.tag.mark(Lang)` is `undefined`. A mark the document doesn't
+allow (`Strong`) is dropped the same way. On a paragraph, the same `Lang` throws (`Mark type Lang
+cannot target node Paragraph`).
+- **Cause:** `Schema.nodeFromJSON` (`src/doc/schema.ts`) parses and validates the marks into the
+tag, then for a document type returns `this.doc(children)`, discarding it. The `Doc` constructor
+always uses `schema.docTag` (`src/doc/node.ts`). Change specs can't reach the document's tag
+either: a mark change at 0, over the whole document, or from −1 leaves it unchanged.
+- **What we do:** Stesura's kit keeps document-level data on a hidden first-child plot,
+`DocSettings`, each setting a mark on its tag, with three guards: a Select All handler, an
+extender restoring it, and a correction dropping a second one.
+- **Asked:** on the forum, whether documents are meant to carry marks; as an issue, that loading
+should throw instead of dropping them.
+- **Once answered:** if documents can carry marks that changes reach, `DocSettings` and its guards
+go.
+
 ## Documentation [reported 03-11, #109]
 
 ### System guide: Editor State > Transactions
@@ -274,3 +378,30 @@ components (`mapKeys` keeps keys only for the same node object moved within its 
 lose what HTML doesn't carry.
 - **Ask:** whether that's deliberate; ProseMirror reuses its own slice (`view.dragging.slice`).
 - **Once changed:** a drag within one parent keeps the moved node's components, with no work here.
+
+### A transaction filter (for track changes) [asked on the forum 2026-11-04]
+
+- **What we do:** nothing; Stesura's track changes is parked until there's an answer. An
+extender can only add changes: re-inserting deleted content leaves a deletion in the change set,
+so everything mapped through it (anchors, decorations, the selection, collab) treats the text as
+gone.
+- **Ask:** a `Transaction.filter` facet, as CodeMirror's `transactionFilter`: run in
+`state.update` before the extenders (so appended transactions are filtered too), able to keep,
+replace or drop the transaction, with a `filter: false` opt-out on the spec.
+- **Once available:** track changes turns a deletion into a `Deletion` mark and marks insertions
+there.
+
+### Probing a command with its handlers
+
+- **What we do:** `Command.dispatch` reads its handlers from a facet that isn't exported, and
+calling a `Command.Pure` directly skips them, so a toolbar's enabled state would ignore an
+extension's handlers. Stesura's kit registers its pure handlers through a facet of its own too
+(`pureHandler` in `@stesura/kit`), and probes those.
+- **Ask:** `Command.resolve(state, command, param)`, returning the spec (or `false`) that the
+first applying pure handler, or the command, gives, without dispatching.
+- **Once available:** the kit's probe facet goes.
+
+### The test helpers as `wordgard/test`
+
+- **What we do:** copy `test/schema.ts` (the builders) into react-wordgard and Stesura's kit.
+- **Ask:** publish them as `wordgard/test`.
