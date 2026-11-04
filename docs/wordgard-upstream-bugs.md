@@ -373,6 +373,20 @@ Wordgard's in `tile.browser.test.ts`), so it has the same gap; the a11y test fai
 - **Once fixed:** react-wordgard's `SeparatorHackView` follows (`alt=""`) with its pinned markup,
 and the demo's `display` override goes.
 
+## 25. `ChangeSet.clip` drops a replacement across the region's right edge (2026-11-04)
+
+- **Repro:** with `basicSchema()` and `<p>abcdefgh</p>` (text at 1–9), the change set of
+`{ from: 4, to: 7, insert: [Leaf.text("X")] }` clipped to `1, 5`: the result has length 3, for a
+4-long region, so applying it to the region throws. Clipped to `2, 5`, the change set of
+`{ from: 1, to: 3, insert: … }` (across the left edge) gives `null`, as documented. A deletion
+across either edge clips to its overlap, correctly.
+- **Cause:** `clip` (`src/doc/change.ts`) returns null for a replacement with `pos < from <
+end`, but one with `pos < to < end` matches neither branch and is skipped.
+- **Fix:** `else if (pos < to && end > to) return null` beside the left-edge case.
+- **What we do:** Stesura's sub-editor binding treats a clipped set whose length isn't the
+region's as a failed clip, and resyncs the region whole (`kit/src/sub-editor`).
+- **Once fixed:** the length check can stay (it costs nothing) or go.
+
 ## Documentation [reported 03-11, #109]
 
 ### System guide: Editor State > Transactions
