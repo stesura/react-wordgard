@@ -329,6 +329,50 @@ failures.
 - **Once fixed:** those cases pass (flip them from `it.fails`); then `StyleSheet` (pro) and
 `ListConfigs` (kit) become set-valued marks of `[id, definition]` entries.
 
+## 22. `Pos.parentAt` loops past the root for any depth but the position's own (2026-11-04)
+
+- **Repro:** with `basicSchema()` and `blockquote()`, a document `Blockquote > Paragraph("hi")`,
+`doc.resolve(2)` (depth 2): `parentAt(2)` gives the paragraph; `parentAt(1)` and `parentAt(0)`
+throw "Cannot read properties of null (reading 'parent')".
+- **Cause:** `parentAt` (`src/doc/pos.ts`) walks `p = p.parent` without decrementing `d`, so
+`d == depth` only holds on the first step; a shallower depth walks off the root.
+- **Fix:** decrement `d` with each step (`for (let d = this.depth, p = this.parent;; d--, p =
+p.parent!)`).
+- **What we do:** the kit walks `Pos.Plot.parent` itself (`kit/src/extensions/callout`, its nesting
+check).
+- **Once fixed:** that walk can use `parentAt`; nothing else depends on it.
+
+## 23. Mapping a range set through a deletion that cuts a range short duplicates the range (2026-11-04)
+
+- **Repro:** with `basicSchema()` and the document `<p>ab</p><p> ab</p><p>ab</p><p>xab</p>`, a
+`RangeSet` of one non-inclusive value at `[1, 3]`, mapped through `{ from: 2, to: 3 }` (or
+`{ from: 1, to: 2 }`): a cursor walks `1-2` twice. With more ranges only the cut one doubles
+(`[1,3]`, `[6,8]` through `{ from: 7, to: 8 }` gives `1-3, 6-7, 6-7`). A deletion outside every
+range maps correctly. Afterwards `modify({ add })` on the mapped set adds each new range twice
+(`0-1, 0-1, …`), with or without a `replace` or `filter` in the same call.
+- **What we do:** the kit's search rebuilds its match set on each change while a query is active:
+it walks the mapped set, drops duplicates, emptied ranges and the rescanned blocks' ranges, and
+calls `RangeSet.create` (`kit/src/extensions/search`). That's O(matches) a change, not
+O(changed blocks).
+- **Once fixed:** `map` and `modify({ replace })` per changed textblock, as the kit's resolved
+properties do with point sets; the search test "agrees with a fresh scan after splits, joins and
+typing" checks it.
+
+## 24. The `wg-buffer` images have no `alt` (2026-11-04)
+
+- **Repro:** any inline plot, or an inline atom (#1): Wordgard draws `<img class="wg-buffer">`
+(`Widget.img` in `src/editor/decoration.ts` creates the element and sets only its class). axe
+reports `image-alt` (critical) on each: Stesura's e2e a11y audit of a paragraph holding a
+placeholder (`e2e/tests/demo/a11y.spec.ts`, "a selected placeholder", on `/wordgard-minimal`).
+- **Also:** its theme sets `height` and `vertical-align` but not `display`, so a CSS reset making
+images blocks (Tailwind's preflight: `img { display: block }`) breaks the line after every inline
+atom. Stesura's demo route sets `img.wg-buffer { display: inline }`.
+- **Fix:** `img.alt = ""` (a decorative image), and `display: inline` in the theme.
+- **What we do:** react-wordgard mirrors Wordgard's markup (`SeparatorHackView`, compared with
+Wordgard's in `tile.browser.test.ts`), so it has the same gap; the a11y test fails on it.
+- **Once fixed:** react-wordgard's `SeparatorHackView` follows (`alt=""`) with its pinned markup,
+and the demo's `display` override goes.
+
 ## Documentation [reported 03-11, #109]
 
 ### System guide: Editor State > Transactions
