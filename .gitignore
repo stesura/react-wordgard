@@ -18,10 +18,10 @@ CLAUDE.md
 /docs/stesura-node-views-audit.md
 /docs/virtualization-feasibility.md
 /docs/wordgard-upstream-asks.md
-docs/porting-gaps-plan.md
-docs/benchmark-results.md
-docs/prosemirror-blogpost-assessment.md
-docs/wordgard-upstream-bugs.md
-docs/wordgard-upstream-bugs.md
-docs/per-node-update.md
+/docs/porting-gaps-plan.md
+/docs/prosemirror-blogpost-assessment.md
+/docs/wordgard-upstream-bugs.md
+/docs/open-points.md
+/docs/per-node-update.md
 *.tgz
+docs/wordgard-upstream-bugs.md

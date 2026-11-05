@@ -51,7 +51,8 @@ export const Editor = () => (
   `wg.dispatch(…)`, the configuration through Wordgard's compartments or
   `GardState.appendConfig`, never by re-rendering with new props.
 - `WordgardDoc` puts the editor in the page; one per editor. Components inside `WordgardEditor`
-  (toolbars, menus, sidebars, next to `WordgardDoc`) can use the hooks: below.
+  (toolbars, menus, sidebars, next to `WordgardDoc`) can use the hooks: below. `WordgardEditor`
+  draws no DOM, so wrap as much of the page in it as needs the editor.
 - Don't create editors with `Wordgard.create` for a React app: react-wordgard's editor is made by
   `WordgardEditor`. In StrictMode (development) it creates the editor twice and drops one, which is
   never put in the page.
@@ -67,6 +68,7 @@ const Toolbar = () => {
   const bold = useEditorEventCallback((wg) => Command.dispatch(wg, toggleStrong));
   return (
     <button
+      disabled={empty}
       onMouseDown={(e) => {
         e.preventDefault();
         bold();
@@ -91,15 +93,74 @@ const Toolbar = () => {
   events, `mousedown`, `mouseup`, `mouseover`, `mouseout`, `click`, `dblclick`, `contextmenu`,
   `focus`, `blur`, `copy`, `cut`, `paste`, drag-and-drop events. Key events during an IME
   composition don't come. Handling `input`, `beforeinput` or a composition event skips Wordgard's
-  own handling of it: leave typing to Wordgard.
+  own handling of it: leave typing to Wordgard. Touch, wheel, pointer events and `mousemove` aren't
+  offered (they'd make every editor's listener non-passive or busy): for those, add a
+  `Wordgard.domEventHandler` to `config`, or a listener on `wg.contentDOM` from `useEditorEffect`.
+- `wg.state` in a callback is the latest state, dispatches not yet drawn included. To save the
+  document: `wg.state.doc.toJSON()`; to load it, `state.schema.docFromJSON(json)` as `doc`.
 
-### Several editors on a page
+### Reaching the editor from outside its `WordgardEditor`
 
-A sub-editor (a header's, a note's) is its own `WordgardEditor`, often drawn inside a React shape
-of the main one. To have a toolbar act on whichever editor has focus, keep the focused one in a
-store of the app's (set from `useEditorEventListener("focus", …)` in each) and wrap the toolbar in
-`<WordgardScope wg={focused}>`: the hooks under it read, dispatch to and listen to that editor,
-and follow when it changes. Keep `WordgardDoc` out of the scope: it belongs to its own editor.
+The editor owns its state: there's no controlled `state` prop to lift into React, as with
+react-prosemirror. The hooks throw outside `WordgardEditor`. Two ways:
+
+1. **Lift `WordgardEditor`** over everything that needs the editor (it draws no DOM; the document
+   goes where `WordgardDoc` is). Prefer this.
+2. **Share the editor through a store** where it can't wrap the component (another part of the
+   app, a portal): a component under `WordgardEditor` puts the editor in the store from
+   `useEditorEffect`, and the component outside reads it and uses `wg` directly (not the hooks).
+
+```tsx
+import { atom, useAtomValue, useSetAtom } from "jotai";
+import type { Wordgard } from "wordgard/editor";
+import { basicSchema } from "wordgard/schema";
+import { WordgardDoc, WordgardEditor, useEditorEffect } from "@stesura/react-wordgard";
+
+const editorAtom = atom<Wordgard | null>(null);
+
+const ShareEditor = () => {
+  const setEditor = useSetAtom(editorAtom);
+  useEditorEffect((wg) => {
+    setEditor(wg);
+    return () => setEditor(null);
+  }, []);
+  return null;
+};
+
+const SaveButton = () => {
+  const wg = useAtomValue(editorAtom);
+  const save = () => {
+    if (wg) localStorage.setItem("doc", JSON.stringify(wg.state.doc.toJSON()));
+  };
+  return (
+    <button onClick={save} disabled={!wg}>
+      Save
+    </button>
+  );
+};
+
+export const App = () => (
+  <>
+    <header>
+      <SaveButton />
+    </header>
+    <WordgardEditor doc="<p>Hello</p>" config={[basicSchema()]}>
+      <ShareEditor />
+      <WordgardDoc />
+    </WordgardEditor>
+  </>
+);
+```
+
+Any store works (Jotai here, Zustand, `useSyncExternalStore`). A sub-editor (a header's, a note's)
+is its own `WordgardEditor`, often drawn inside a React shape of the main one; a toolbar acting on
+whichever editor has focus keeps the focused one in such a store, set from
+`useEditorEventListener("focus", …)` in each.
+
+To react to changes without re-rendering (autosave, a debounced copy), add a
+`Wordgard.updateListener.of((update) => …)` to `config`; `update.docChanged` and `update.state`
+tell what changed. `config` is read once, so it should write to a store, not close over a
+component's state.
 
 ### Effects and layout
 
@@ -202,7 +263,29 @@ puts both on the `<img>`. Check the parameter types of the node and mark types y
   one, type the root as its element): the element the decoration says, `{...props}` (Wordgard's
   attributes) and `ref` (`forwardRef` on React 18), never both ways at once. Join your classes with
   `className` (Wordgard's, the selection's among them), and spread your style over `style`
-  (Wordgard's, as an object):
+  (Wordgard's, as an object). On React 19, `ref` is a prop:
+
+  ```tsx
+  const ImageShape = createShape<HTMLImageElement>(function ImageShape({
+    nodeProps,
+    children,
+    className,
+    style,
+    ref,
+    ...props
+  }) {
+    return (
+      <img
+        {...props}
+        ref={ref}
+        className={["picture", className].join(" ").trim()}
+        style={{ ...style, outline: "1px solid" }}
+      />
+    );
+  });
+  ```
+
+  On React 18, with `forwardRef`:
 
   ```tsx
   const ImageShape = createShape(
@@ -224,7 +307,7 @@ puts both on the `<img>`. Check the parameter types of the node and mark types y
 
 - **Only the outer element comes from the node type.** The elements inside a structure shape (a
   figure's `img`) are the component's to draw, from `nodeProps.node`; attributes aimed at them
-  arrive on the root (see "A shape, a wrapper, or both").
+  arrive on the root (see "Should I use a shape, a wrapper or both?").
 - **Content goes where `contentDOMRef` points**, else in the root. `children` is the content (a
   wrapper's `children` is what it wraps; no `contentDOMRef` there).
 - **An atom** (a leaf, or a plot whose shape has no hole) has no content: `children` is empty,
@@ -291,13 +374,47 @@ disconnect? })` returns a real `Widget.Type`: its widgets are `Type.of(value)`. 
 - A widget's component may read a context a React shape around it provides (line numbers beside a
   paragraph's text, from the paragraph's shape).
 
-### A shape, a wrapper, or both
+### Should I use a shape, a wrapper or both?
 
-- The node type's shape decides where attributes go (`target`, `preferTarget`: `ImageAlt` and
-  `ImageSize` land on a figure's `img`). Don't replace a shape just to add chrome.
-- React chrome around a node, or an element in its shape, is a **wrapper**:
-  `Decoration.Tag.wrapper(Figure, createWrapper(Frame), { target: "img" })`. The `img` keeps its
-  `src`, `alt` and width; `Frame` draws a resize handle beside `{children}`.
+A shape draws the node; a wrapper adds React around it. Unlike a ProseMirror node view, which picks
+all its DOM, a node's outer element comes from its type's shape in the schema: Wordgard applies
+marks and decorations to that shape (`target`, `preferTarget`) before React draws. A React shape
+that draws more than its root gets the attributes aimed inside it on its root (a figure drawing its
+own `img` gets `ImageAlt` and `ImageSize` on the `<figure>`). So the shape's root matches the node
+type's element (`DecorationRoot`, or a root drawn by hand), and chrome around it is a wrapper:
+
+```tsx
+import { Decoration } from "wordgard/editor";
+import { Image } from "wordgard/types";
+import { DecorationRoot, createShape, createWrapper, useStopEvent } from "@stesura/react-wordgard";
+
+// The shape draws the <img>, which keeps its src, alt and width.
+const ImageShape = createShape(function ImageShape() {
+  return <DecorationRoot className="image" />;
+});
+
+// The wrapper draws the resize handle around it.
+const Resizer = createWrapper(
+  function Resizer({ children }) {
+    useStopEvent(() => true);
+    return (
+      <DecorationRoot className="resizer">
+        {children}
+        <span className="resize-handle" aria-hidden="true" />
+      </DecorationRoot>
+    );
+  },
+  { element: "span" } // an image is inline
+);
+
+export const imageConfig = [
+  Decoration.Tag.shape(Image, ImageShape),
+  Decoration.Tag.wrapper(Image, Resizer),
+];
+```
+
+- A wrapper can also aim at an element inside the type's shape:
+  `Decoration.Tag.wrapper(Figure, createWrapper(Frame), { target: "img" })`.
 - A shape and wrappers on the same type apply to all its nodes. A table: a React shape drawing
   `table > tbody > {children}`, plus a wrapper for a scroll container around it.
 - **One `Decoration.Tag.shape` per node type** draws it: where several features draw the same type
@@ -349,6 +466,9 @@ parent.
   every control, controls focusable and wrapped in `useStopEvent` so Wordgard leaves their keys.
 
 ## Migrating react-prosemirror node views
+
+There are no node views: a node is drawn by decorations (its shape and wrappers), and a node view
+component becomes one with `createShape` or `createWrapper`.
 
 | react-prosemirror                                                              | react-wordgard                                                                   |
 | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------- |

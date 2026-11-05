@@ -11,9 +11,9 @@ builds one per step, which is the engine's model, not the React layer's work.
 ## The figures
 
 `npm run bench` and `npm run bench:heap`, 2026-11-05: 1,500 paragraphs of about 100 words (about
-300 A4 pages, a large real document), each with 2 to 5 marked runs; no plugins, no node views;
-headless Chromium, React 18.3.1 production build. Transactions are dispatched directly, so input
-handling isn't measured.
+300 A4 pages, a large real document), each with 2 to 5 marked runs, all directly under the root
+(no lists or tables); no plugins, no node views or other decorations; headless Chromium, React
+18.3.1 production build. Transactions are dispatched directly, so input handling isn't measured.
 
 | | react-prosemirror 3.2.11 | ProseMirror | react-wordgard | Wordgard |
 |---|---|---|---|---|
