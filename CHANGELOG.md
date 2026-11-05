@@ -1,3 +1,9 @@
+## Unreleased
+
+### New features
+
+The package's entry point is marked `"use client"`, so frameworks with React Server Components treat it as client code.
+
 ## 0.2.0 (2026-11-05)
 
 ### New features
