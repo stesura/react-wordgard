@@ -15,27 +15,27 @@ Times in ms; for bulk edits, time / MB allocated during the edit.
 
 | | react-wordgard | Wordgard | react-prosemirror | ProseMirror |
 |---|---|---|---|---|
-| To first interaction | 97.0 | 70.3 | 715 | 61.0 |
-| Keystroke | 0.8 | 0.6 | 26.8 | 0.4 |
-| Allocated per keystroke (KB) | 252 | 193 | 2,871 | 49.8 |
-| Enter | 1.5 | 1.1 | 28.8 | 0.5 |
-| Bold all | 153 | 93.7 | 446 | 85.0 |
-| Indent every paragraph | 55.1 / 31.7 | 35.6 / 8.6 | 384 / 588 | 104 / 37.1 |
-| Replace All | 87.5 / 54.0 | 57.9 / 9.8 | 412 / 566 | 52.4 / 13.9 |
-| Font size of all the text | 121 / 50.2 | 78.3 / 19.3 | 784 / 2,346 | 176 / 86.6 |
+| To first interaction | 102 | 70.5 | 715 | 61.5 |
+| Keystroke | 1.0 | 0.6 | 25.3 | 0.4 |
+| Allocated per keystroke (KB) | 272 | 189 | 2,884 | 48.6 |
+| Enter | 2.1 | 1.1 | 26.2 | 0.5 |
+| Bold all | 155 | 94.3 | 461 | 89.0 |
+| Indent every paragraph | 56.6 / 31.3 | 35.5 / 8.2 | 377 / 587 | 106 / 36.9 |
+| Replace All | 86.5 / 54.3 | 57.0 / 9.1 | 411 / 571 | 53.2 / 14.5 |
+| Font size of all the text | 120 / 52.8 | 77.3 / 20.7 | 791 / 2,346 | 177 / 85.3 |
 
 ### At 1,500 paragraphs, with the stand-in plugins
 
 | | react-wordgard | Wordgard | react-prosemirror | ProseMirror |
 |---|---|---|---|---|
-| To first interaction | 112 | 78.4 | 754 | 66.3 |
-| Keystroke | 0.9 | 0.6 | 28.9 | 0.7 |
-| Allocated per keystroke (KB) | 463 | 300 | 2,907 | 74.9 |
-| Enter | 1.9 | 1.3 | 29.9 | 0.9 |
-| Bold all | 171 | 101 | 483 | 95.8 |
-| Indent every paragraph | 75.8 / 43.3 | 47.4 / 12.4 | 489 / 1,114 | 165 / 74.6 |
-| Replace All | 113 / 65.8 | 83.8 / 19.8 | 591 / 1,090 | 171 / 55.9 |
-| Font size of all the text | 156 / 66.9 | 99.1 / 25.5, drawn wrong | 947 / 2,748 | 244 / 122 |
+| To first interaction | 109 | 76.7 | 746 | 64.6 |
+| Keystroke | 0.9 | 0.6 | 26.5 | 0.7 |
+| Allocated per keystroke (KB) | 441 | 299 | 2,908 | 81.8 |
+| Enter | 1.9 | 1.3 | 28.7 | 0.9 |
+| Bold all | 171 | 99.7 | 456 | 93.0 |
+| Indent every paragraph | 72.9 / 43.2 | 45.6 / 11.6 | 497 / 1,112 | 169 / 75.1 |
+| Replace All | 113 / 62.6 | 79.5 / 20.3 | 592 / 1,096 | 168 / 55.7 |
+| Font size of all the text | 151 / 66.4 | 93.6 / 25.0, drawn wrong | 921 / 2,748 | 241 / 121 |
 
 ### Memory held after load
 
@@ -45,34 +45,44 @@ editor holds, document included, in MB. The DOM is about the same size in every 
 
 | Paragraphs | react-wordgard | Wordgard | react-prosemirror | ProseMirror |
 |---|---|---|---|---|
-| 50 | 0.7 | 0.2 | 3.7 | 0.2 |
+| 50 | 0.6 | 0.2 | 3.7 | 0.2 |
 | 500 | 4.6 | 1.1 | 35.2 | 1.5 |
-| 1,500 | 13.4 | 2.9 | 103.4 | 4.0 |
+| 1,500 | 13.4 | 2.9 | 103.3 | 4.0 |
 
 ### What it shows
 
 **react-wordgard against react-prosemirror**, at 1,500 paragraphs:
 
-- **Load and memory:** first interaction 7.4× sooner (97 against 715 ms), 7.7× less memory held.
-- **Typing:** keystroke 34× faster (0.8 against 26.8 ms), Enter 19×, allocating 11× less per
-  keystroke. react-prosemirror's keystroke grows with the document (0.3, 2.1, 26.8 ms at 50, 500
-  and 1,500 paragraphs); react-wordgard's barely (0.2, 0.5, 0.8 ms).
-- **Bulk edits:** bold all 2.9×, indent 7×, Replace All 4.7×, font size 6.5× faster, the font
-  size allocating 47× less (50 against 2,346 MB). With the stand-in plugins: 6.5×, 5.2× and 6.1×.
+- **Load and memory:** first interaction 7× sooner (102 against 715 ms), 7.7× less memory held.
+- **Typing:** keystroke 25× faster (1.0 against 25.3 ms), Enter 12×, allocating 11× less per
+  keystroke. react-prosemirror's keystroke grows with the document (0.3, 2.1, 25.3 ms at 50, 500
+  and 1,500 paragraphs); react-wordgard's barely (0.2, 0.5, 1.0 ms).
+- **Bulk edits:** bold all 3×, indent 6.7×, Replace All 4.8×, font size 6.6× faster, the font
+  size allocating 44× less (53 against 2,346 MB). With the stand-in plugins: 6.8×, 5.2× and 6.1×.
 
-**The React layers:** react-wordgard costs its plain editor 1.4× to first interaction and per
-Enter, 1.3× per keystroke, and allocates 1.3× as much per keystroke. react-prosemirror costs
-ProseMirror 12× to first interaction, 67× per keystroke and 58× per Enter.
+**Where react-prosemirror's keystroke goes** (`npm run bench:profile`, 1,500 paragraphs): 26.5 ms
+of work, of which 21.9 ms is React's render phase, 20.7 ms of it in `beginWork`'s own code, the
+function that bails out of unchanged fibers and passes changed context values down. Each
+transaction gives the document's contexts new values, and react-prosemirror holds 283,000 fibers
+at that size (190 a paragraph; react-wordgard 30): the time goes into walking that tree, not into
+rendering components. The state update, `reactKeys` included, is 1.9 ms; `reactKeys`' rebuilt
+tables are most of the 2.9 MB allocated. The time grows faster than the document: per fiber,
+about 0.03 µs at 500 paragraphs and 0.09 µs at 1,500, likely as the fiber tree (28 MB) outgrows
+the CPU's caches. Not attributed further.
+
+**The React layers:** react-wordgard costs its plain editor 1.4× to first interaction, 1.7× per
+keystroke, 1.9× per Enter, and allocates 1.4× as much per keystroke. react-prosemirror costs
+ProseMirror 12× to first interaction, 63× per keystroke and 52× per Enter.
 
 **The engines, Wordgard against ProseMirror:**
 
-- ProseMirror loads and types a little faster (61.0 against 70.3 ms to first interaction, 0.4
-  against 0.6 ms a keystroke) and allocates 3.9× less per keystroke (50 against 193 KB):
+- ProseMirror loads and types a little faster (61.5 against 70.5 ms to first interaction, 0.4
+  against 0.6 ms a keystroke) and allocates 3.9× less per keystroke (49 against 189 KB):
   Wordgard's per-transaction cost grows with the document (issue 4 below).
-- Bulk edits in one transaction: Wordgard 2.9× faster on the indent and 2.2× on the font size,
-  allocating 1.4 to 4.5× less; ProseMirror 1.1× faster on Replace All.
-- With the stand-in plugins Wordgard is ahead on all three: 3.5× on the indent, 2× on Replace
-  All, 2.5× on the font size. Its keystroke stays at 0.6 ms; ProseMirror's goes from 0.4 to 0.7.
+- Bulk edits in one transaction: Wordgard 3× faster on the indent and 2.3× on the font size,
+  allocating 1.6 to 4.5× less; Replace All level (57.0 against 53.2 ms).
+- With the stand-in plugins Wordgard is ahead on all three: 3.7× on the indent, 2.1× on Replace
+  All, 2.6× on the font size. Its keystroke stays at 0.6 ms; ProseMirror's goes from 0.4 to 0.7.
 
 **Undo** of every bulk edit restored the loaded document in every editor (the benchmark asserts
 it).
@@ -84,9 +94,9 @@ below; react-wordgard draws it right. Everything else was drawn as its document.
 
 | Editor | What it is |
 |---|---|
-| react-wordgard | Wordgard drawn by React: this repository, at commit `fd82024` plus the benchmark changes |
+| react-wordgard | Wordgard drawn by React: this repository, at commit `cf87906` plus the benchmark changes, mounted as an app does (`<WordgardEditor>` and `<WordgardDoc>` in a React root) |
 | Wordgard | Wordgard's own view, no React |
-| react-prosemirror | `@handlewithcare/react-prosemirror` from npm: ProseMirror drawn by React, as published |
+| react-prosemirror | `@handlewithcare/react-prosemirror` from npm: ProseMirror drawn by React, as published, mounted as an app does (`<ProseMirror>` and `<ProseMirrorDoc>` in a React root) |
 | ProseMirror | ProseMirror's own view, no React |
 
 The plain editors are the floors: comparing Wordgard with ProseMirror shows what the engines do,
@@ -165,7 +175,9 @@ pass with a summary table per size, built from the detail tables after it.
 its next frame, so the benchmark flushes it (`wg.flush()`); ProseMirror and react-prosemirror
 draw synchronously (react-prosemirror commits with `flushSync`). Operations are dispatched as
 transactions: the browser's input handling (`beforeinput` for Wordgard, DOM mutations for
-ProseMirror) isn't measured.
+ProseMirror) isn't measured. `performance.now()` ticks at 0.1 ms here (the page isn't
+cross-origin isolated): a sub-millisecond keystroke is a few ticks, so between two such figures a
+ratio under about 1.5× is within noise.
 
 **Runs.** Each measurement is the median of 3 runs on fresh editors, the editors interleaved
 within each run so drift reaches them all alike. Every editor first loads, types, bolds and runs
@@ -174,8 +186,9 @@ cursor is set in the middle paragraph before load, in every editor.
 
 ### Interaction
 
-- **Load:** creating the editor from a parsed state until it's drawn and laid out. Parsing the
-  HTML isn't counted.
+- **Load:** creating the editor from a parsed state until it's drawn and laid out, React's first
+  render and each view's own setup included (react-prosemirror's `reactKeys` tables,
+  react-wordgard's keys). Parsing the HTML and creating the state aren't counted.
 - **First keystroke:** the first character typed after load.
 - **To first interaction:** from the start of load until that first character is drawn.
 - **Keystroke:** median of 30, after 5 unmeasured, in the middle paragraph.
@@ -185,9 +198,6 @@ cursor is set in the middle paragraph before load, in every editor.
 - **Enter:** median of 10, after 5 unmeasured (`splitBlock`, Wordgard's `enter`).
 - **Allocated per Enter:** 10 more, the same way.
 - **Bold all:** adding and removing bold over the whole document, median of 4.
-- **Heap held after load:** the JS heap after a forced garbage collection, after load minus
-  before. A rough figure: it reads negative when an earlier editor's memory is released late, so
-  `npm run bench:heap`'s snapshots are the ones to read for memory.
 
 ### Bulk edits
 
@@ -291,21 +301,28 @@ Found while building the benchmark; minimal repros run in plain Wordgard 0.6.2.
 
 ## Fairness, and what this doesn't show
 
-- **Flat documents only.** Every paragraph is a child of the root. Nested structure (lists,
-  tables, quotes) isn't measured; react-wordgard's update keeps unchanged ends of a flat list
-  without walking them, so a flat document is its best case.
+- **Flat documents only.** Every paragraph is a child of the root. That is react-wordgard's best
+  case (its update keeps the unchanged ends of a flat list without walking them) and
+  react-prosemirror's worst (it walks and sorts the document's whole child list on every
+  keystroke). Nested structure (lists, tables, quotes) isn't measured, and would narrow the
+  difference in time.
 - **No decorations.** Only default nodes are drawn: no node views in react-prosemirror, no React
   shapes, wrappers, marks or widgets in react-wordgard, though drawing those is what react-wordgard
   is for.
+- **Input handling isn't measured:** transactions are dispatched directly. react-prosemirror
+  handles typing itself (`beforeinput`, then a transaction), so its measured path is close to its
+  real one. Wordgard lets the browser edit the DOM and reads it back, and react-wordgard then puts
+  React's text back before rendering: that work, about one paragraph's, is left out, in their
+  favour.
 - **Stand-in plugins, not an app's.** The plugin pass shows how three kinds of plugin scale with
   steps against change sets; an app's own plugins, node views, React shell and layout aren't here.
 - **Each side in its idiom.** Wordgard keeps data like an indent, a flag or a font size as a mark
   holding one value; ProseMirror as an attribute, or, for the text style, one mark holding several
   values. Setting the font size is many steps in ProseMirror and one change in Wordgard because of
   that model, which is part of what's compared.
-- **Input handling** isn't measured: transactions are dispatched directly.
-- **Memory figures** come from `performance.memory`, heap snapshots and the sampling profiler:
-  approximate, and the per-load figure in the timing tables is noisy (above).
+- **One browser, one React.** Chromium and React 18's production build only.
+- **Memory figures** come from heap snapshots and the sampling profiler (16 KB interval):
+  approximate, rough for allocations of a few tens of KB.
 
 ## Full results
 
@@ -317,74 +334,74 @@ Found while building the benchmark; minimal repros run in plain Wordgard 0.6.2.
 
 | | react-wordgard | Wordgard | react-prosemirror | ProseMirror |
 |---|---|---|---|---|
-| To first interaction (ms) | 5.4 | 4.2 | 17.4 | 2.8 |
+| To first interaction (ms) | 5.7 | 3.4 | 16.4 | 2.6 |
 | Keystroke (ms) | 0.2 | 0.1 | 0.3 | 0 |
-| Allocated per keystroke (KB) | 49.0 | 20.9 | 194 | 7.1 |
+| Allocated per keystroke (KB) | 50.3 | 17.6 | 189 | 4.9 |
 | Enter (ms) | 0.5 | 0.3 | 0.5 | 0.1 |
-| Bold all (ms) | 4.6 | 3.3 | 8.3 | 2.6 |
-| Indent every paragraph (ms / MB allocated) | 2.7 / 1.2 | 1.7 / 0.3 | 5.7 / 2.6 | 2.8 / 0.3 |
-| Replace All (ms / MB allocated) | 3.7 / 1.6 | 2.6 / 0.5 | 6.7 / 2.9 | 1.9 / 0.2 |
-| Font size of all the text (ms / MB allocated) | 5.2 / 2.3 | 3.6 / 0.8 | 12.9 / 5.7 | 4.0 / 1.3 |
+| Bold all (ms) | 4.8 | 2.9 | 7.5 | 2.5 |
+| Indent every paragraph (ms / MB allocated) | 2.9 / 1.1 | 1.9 / 0.3 | 5.5 / 2.7 | 2.8 / 0.2 |
+| Replace All (ms / MB allocated) | 4.9 / 1.6 | 2.8 / 0.5 | 6.8 / 2.7 | 1.9 / 0.2 |
+| Font size of all the text (ms / MB allocated) | 6.0 / 1.9 | 4.1 / 0.7 | 13.2 / 6.0 | 4.1 / 1.3 |
 
 #### 500 paragraphs
 
 | | react-wordgard | Wordgard | react-prosemirror | ProseMirror |
 |---|---|---|---|---|
-| To first interaction (ms) | 34.5 | 27.7 | 212 | 20.1 |
+| To first interaction (ms) | 34.3 | 25.1 | 213 | 20.8 |
 | Keystroke (ms) | 0.5 | 0.3 | 2.1 | 0.2 |
-| Allocated per keystroke (KB) | 129 | 79.2 | 1148 | 20.1 |
-| Enter (ms) | 0.8 | 0.5 | 2.6 | 0.2 |
-| Bold all (ms) | 44.8 | 29.1 | 118 | 24.6 |
-| Indent every paragraph (ms / MB allocated) | 21.0 / 10.7 | 13.2 / 3.0 | 95.8 / 79.6 | 26.1 / 4.6 |
-| Replace All (ms / MB allocated) | 28.9 / 15.5 | 20.0 / 3.4 | 97.6 / 80.4 | 16.8 / 2.9 |
-| Font size of all the text (ms / MB allocated) | 53.5 / 17.2 | 34.6 / 7.4 | 236 / 284 | 54.1 / 17.2 |
+| Allocated per keystroke (KB) | 132 | 85.3 | 1146 | 17.2 |
+| Enter (ms) | 0.8 | 0.5 | 3.2 | 0.2 |
+| Bold all (ms) | 45.8 | 29.7 | 123 | 27.4 |
+| Indent every paragraph (ms / MB allocated) | 19.0 / 11.3 | 13.0 / 3.1 | 93.8 / 80.2 | 25.5 / 4.3 |
+| Replace All (ms / MB allocated) | 28.6 / 15.8 | 19.9 / 3.2 | 97.1 / 80.2 | 16.3 / 2.5 |
+| Font size of all the text (ms / MB allocated) | 40.5 / 16.8 | 25.7 / 7.4 | 162 / 286 | 39.2 / 16.1 |
 
 #### 1,500 paragraphs
 
 | | react-wordgard | Wordgard | react-prosemirror | ProseMirror |
 |---|---|---|---|---|
-| To first interaction (ms) | 97.0 | 70.3 | 715 | 61.0 |
-| Keystroke (ms) | 0.8 | 0.6 | 26.8 | 0.4 |
-| Allocated per keystroke (KB) | 252 | 193 | 2871 | 49.8 |
-| Enter (ms) | 1.5 | 1.1 | 28.8 | 0.5 |
-| Bold all (ms) | 153 | 93.7 | 446 | 85.0 |
-| Indent every paragraph (ms / MB allocated) | 55.1 / 31.7 | 35.6 / 8.6 | 384 / 588 | 104 / 37.1 |
-| Replace All (ms / MB allocated) | 87.5 / 54.0 | 57.9 / 9.8 | 412 / 566 | 52.4 / 13.9 |
-| Font size of all the text (ms / MB allocated) | 121 / 50.2 | 78.3 / 19.3 | 784 / 2346 | 176 / 86.6 |
+| To first interaction (ms) | 102 | 70.5 | 715 | 61.5 |
+| Keystroke (ms) | 1.0 | 0.6 | 25.3 | 0.4 |
+| Allocated per keystroke (KB) | 272 | 189 | 2884 | 48.6 |
+| Enter (ms) | 2.1 | 1.1 | 26.2 | 0.5 |
+| Bold all (ms) | 155 | 94.3 | 461 | 89.0 |
+| Indent every paragraph (ms / MB allocated) | 56.6 / 31.3 | 35.5 / 8.2 | 377 / 587 | 106 / 36.9 |
+| Replace All (ms / MB allocated) | 86.5 / 54.3 | 57.0 / 9.1 | 411 / 571 | 53.2 / 14.5 |
+| Font size of all the text (ms / MB allocated) | 120 / 52.8 | 77.3 / 20.7 | 791 / 2346 | 177 / 85.3 |
 
 #### Interaction
 
-| Paragraphs | Editor | Load (ms) | First keystroke (ms) | To first interaction (ms) | Keystroke (ms) | Allocated per keystroke (KB) | Enter (ms) | Allocated per Enter (KB) | Bold all (ms) | Heap held after load (MB) |
-|---|---|---|---|---|---|---|---|---|---|---|
-| 50 | react-wordgard | 4.9 | 0.5 | 5.4 | 0.2 | 49.0 | 0.5 | 102 | 4.6 | 0.4 |
-| 50 | Wordgard | 3.8 | 0.4 | 4.2 | 0.1 | 20.9 | 0.3 | 32.9 | 3.3 | -1.3 |
-| 50 | react-prosemirror | 16.0 | 0.9 | 17.4 | 0.3 | 194 | 0.5 | 248 | 8.3 | 3.6 |
-| 50 | ProseMirror | 2.5 | 0.3 | 2.8 | 0 | 7.1 | 0.1 | 9.9 | 2.6 | -0.2 |
-| 500 | react-wordgard | 32.7 | 1.8 | 34.5 | 0.5 | 129 | 0.8 | 224 | 44.8 | 4.4 |
-| 500 | Wordgard | 26.4 | 1.3 | 27.7 | 0.3 | 79.2 | 0.5 | 122 | 29.1 | 0 |
-| 500 | react-prosemirror | 196 | 10.8 | 212 | 2.1 | 1148 | 2.6 | 1278 | 118 | 33.9 |
-| 500 | ProseMirror | 19.3 | 0.7 | 20.1 | 0.2 | 20.1 | 0.2 | 35.7 | 24.6 | 1.4 |
-| 1500 | react-wordgard | 93.3 | 3.7 | 97.0 | 0.8 | 252 | 1.5 | 581 | 153 | 13.2 |
-| 1500 | Wordgard | 67.7 | 2.6 | 70.3 | 0.6 | 193 | 1.1 | 277 | 93.7 | 4.8 |
-| 1500 | react-prosemirror | 669 | 30.4 | 715 | 26.8 | 2871 | 28.8 | 2969 | 446 | 106 |
-| 1500 | ProseMirror | 58.9 | 1.9 | 61.0 | 0.4 | 49.8 | 0.5 | 69.6 | 85.0 | 5.0 |
+| Paragraphs | Editor | Load (ms) | First keystroke (ms) | To first interaction (ms) | Keystroke (ms) | Allocated per keystroke (KB) | Enter (ms) | Allocated per Enter (KB) | Bold all (ms) |
+|---|---|---|---|---|---|---|---|---|---|
+| 50 | react-wordgard | 5.1 | 0.5 | 5.7 | 0.2 | 50.3 | 0.5 | 82.2 | 4.8 |
+| 50 | Wordgard | 3.1 | 0.4 | 3.4 | 0.1 | 17.6 | 0.3 | 34.6 | 2.9 |
+| 50 | react-prosemirror | 15.1 | 0.7 | 16.4 | 0.3 | 189 | 0.5 | 266 | 7.5 |
+| 50 | ProseMirror | 2.4 | 0.2 | 2.6 | 0 | 4.9 | 0.1 | 11.5 | 2.5 |
+| 500 | react-wordgard | 32.7 | 1.8 | 34.3 | 0.5 | 132 | 0.8 | 220 | 45.8 |
+| 500 | Wordgard | 24.0 | 1.0 | 25.1 | 0.3 | 85.3 | 0.5 | 124 | 29.7 |
+| 500 | react-prosemirror | 199 | 9.8 | 213 | 2.1 | 1146 | 3.2 | 1295 | 123 |
+| 500 | ProseMirror | 19.9 | 0.8 | 20.8 | 0.2 | 17.2 | 0.2 | 25.6 | 27.4 |
+| 1500 | react-wordgard | 97.7 | 4.2 | 102 | 1.0 | 272 | 2.1 | 607 | 155 |
+| 1500 | Wordgard | 67.9 | 2.7 | 70.5 | 0.6 | 189 | 1.1 | 292 | 94.3 |
+| 1500 | react-prosemirror | 670 | 31.0 | 715 | 25.3 | 2884 | 26.2 | 2986 | 461 |
+| 1500 | ProseMirror | 59.5 | 2.1 | 61.5 | 0.4 | 48.6 | 0.5 | 69.7 | 89.0 |
 
 #### Indent every paragraph
 
 | Paragraphs | Editor | Steps / changes | Documents built | Time (ms) | of which finding (ms) | Allocated (MB) | Heap after, before GC (MB) | Undo (ms) |
 |---|---|---|---|---|---|---|---|---|
-| 50 | react-wordgard | 50 | 1 | 2.7 | 0 | 1.2 | 1.2 | 2.1 |
-| 50 | Wordgard | 50 | 1 | 1.7 | 0 | 0.3 | 0.3 | 1.3 |
-| 50 | react-prosemirror | 50 | 50 | 5.7 | 0 | 2.6 | 2.9 | 4.6 |
-| 50 | ProseMirror | 50 | 50 | 2.8 | 0 | 0.3 | 0.2 | 2.3 |
-| 500 | react-wordgard | 500 | 1 | 21.0 | 0.1 | 10.7 | 11.1 | 17.1 |
-| 500 | Wordgard | 500 | 1 | 13.2 | 0 | 3.0 | 3.2 | 10.2 |
-| 500 | react-prosemirror | 500 | 500 | 95.8 | 0.1 | 79.6 | 19.0 | 95.8 |
-| 500 | ProseMirror | 500 | 500 | 26.1 | 0 | 4.6 | 4.5 | 25.0 |
-| 1500 | react-wordgard | 1500 | 1 | 55.1 | 0 | 31.7 | 31.8 | 46.5 |
-| 1500 | Wordgard | 1500 | 1 | 35.6 | 0.2 | 8.6 | 8.2 | 28.5 |
-| 1500 | react-prosemirror | 1500 | 1500 | 384 | 0.2 | 588 | 50.6 | 371 |
-| 1500 | ProseMirror | 1500 | 1500 | 104 | 0.2 | 37.1 | 17.4 | 101 |
+| 50 | react-wordgard | 50 | 1 | 2.9 | 0 | 1.1 | 1.2 | 2.5 |
+| 50 | Wordgard | 50 | 1 | 1.9 | 0 | 0.3 | 0.3 | 1.3 |
+| 50 | react-prosemirror | 50 | 50 | 5.5 | 0 | 2.7 | 2.9 | 4.1 |
+| 50 | ProseMirror | 50 | 50 | 2.8 | 0 | 0.2 | 0.2 | 2.2 |
+| 500 | react-wordgard | 500 | 1 | 19.0 | 0 | 11.3 | 11.0 | 15.0 |
+| 500 | Wordgard | 500 | 1 | 13.0 | 0 | 3.1 | 3.2 | 9.6 |
+| 500 | react-prosemirror | 500 | 500 | 93.8 | 0 | 80.2 | 19.0 | 81.9 |
+| 500 | ProseMirror | 500 | 500 | 25.5 | 0 | 4.3 | 4.5 | 25.3 |
+| 1500 | react-wordgard | 1500 | 1 | 56.6 | 0.1 | 31.3 | 31.7 | 46.0 |
+| 1500 | Wordgard | 1500 | 1 | 35.5 | 0.2 | 8.2 | 8.2 | 28.2 |
+| 1500 | react-prosemirror | 1500 | 1500 | 377 | 0.1 | 587 | 50.6 | 370 |
+| 1500 | ProseMirror | 1500 | 1500 | 106 | 0.3 | 36.9 | 17.4 | 106 |
 
 #### Replace the search term in every paragraph
 
@@ -392,35 +409,35 @@ Replacements drawn inside a mark's element, the same in every editor: 12 of 50, 
 
 | Paragraphs | Editor | Steps / changes | Documents built | Time (ms) | of which finding (ms) | Allocated (MB) | Heap after, before GC (MB) | Undo (ms) |
 |---|---|---|---|---|---|---|---|---|
-| 50 | react-wordgard | 50 | 1 | 3.7 | 0.1 | 1.6 | 1.5 | 3.0 |
-| 50 | Wordgard | 50 | 1 | 2.6 | 0.1 | 0.5 | 0.4 | 2.1 |
-| 50 | react-prosemirror | 50 | 50 | 6.7 | 0.1 | 2.9 | 3.0 | 6.4 |
+| 50 | react-wordgard | 50 | 1 | 4.9 | 0.2 | 1.6 | 1.5 | 3.8 |
+| 50 | Wordgard | 50 | 1 | 2.8 | 0.1 | 0.5 | 0.5 | 2.0 |
+| 50 | react-prosemirror | 50 | 50 | 6.8 | 0.1 | 2.7 | 3.0 | 5.7 |
 | 50 | ProseMirror | 50 | 50 | 1.9 | 0.1 | 0.2 | 0.2 | 1.5 |
-| 500 | react-wordgard | 500 | 1 | 28.9 | 0.8 | 15.5 | 16.1 | 24.4 |
-| 500 | Wordgard | 500 | 1 | 20.0 | 0.7 | 3.4 | 3.9 | 16.6 |
-| 500 | react-prosemirror | 500 | 500 | 97.6 | 0.7 | 80.4 | 19.2 | 95.1 |
-| 500 | ProseMirror | 500 | 500 | 16.8 | 0.5 | 2.9 | 2.9 | 15.1 |
-| 1500 | react-wordgard | 1500 | 1 | 87.5 | 1.9 | 54.0 | 29.4 | 77.7 |
-| 1500 | Wordgard | 1500 | 1 | 57.9 | 1.6 | 9.8 | 10.4 | 50.5 |
-| 1500 | react-prosemirror | 1500 | 1500 | 412 | 1.5 | 566 | 55.0 | 408 |
-| 1500 | ProseMirror | 1500 | 1500 | 52.4 | 1.1 | 13.9 | 14.7 | 51.7 |
+| 500 | react-wordgard | 500 | 1 | 28.6 | 0.8 | 15.8 | 16.1 | 23.8 |
+| 500 | Wordgard | 500 | 1 | 19.9 | 0.7 | 3.2 | 3.9 | 16.3 |
+| 500 | react-prosemirror | 500 | 500 | 97.1 | 0.8 | 80.2 | 19.2 | 96.2 |
+| 500 | ProseMirror | 500 | 500 | 16.3 | 0.5 | 2.5 | 2.9 | 14.5 |
+| 1500 | react-wordgard | 1500 | 1 | 86.5 | 1.9 | 54.3 | 29.3 | 75.7 |
+| 1500 | Wordgard | 1500 | 1 | 57.0 | 1.7 | 9.1 | 10.4 | 50.1 |
+| 1500 | react-prosemirror | 1500 | 1500 | 411 | 1.6 | 571 | 55.0 | 407 |
+| 1500 | ProseMirror | 1500 | 1500 | 53.2 | 1.1 | 14.5 | 14.7 | 52.4 |
 
 #### Set the font size of all the text to 14px (styled document: 6 runs a paragraph)
 
 | Paragraphs | Editor | Steps / changes | Documents built | Time (ms) | of which finding (ms) | Allocated (MB) | Heap after, before GC (MB) | Undo (ms) |
 |---|---|---|---|---|---|---|---|---|
-| 50 | react-wordgard | 1 | 1 | 5.2 | 0 | 2.3 | 2.0 | 4.2 |
-| 50 | Wordgard | 1 | 1 | 3.6 | 0 | 0.8 | 0.9 | 3.7 |
-| 50 | react-prosemirror | 292 | 292 | 12.9 | 0 | 5.7 | 6.4 | 9.3 |
-| 50 | ProseMirror | 292 | 292 | 4.0 | 0 | 1.3 | 1.3 | 3.7 |
-| 500 | react-wordgard | 1 | 1 | 53.5 | 0 | 17.2 | 17.5 | 58.0 |
-| 500 | Wordgard | 1 | 1 | 34.6 | 0 | 7.4 | 7.4 | 40.5 |
-| 500 | react-prosemirror | 2929 | 2929 | 236 | 0.3 | 284 | 35.3 | 236 |
-| 500 | ProseMirror | 2929 | 2929 | 54.1 | 0.4 | 17.2 | 17.2 | 64.3 |
-| 1500 | react-wordgard | 1 | 1 | 121 | 0 | 50.2 | 26.8 | 135 |
-| 1500 | Wordgard | 1 | 1 | 78.3 | 0 | 19.3 | 21.4 | 98.2 |
-| 1500 | react-prosemirror | 8794 | 8794 | 784 | 0.4 | 2346 | 113 | 834 |
-| 1500 | ProseMirror | 8794 | 8794 | 176 | 0.7 | 86.6 | 75.0 | 237 |
+| 50 | react-wordgard | 1 | 1 | 6.0 | 0 | 1.9 | 2.0 | 5.3 |
+| 50 | Wordgard | 1 | 1 | 4.1 | 0 | 0.7 | 0.9 | 3.6 |
+| 50 | react-prosemirror | 292 | 292 | 13.2 | 0.1 | 6.0 | 6.3 | 11.7 |
+| 50 | ProseMirror | 292 | 292 | 4.1 | 0.1 | 1.3 | 1.3 | 5.0 |
+| 500 | react-wordgard | 1 | 1 | 40.5 | 0 | 16.8 | 17.4 | 42.2 |
+| 500 | Wordgard | 1 | 1 | 25.7 | 0 | 7.4 | 7.4 | 27.8 |
+| 500 | react-prosemirror | 2929 | 2929 | 162 | 0.2 | 286 | 35.3 | 174 |
+| 500 | ProseMirror | 2929 | 2929 | 39.2 | 0.4 | 16.1 | 17.2 | 50.8 |
+| 1500 | react-wordgard | 1 | 1 | 120 | 0 | 52.8 | 26.8 | 134 |
+| 1500 | Wordgard | 1 | 1 | 77.3 | 0 | 20.7 | 20.4 | 98.8 |
+| 1500 | react-prosemirror | 8794 | 8794 | 791 | 1.1 | 2346 | 113 | 829 |
+| 1500 | ProseMirror | 8794 | 8794 | 177 | 0.6 | 85.3 | 75.1 | 238 |
 
 ### With the stand-in plugins
 
@@ -428,108 +445,108 @@ Replacements drawn inside a mark's element, the same in every editor: 12 of 50, 
 
 | | react-wordgard | Wordgard | react-prosemirror | ProseMirror |
 |---|---|---|---|---|
-| To first interaction (ms) | 5.7 | 4.1 | 19.1 | 3.2 |
-| Keystroke (ms) | 0.3 | 0.1 | 0.3 | 0.1 |
-| Allocated per keystroke (KB) | 66.5 | 36.8 | 207 | 8.2 |
+| To first interaction (ms) | 6.1 | 4.0 | 17.4 | 3.1 |
+| Keystroke (ms) | 0.2 | 0.1 | 0.3 | 0.1 |
+| Allocated per keystroke (KB) | 71.9 | 41.0 | 195 | 10.4 |
 | Enter (ms) | 0.5 | 0.4 | 0.5 | 0.1 |
-| Bold all (ms) | 5.4 | 3.1 | 7.1 | 2.5 |
-| Indent every paragraph (ms / MB allocated) | 3.7 / 1.6 | 2.3 / 0.5 | 7.4 / 3.3 | 3.0 / 0.4 |
-| Replace All (ms / MB allocated) | 5.5 / 2.1 | 3.6 / 0.9 | 9.4 / 3.7 | 3.8 / 0.6 |
-| Font size of all the text (ms / MB allocated) | 6.3 / 2.6 | 5.0 / 0.9 | 14.7 / 7.3 | 4.7 / 1.5 |
+| Bold all (ms) | 4.8 | 3.0 | 6.7 | 2.6 |
+| Indent every paragraph (ms / MB allocated) | 3.7 / 1.5 | 2.2 / 0.4 | 7.3 / 3.6 | 3.0 / 0.5 |
+| Replace All (ms / MB allocated) | 5.1 / 1.6 | 3.3 / 0.8 | 8.9 / 3.9 | 3.4 / 0.5 |
+| Font size of all the text (ms / MB allocated) | 5.3 / 2.2 | 3.9 / 1.0 | 11.1 / 7.3 | 4.1 / 1.2 |
 
 #### 500 paragraphs
 
 | | react-wordgard | Wordgard | react-prosemirror | ProseMirror |
 |---|---|---|---|---|
-| To first interaction (ms) | 39.8 | 27.1 | 238 | 23.3 |
-| Keystroke (ms) | 0.5 | 0.4 | 2.6 | 0.2 |
-| Allocated per keystroke (KB) | 284 | 200 | 1150 | 31.5 |
-| Enter (ms) | 0.9 | 0.7 | 3.3 | 0.3 |
-| Bold all (ms) | 52.8 | 30.5 | 129 | 26.8 |
-| Indent every paragraph (ms / MB allocated) | 25.1 / 14.8 | 15.1 / 3.7 | 102 / 140 | 34.3 / 8.4 |
-| Replace All (ms / MB allocated) | 39.3 / 20.9 | 27.5 / 7.5 | 130 / 140 | 36.8 / 8.0 |
-| Font size of all the text (ms / MB allocated) | 50.0 / 22.4 | 34.7 / 8.8 | 206 / 331 | 51.0 / 20.9 |
+| To first interaction (ms) | 35.2 | 27.3 | 225 | 21.7 |
+| Keystroke (ms) | 0.5 | 0.3 | 2.4 | 0.2 |
+| Allocated per keystroke (KB) | 261 | 199 | 1144 | 27.2 |
+| Enter (ms) | 1.0 | 0.7 | 2.8 | 0.3 |
+| Bold all (ms) | 48.7 | 30.2 | 124 | 25.0 |
+| Indent every paragraph (ms / MB allocated) | 24.1 / 14.4 | 14.2 / 4.3 | 102 / 142 | 33.5 / 8.3 |
+| Replace All (ms / MB allocated) | 36.8 / 20.1 | 25.4 / 7.2 | 123 / 141 | 35.9 / 8.1 |
+| Font size of all the text (ms / MB allocated) | 48.1 / 22.9 | 31.9 / 9.6 | 199 / 328 | 49.6 / 22.0 |
 
 #### 1,500 paragraphs
 
 | | react-wordgard | Wordgard | react-prosemirror | ProseMirror |
 |---|---|---|---|---|
-| To first interaction (ms) | 112 | 78.4 | 754 | 66.3 |
-| Keystroke (ms) | 0.9 | 0.6 | 28.9 | 0.7 |
-| Allocated per keystroke (KB) | 463 | 300 | 2907 | 74.9 |
-| Enter (ms) | 1.9 | 1.3 | 29.9 | 0.9 |
-| Bold all (ms) | 171 | 101 | 483 | 95.8 |
-| Indent every paragraph (ms / MB allocated) | 75.8 / 43.3 | 47.4 / 12.4 | 489 / 1114 | 165 / 74.6 |
-| Replace All (ms / MB allocated) | 113 / 65.8 | 83.8 / 19.8 | 591 / 1090 | 171 / 55.9 |
-| Font size of all the text (ms / MB allocated) | 156 / 66.9 | 99.1 / 25.5 | 947 / 2748 | 244 / 122 |
+| To first interaction (ms) | 109 | 76.7 | 746 | 64.6 |
+| Keystroke (ms) | 0.9 | 0.6 | 26.5 | 0.7 |
+| Allocated per keystroke (KB) | 441 | 299 | 2908 | 81.8 |
+| Enter (ms) | 1.9 | 1.3 | 28.7 | 0.9 |
+| Bold all (ms) | 171 | 99.7 | 456 | 93.0 |
+| Indent every paragraph (ms / MB allocated) | 72.9 / 43.2 | 45.6 / 11.6 | 497 / 1112 | 169 / 75.1 |
+| Replace All (ms / MB allocated) | 113 / 62.6 | 79.5 / 20.3 | 592 / 1096 | 168 / 55.7 |
+| Font size of all the text (ms / MB allocated) | 151 / 66.4 | 93.6 / 25.0 | 921 / 2748 | 241 / 121 |
 
 #### Interaction
 
-| Paragraphs | Editor | Load (ms) | First keystroke (ms) | To first interaction (ms) | Keystroke (ms) | Allocated per keystroke (KB) | Enter (ms) | Allocated per Enter (KB) | Bold all (ms) | Heap held after load (MB) |
-|---|---|---|---|---|---|---|---|---|---|---|
-| 50 | react-wordgard | 5.0 | 0.8 | 5.7 | 0.3 | 66.5 | 0.5 | 105 | 5.4 | 0.4 |
-| 50 | Wordgard | 3.6 | 0.5 | 4.1 | 0.1 | 36.8 | 0.4 | 62.4 | 3.1 | -1.5 |
-| 50 | react-prosemirror | 17.7 | 1.1 | 19.1 | 0.3 | 207 | 0.5 | 239 | 7.1 | 3.6 |
-| 50 | ProseMirror | 2.8 | 0.4 | 3.2 | 0.1 | 8.2 | 0.1 | 11.5 | 2.5 | -0.2 |
-| 500 | react-wordgard | 37.7 | 2.1 | 39.8 | 0.5 | 284 | 0.9 | 449 | 52.8 | 4.9 |
-| 500 | Wordgard | 25.6 | 1.5 | 27.1 | 0.4 | 200 | 0.7 | 206 | 30.5 | 1.7 |
-| 500 | react-prosemirror | 218 | 13.2 | 238 | 2.6 | 1150 | 3.3 | 1306 | 129 | 36.9 |
-| 500 | ProseMirror | 22.0 | 1.3 | 23.3 | 0.2 | 31.5 | 0.3 | 43.2 | 26.8 | 1.6 |
-| 1500 | react-wordgard | 108 | 4.6 | 112 | 0.9 | 463 | 1.9 | 878 | 171 | 14.7 |
-| 1500 | Wordgard | 75.0 | 3.4 | 78.4 | 0.6 | 300 | 1.3 | 502 | 101 | -39.1 |
-| 1500 | react-prosemirror | 698 | 34.7 | 754 | 28.9 | 2907 | 29.9 | 2975 | 483 | 110 |
-| 1500 | ProseMirror | 62.8 | 3.3 | 66.3 | 0.7 | 74.9 | 0.9 | 109 | 95.8 | 5.7 |
+| Paragraphs | Editor | Load (ms) | First keystroke (ms) | To first interaction (ms) | Keystroke (ms) | Allocated per keystroke (KB) | Enter (ms) | Allocated per Enter (KB) | Bold all (ms) |
+|---|---|---|---|---|---|---|---|---|---|
+| 50 | react-wordgard | 5.4 | 0.7 | 6.1 | 0.2 | 71.9 | 0.5 | 100 | 4.8 |
+| 50 | Wordgard | 3.5 | 0.5 | 4.0 | 0.1 | 41.0 | 0.4 | 67.3 | 3.0 |
+| 50 | react-prosemirror | 16.0 | 1.1 | 17.4 | 0.3 | 195 | 0.5 | 244 | 6.7 |
+| 50 | ProseMirror | 2.7 | 0.4 | 3.1 | 0.1 | 10.4 | 0.1 | 4.9 | 2.6 |
+| 500 | react-wordgard | 33.2 | 2.0 | 35.2 | 0.5 | 261 | 1.0 | 442 | 48.7 |
+| 500 | Wordgard | 25.6 | 1.6 | 27.3 | 0.3 | 199 | 0.7 | 229 | 30.2 |
+| 500 | react-prosemirror | 209 | 11.3 | 225 | 2.4 | 1144 | 2.8 | 1301 | 124 |
+| 500 | ProseMirror | 20.5 | 1.1 | 21.7 | 0.2 | 27.2 | 0.3 | 38.2 | 25.0 |
+| 1500 | react-wordgard | 104 | 4.3 | 109 | 0.9 | 441 | 1.9 | 907 | 171 |
+| 1500 | Wordgard | 73.4 | 3.3 | 76.7 | 0.6 | 299 | 1.3 | 477 | 99.7 |
+| 1500 | react-prosemirror | 691 | 34.2 | 746 | 26.5 | 2908 | 28.7 | 2966 | 456 |
+| 1500 | ProseMirror | 61.3 | 3.2 | 64.6 | 0.7 | 81.8 | 0.9 | 104 | 93.0 |
 
 #### Indent every paragraph
 
 | Paragraphs | Editor | Steps / changes | Documents built | Time (ms) | of which finding (ms) | Allocated (MB) | Heap after, before GC (MB) | Undo (ms) |
 |---|---|---|---|---|---|---|---|---|
-| 50 | react-wordgard | 50 | 1 | 3.7 | 0 | 1.6 | 1.7 | 3.3 |
-| 50 | Wordgard | 50 | 1 | 2.3 | 0 | 0.5 | 0.5 | 1.6 |
-| 50 | react-prosemirror | 50 | 50 | 7.4 | 0 | 3.3 | 3.7 | 5.4 |
-| 50 | ProseMirror | 50 | 50 | 3.0 | 0 | 0.4 | 0.3 | 2.5 |
-| 500 | react-wordgard | 500 | 1 | 25.1 | 0.1 | 14.8 | 15.1 | 20.4 |
-| 500 | Wordgard | 500 | 1 | 15.1 | 0.1 | 3.7 | 4.4 | 12.5 |
-| 500 | react-prosemirror | 500 | 500 | 102 | 0.1 | 140 | 18.0 | 115 |
-| 500 | ProseMirror | 500 | 500 | 34.3 | 0.1 | 8.4 | 8.2 | 36.5 |
-| 1500 | react-wordgard | 1500 | 1 | 75.8 | 0.2 | 43.3 | 12.4 | 62.2 |
-| 1500 | Wordgard | 1500 | 1 | 47.4 | 0.2 | 12.4 | 12.5 | 37.2 |
-| 1500 | react-prosemirror | 1500 | 1500 | 489 | 0.1 | 1114 | 65.7 | 604 |
-| 1500 | ProseMirror | 1500 | 1500 | 165 | 0.2 | 74.6 | 40.0 | 213 |
+| 50 | react-wordgard | 50 | 1 | 3.7 | 0 | 1.5 | 1.7 | 2.5 |
+| 50 | Wordgard | 50 | 1 | 2.2 | 0 | 0.4 | 0.5 | 1.5 |
+| 50 | react-prosemirror | 50 | 50 | 7.3 | 0 | 3.6 | 3.8 | 4.6 |
+| 50 | ProseMirror | 50 | 50 | 3.0 | 0 | 0.5 | 0.3 | 2.5 |
+| 500 | react-wordgard | 500 | 1 | 24.1 | 0 | 14.4 | 15.0 | 20.4 |
+| 500 | Wordgard | 500 | 1 | 14.2 | 0.1 | 4.3 | 4.4 | 11.8 |
+| 500 | react-prosemirror | 500 | 500 | 102 | 0.1 | 142 | 18.0 | 111 |
+| 500 | ProseMirror | 500 | 500 | 33.5 | 0.1 | 8.3 | 8.2 | 37.6 |
+| 1500 | react-wordgard | 1500 | 1 | 72.9 | 0.1 | 43.2 | 12.4 | 59.0 |
+| 1500 | Wordgard | 1500 | 1 | 45.6 | 0.1 | 11.6 | 12.5 | 37.1 |
+| 1500 | react-prosemirror | 1500 | 1500 | 497 | 0.1 | 1112 | 65.8 | 594 |
+| 1500 | ProseMirror | 1500 | 1500 | 169 | 0.2 | 75.1 | 40.0 | 212 |
 
 #### Replace the search term in every paragraph
 
 | Paragraphs | Editor | Steps / changes | Documents built | Time (ms) | of which finding (ms) | Allocated (MB) | Heap after, before GC (MB) | Undo (ms) |
 |---|---|---|---|---|---|---|---|---|
-| 50 | react-wordgard | 50 | 1 | 5.5 | 0.1 | 2.1 | 2.1 | 4.2 |
-| 50 | Wordgard | 50 | 1 | 3.6 | 0.1 | 0.9 | 0.9 | 3.9 |
-| 50 | react-prosemirror | 50 | 50 | 9.4 | 0.1 | 3.7 | 4.0 | 7.0 |
-| 50 | ProseMirror | 50 | 50 | 3.8 | 0 | 0.6 | 0.5 | 2.5 |
-| 500 | react-wordgard | 500 | 1 | 39.3 | 1.0 | 20.9 | 21.6 | 34.0 |
-| 500 | Wordgard | 500 | 1 | 27.5 | 0.6 | 7.5 | 7.5 | 24.0 |
-| 500 | react-prosemirror | 500 | 500 | 130 | 0.5 | 140 | 19.8 | 145 |
-| 500 | ProseMirror | 500 | 500 | 36.8 | 0.4 | 8.0 | 8.4 | 36.8 |
-| 1500 | react-wordgard | 1500 | 1 | 113 | 1.9 | 65.8 | 12.4 | 99.4 |
-| 1500 | Wordgard | 1500 | 1 | 83.8 | 1.7 | 19.8 | 21.3 | 71.2 |
-| 1500 | react-prosemirror | 1500 | 1500 | 591 | 1.4 | 1090 | 55.8 | 691 |
-| 1500 | ProseMirror | 1500 | 1500 | 171 | 1.2 | 55.9 | 32.5 | 201 |
+| 50 | react-wordgard | 50 | 1 | 5.1 | 0.1 | 1.6 | 2.0 | 4.5 |
+| 50 | Wordgard | 50 | 1 | 3.3 | 0.1 | 0.8 | 0.9 | 2.9 |
+| 50 | react-prosemirror | 50 | 50 | 8.9 | 0.1 | 3.9 | 4.0 | 6.4 |
+| 50 | ProseMirror | 50 | 50 | 3.4 | 0.1 | 0.5 | 0.5 | 2.0 |
+| 500 | react-wordgard | 500 | 1 | 36.8 | 0.8 | 20.1 | 21.6 | 32.6 |
+| 500 | Wordgard | 500 | 1 | 25.4 | 0.7 | 7.2 | 7.4 | 22.8 |
+| 500 | react-prosemirror | 500 | 500 | 123 | 0.6 | 141 | 19.7 | 135 |
+| 500 | ProseMirror | 500 | 500 | 35.9 | 0.4 | 8.1 | 8.4 | 34.1 |
+| 1500 | react-wordgard | 1500 | 1 | 113 | 1.8 | 62.6 | 12.4 | 98.4 |
+| 1500 | Wordgard | 1500 | 1 | 79.5 | 1.7 | 20.3 | 21.0 | 73.2 |
+| 1500 | react-prosemirror | 1500 | 1500 | 592 | 1.6 | 1096 | 55.9 | 683 |
+| 1500 | ProseMirror | 1500 | 1500 | 168 | 1.1 | 55.7 | 32.4 | 200 |
 
 #### Set the font size of all the text to 14px (styled document: 6 runs a paragraph)
 
 | Paragraphs | Editor | Steps / changes | Documents built | Time (ms) | of which finding (ms) | Allocated (MB) | Heap after, before GC (MB) | Undo (ms) |
 |---|---|---|---|---|---|---|---|---|
-| 50 | react-wordgard | 1 | 1 | 6.3 | 0 | 2.6 | 2.5 | 5.6 |
-| 50 | Wordgard | 1 | 1 | 5.0 | 0 | 0.9 | 1.1 | 4.6 |
-| 50 | react-prosemirror | 292 | 292 | 14.7 | 0 | 7.3 | 7.1 | 12.5 |
-| 50 | ProseMirror | 292 | 292 | 4.7 | 0 | 1.5 | 1.4 | 4.8 |
-| 500 | react-wordgard | 1 | 1 | 50.0 | 0 | 22.4 | 23.1 | 49.1 |
-| 500 | Wordgard | 1 | 1 | 34.7 | 0 | 8.8 | 9.5 | 36.8 |
-| 500 | react-prosemirror | 2929 | 2929 | 206 | 0.3 | 331 | 28.7 | 210 |
-| 500 | ProseMirror | 2929 | 2929 | 51.0 | 0.4 | 20.9 | 21.4 | 71.1 |
-| 1500 | react-wordgard | 1 | 1 | 156 | 0 | 66.9 | 20.4 | 172 |
-| 1500 | Wordgard | 1 | 1 | 99.1 | 0 | 25.5 | 26.6 | 125 |
-| 1500 | react-prosemirror | 8794 | 8794 | 947 | 0.5 | 2748 | 125 | 1078 |
-| 1500 | ProseMirror | 8794 | 8794 | 244 | 0.6 | 122 | 94.1 | 368 |
+| 50 | react-wordgard | 1 | 1 | 5.3 | 0 | 2.2 | 2.5 | 4.7 |
+| 50 | Wordgard | 1 | 1 | 3.9 | 0 | 1.0 | 1.1 | 3.6 |
+| 50 | react-prosemirror | 292 | 292 | 11.1 | 0 | 7.3 | 7.1 | 8.8 |
+| 50 | ProseMirror | 292 | 292 | 4.1 | 0.1 | 1.2 | 1.4 | 4.3 |
+| 500 | react-wordgard | 1 | 1 | 48.1 | 0 | 22.9 | 23.1 | 54.0 |
+| 500 | Wordgard | 1 | 1 | 31.9 | 0 | 9.6 | 9.6 | 35.2 |
+| 500 | react-prosemirror | 2929 | 2929 | 199 | 0.4 | 328 | 28.6 | 211 |
+| 500 | ProseMirror | 2929 | 2929 | 49.6 | 0.3 | 22.0 | 21.3 | 69.2 |
+| 1500 | react-wordgard | 1 | 1 | 151 | 0 | 66.4 | 20.4 | 167 |
+| 1500 | Wordgard | 1 | 1 | 93.6 | 0 | 25.0 | 25.6 | 122 |
+| 1500 | react-prosemirror | 8794 | 8794 | 921 | 0.7 | 2748 | 125 | 1048 |
+| 1500 | ProseMirror | 8794 | 8794 | 241 | 0.7 | 121 | 94.1 | 358 |
 
 Drawn differently from the document: Wordgard at 50 paragraphs (50 elements); Wordgard at 500 paragraphs (500 elements); Wordgard at 1500 paragraphs (1500 elements).
 
@@ -541,23 +558,23 @@ Drawn differently from the document: Wordgard at 50 paragraphs (50 elements); Wo
 
 | Class | react-wordgard | Wordgard | react-prosemirror | ProseMirror |
 |---|---|---|---|---|
-| **JS total** | 10,752 · 0.7 MB | 4,288 · 0.2 MB | 107,031 · 3.7 MB | 4,256 · 0.2 MB |
-| **DOM (native) total** | 8,697 · 1.1 MB | 7,900 · 1.1 MB | 9,981 · 1.1 MB | 7,436 · 1.0 MB |
-| Object | 2,523 · 0.1 MB | 62 · 0.0 MB | 47,371 · 1.3 MB | 333 · 0.0 MB |
-| $k (React's FiberNode) | 1,546 · 0.2 MB | 0 · 0.0 MB | 9,573 · 1.0 MB | 0 · 0.0 MB |
-| (closure) | 268 · 0.0 MB | 44 · 0.0 MB | 11,965 · 0.3 MB | 41 · 0.0 MB |
-| system / Context / scope | 94 · 0.0 MB | 11 · 0.0 MB | 6,529 · 0.2 MB | 27 · 0.0 MB |
-| Array | 1,253 · 0.0 MB | 651 · 0.0 MB | 13,915 · 0.2 MB | 871 · 0.0 MB |
-| (array) (object elements) | 1,128 · 0.1 MB | 622 · 0.0 MB | 11,629 · 0.2 MB | 465 · 0.0 MB |
-| (code) | 761 · 0.1 MB | 267 · 0.1 MB | 963 · 0.2 MB | 173 · 0.0 MB |
-| (string) | 663 · 0.1 MB | 528 · 0.0 MB | 1,180 · 0.0 MB | 756 · 0.0 MB |
-| (object shape) | 442 · 0.0 MB | 296 · 0.0 MB | 1,345 · 0.0 MB | 161 · 0.0 MB |
-| (array) | 24 · 0.0 MB | 15 · 0.0 MB | 108 · 0.0 MB | 0 · 0.0 MB |
+| **JS total** | 11,202 · 0.6 MB | 4,293 · 0.2 MB | 107,048 · 3.7 MB | 4,248 · 0.2 MB |
+| **DOM (native) total** | 9,222 · 1.1 MB | 7,900 · 1.1 MB | 9,984 · 1.1 MB | 7,437 · 1.0 MB |
+| Object | 2,563 · 0.1 MB | 62 · 0.0 MB | 47,372 · 1.3 MB | 333 · 0.0 MB |
+| $k (React's FiberNode) | 1,553 · 0.2 MB | 0 · 0.0 MB | 9,573 · 1.0 MB | 0 · 0.0 MB |
+| (closure) | 433 · 0.0 MB | 44 · 0.0 MB | 11,967 · 0.3 MB | 41 · 0.0 MB |
+| system / Context / scope | 107 · 0.0 MB | 12 · 0.0 MB | 6,529 · 0.2 MB | 27 · 0.0 MB |
+| Array | 1,282 · 0.0 MB | 651 · 0.0 MB | 13,917 · 0.2 MB | 871 · 0.0 MB |
+| (array) (object elements) | 1,158 · 0.1 MB | 622 · 0.0 MB | 11,631 · 0.2 MB | 465 · 0.0 MB |
+| (code) | 746 · 0.1 MB | 269 · 0.1 MB | 969 · 0.2 MB | 165 · 0.0 MB |
+| (string) | 670 · 0.1 MB | 529 · 0.0 MB | 1,179 · 0.0 MB | 756 · 0.0 MB |
+| (object shape) | 467 · 0.0 MB | 296 · 0.0 MB | 1,346 · 0.0 MB | 161 · 0.0 MB |
+| (array) | 26 · 0.0 MB | 15 · 0.0 MB | 108 · 0.0 MB | 0 · 0.0 MB |
 | TextViewDesc | 0 · 0.0 MB | 0 · 0.0 MB | 402 · 0.0 MB | 402 · 0.0 MB |
 | TextNodeView | 0 · 0.0 MB | 0 · 0.0 MB | 402 · 0.0 MB | 0 · 0.0 MB |
 | TextTile | 402 · 0.0 MB | 402 · 0.0 MB | 0 · 0.0 MB | 0 · 0.0 MB |
 | TextNode | 0 · 0.0 MB | 0 · 0.0 MB | 402 · 0.0 MB | 402 · 0.0 MB |
-| (array) (object properties) | 4 · 0.0 MB | 4 · 0.0 MB | 148 · 0.0 MB | 145 · 0.0 MB |
+| (array) (object properties) | 6 · 0.0 MB | 4 · 0.0 MB | 149 · 0.0 MB | 145 · 0.0 MB |
 | Leaf | 402 · 0.0 MB | 402 · 0.0 MB | 0 · 0.0 MB | 0 · 0.0 MB |
 | EltTile | 228 · 0.0 MB | 228 · 0.0 MB | 0 · 0.0 MB | 0 · 0.0 MB |
 | Widget | 402 · 0.0 MB | 402 · 0.0 MB | 0 · 0.0 MB | 0 · 0.0 MB |
@@ -570,29 +587,28 @@ Drawn differently from the document: Wordgard at 50 paragraphs (50 elements); Wo
 
 | Class | react-wordgard | Wordgard | react-prosemirror | ProseMirror |
 |---|---|---|---|---|
-| **JS total** | 87,011 · 4.6 MB | 33,116 · 1.1 MB | 1,048,306 · 35.2 MB | 34,201 · 1.5 MB |
-| **DOM (native) total** | 79,479 · 10.6 MB | 78,737 · 10.9 MB | 96,406 · 10.6 MB | 74,400 · 10.0 MB |
-| Object | 24,232 · 0.6 MB | 61 · 0.0 MB | 470,281 · 13.4 MB | 3,185 · 0.1 MB |
-| $k (React's FiberNode) | 15,349 · 1.5 MB | 0 · 0.0 MB | 95,139 · 9.5 MB | 0 · 0.0 MB |
-| (closure) | 718 · 0.0 MB | 44 · 0.0 MB | 118,033 · 3.3 MB | 41 · 0.0 MB |
-| system / Context / scope | 544 · 0.0 MB | 11 · 0.0 MB | 64,537 · 2.3 MB | 27 · 0.0 MB |
-| Array | 11,038 · 0.2 MB | 5,550 · 0.1 MB | 138,046 · 2.2 MB | 8,569 · 0.1 MB |
-| (array) (object elements) | 10,106 · 0.6 MB | 5,516 · 0.4 MB | 115,354 · 2.0 MB | 4,551 · 0.4 MB |
-| (string) | 5,484 · 0.6 MB | 4,319 · -0.1 MB | 9,965 · 0.3 MB | 3,747 · 0.3 MB |
-| (code) | 940 · 0.2 MB | 451 · 0.1 MB | 3,866 · 0.5 MB | 189 · 0.1 MB |
-| (array) | 24 · 0.3 MB | 15 · 0.1 MB | 1,008 · 0.4 MB | 0 · 0.0 MB |
-| (object shape) | 420 · 0.0 MB | 280 · 0.0 MB | 9,526 · 0.3 MB | 163 · 0.0 MB |
+| **JS total** | 87,451 · 4.6 MB | 33,136 · 1.1 MB | 1,048,251 · 35.2 MB | 34,244 · 1.5 MB |
+| **DOM (native) total** | 79,976 · 10.6 MB | 78,755 · 10.9 MB | 96,387 · 10.6 MB | 74,395 · 10.0 MB |
+| Object | 24,273 · 0.6 MB | 61 · 0.0 MB | 470,282 · 13.4 MB | 3,185 · 0.1 MB |
+| $k (React's FiberNode) | 15,356 · 1.5 MB | 0 · 0.0 MB | 95,139 · 9.5 MB | 0 · 0.0 MB |
+| (closure) | 883 · 0.0 MB | 44 · 0.0 MB | 118,035 · 3.3 MB | 41 · 0.0 MB |
+| system / Context / scope | 557 · 0.0 MB | 12 · 0.0 MB | 64,537 · 2.3 MB | 27 · 0.0 MB |
+| Array | 11,067 · 0.2 MB | 5,550 · 0.1 MB | 138,047 · 2.2 MB | 8,570 · 0.1 MB |
+| (array) (object elements) | 10,136 · 0.6 MB | 5,516 · 0.4 MB | 115,355 · 2.0 MB | 4,552 · 0.4 MB |
+| (string) | 5,486 · 0.6 MB | 4,318 · -0.1 MB | 9,960 · 0.3 MB | 3,745 · 0.3 MB |
+| (code) | 921 · 0.2 MB | 471 · 0.1 MB | 3,810 · 0.5 MB | 234 · 0.1 MB |
+| (array) | 26 · 0.3 MB | 15 · 0.1 MB | 1,008 · 0.4 MB | 0 · 0.0 MB |
+| (object shape) | 445 · 0.0 MB | 280 · 0.0 MB | 9,528 · 0.3 MB | 163 · 0.0 MB |
 | TextViewDesc | 0 · 0.0 MB | 0 · 0.0 MB | 4,014 · 0.2 MB | 4,014 · 0.2 MB |
 | TextNodeView | 0 · 0.0 MB | 0 · 0.0 MB | 4,014 · 0.2 MB | 0 · 0.0 MB |
 | TextTile | 4,014 · 0.1 MB | 4,014 · 0.1 MB | 0 · 0.0 MB | 0 · 0.0 MB |
 | TextNode | 0 · 0.0 MB | 0 · 0.0 MB | 4,014 · 0.1 MB | 4,014 · 0.1 MB |
-| (array) (object properties) | 7 · 0.0 MB | 7 · 0.0 MB | 1,406 · 0.1 MB | 1,403 · 0.1 MB |
+| (array) (object properties) | 9 · 0.0 MB | 7 · 0.0 MB | 1,407 · 0.1 MB | 1,403 · 0.1 MB |
 | Leaf | 4,014 · 0.1 MB | 4,014 · 0.1 MB | 0 · 0.0 MB | 0 · 0.0 MB |
 | EltTile | 2,271 · 0.1 MB | 2,271 · 0.1 MB | 0 · 0.0 MB | 0 · 0.0 MB |
 | Widget | 4,014 · 0.1 MB | 4,014 · 0.1 MB | 0 · 0.0 MB | 0 · 0.0 MB |
 | MarkViewDesc | 0 · 0.0 MB | 0 · 0.0 MB | 0 · 0.0 MB | 1,771 · 0.1 MB |
 | NodeViewDesc | 0 · 0.0 MB | 0 · 0.0 MB | 0 · 0.0 MB | 501 · 0.0 MB |
-| DefaultNodeView | 500 · 0.0 MB | 0 · 0.0 MB | 0 · 0.0 MB | 0 · 0.0 MB |
 | Elt | 899 · 0.0 MB | 899 · 0.0 MB | 0 · 0.0 MB | 0 · 0.0 MB |
 | Mark | 899 · 0.0 MB | 899 · 0.0 MB | 899 · 0.0 MB | 899 · 0.0 MB |
 | Plot | 503 · 0.0 MB | 503 · 0.0 MB | 0 · 0.0 MB | 0 · 0.0 MB |
@@ -601,23 +617,23 @@ Drawn differently from the document: Wordgard at 50 paragraphs (50 elements); Wo
 
 | Class | react-wordgard | Wordgard | react-prosemirror | ProseMirror |
 |---|---|---|---|---|
-| **JS total** | 255,166 · 13.4 MB | 95,525 · 2.9 MB | 3,109,718 · 103.4 MB | 100,115 · 4.0 MB |
-| **DOM (native) total** | 234,210 · 31.5 MB | 233,574 · 32.6 MB | 285,450 · 31.6 MB | 224,237 · 30.2 MB |
-| Object | 71,890 · 1.9 MB | 61 · 0.0 MB | 1,397,424 · 39.8 MB | 9,409 · 0.2 MB |
-| $k (React's FiberNode) | 45,612 · 4.6 MB | 0 · 0.0 MB | 282,765 · 28.3 MB | 0 · 0.0 MB |
-| (closure) | 1,718 · 0.0 MB | 44 · 0.0 MB | 350,641 · 9.9 MB | 41 · 0.0 MB |
-| system / Context / scope | 1,544 · 0.0 MB | 11 · 0.0 MB | 191,685 · 6.8 MB | 27 · 0.0 MB |
-| Array | 32,435 · 0.5 MB | 16,244 · 0.3 MB | 410,001 · 6.6 MB | 25,437 · 0.4 MB |
-| (array) (object elements) | 29,751 · 1.8 MB | 16,213 · 1.2 MB | 342,603 · 6.1 MB | 13,497 · 1.0 MB |
-| (string) | 17,608 · 1.9 MB | 12,321 · -0.5 MB | 29,407 · 1.0 MB | 10,836 · 0.6 MB |
-| (array) | 24 · 1.1 MB | 15 · 0.5 MB | 3,008 · 1.1 MB | 0 · 0.0 MB |
-| (object shape) | 416 · 0.0 MB | 278 · 0.0 MB | 27,414 · 0.8 MB | 160 · 0.0 MB |
+| **JS total** | 254,540 · 13.4 MB | 95,473 · 2.9 MB | 3,109,665 · 103.3 MB | 100,113 · 4.0 MB |
+| **DOM (native) total** | 234,729 · 31.5 MB | 233,597 · 32.6 MB | 285,455 · 31.6 MB | 224,213 · 30.2 MB |
+| Object | 71,929 · 1.9 MB | 61 · 0.0 MB | 1,397,425 · 39.8 MB | 9,409 · 0.2 MB |
+| $k (React's FiberNode) | 45,619 · 4.6 MB | 0 · 0.0 MB | 282,765 · 28.3 MB | 0 · 0.0 MB |
+| (closure) | 1,883 · 0.1 MB | 44 · 0.0 MB | 350,643 · 9.9 MB | 41 · 0.0 MB |
+| system / Context / scope | 1,557 · 0.0 MB | 12 · 0.0 MB | 191,685 · 6.8 MB | 27 · 0.0 MB |
+| Array | 32,464 · 0.5 MB | 16,244 · 0.3 MB | 410,003 · 6.6 MB | 25,437 · 0.4 MB |
+| (array) (object elements) | 29,781 · 1.8 MB | 16,213 · 1.2 MB | 342,605 · 6.1 MB | 13,497 · 1.0 MB |
+| (string) | 16,481 · 1.9 MB | 12,322 · -0.5 MB | 29,409 · 1.0 MB | 10,836 · 0.6 MB |
+| (array) | 26 · 1.1 MB | 15 · 0.5 MB | 3,008 · 1.1 MB | 0 · 0.0 MB |
+| (object shape) | 427 · 0.0 MB | 278 · 0.0 MB | 27,415 · 0.8 MB | 160 · 0.0 MB |
 | TextViewDesc | 0 · 0.0 MB | 0 · 0.0 MB | 11,936 · 0.6 MB | 11,936 · 0.6 MB |
 | TextNodeView | 0 · 0.0 MB | 0 · 0.0 MB | 11,936 · 0.5 MB | 0 · 0.0 MB |
-| (code) | 424 · 0.1 MB | 628 · 0.1 MB | 7,711 · 0.5 MB | 125 · 0.1 MB |
+| (code) | 485 · 0.1 MB | 574 · 0.1 MB | 7,641 · 0.4 MB | 122 · 0.1 MB |
 | TextTile | 11,936 · 0.4 MB | 11,936 · 0.4 MB | 0 · 0.0 MB | 0 · 0.0 MB |
 | TextNode | 0 · 0.0 MB | 0 · 0.0 MB | 11,936 · 0.4 MB | 11,936 · 0.4 MB |
-| (array) (object properties) | 8 · 0.0 MB | 7 · 0.0 MB | 4,158 · 0.3 MB | 4,155 · 0.3 MB |
+| (array) (object properties) | 10 · 0.0 MB | 7 · 0.0 MB | 4,159 · 0.3 MB | 4,155 · 0.3 MB |
 | Leaf | 11,936 · 0.3 MB | 11,936 · 0.3 MB | 0 · 0.0 MB | 0 · 0.0 MB |
 | EltTile | 6,744 · 0.3 MB | 6,744 · 0.3 MB | 0 · 0.0 MB | 0 · 0.0 MB |
 | Widget | 11,936 · 0.2 MB | 11,936 · 0.2 MB | 0 · 0.0 MB | 0 · 0.0 MB |

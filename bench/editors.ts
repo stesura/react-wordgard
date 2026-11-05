@@ -17,7 +17,7 @@ import {
   DOMParser as PMParser,
   Slice,
 } from "prosemirror-model";
-import { EditorState, type Plugin, TextSelection, type Transaction } from "prosemirror-state";
+import { EditorState, TextSelection, type Transaction } from "prosemirror-state";
 import { EditorView } from "prosemirror-view";
 import React, { createElement } from "react";
 import { type Root, createRoot } from "react-dom/client";
@@ -28,7 +28,7 @@ import { undo as wgUndo } from "wordgard/history";
 import { GardState } from "wordgard/state";
 import { Strong } from "wordgard/types";
 
-import { ReactWordgard } from "../src/ReactWordgard.js";
+import { WordgardDoc, WordgardEditor, useEditorEffect as useWordgardEffect } from "../src/index.js";
 import { replacement, searchTerm } from "./documents.js";
 import { pmPlugins, wgPlugins } from "./plugins.js";
 import { FontSize, Indent, pmSchema, wgSchema } from "./schemas.js";
@@ -92,94 +92,123 @@ const unflagged = (json: unknown) =>
 const middle = (lengths: readonly number[]) =>
   lengths.slice(0, Math.floor(lengths.length / 2)).reduce((sum, len) => sum + len, 0) + 4;
 
-const wordgard =
-  (create: (spec: Wordgard.Spec) => Wordgard): Mount =>
-  async (html, parent, plugins) => {
-    const parsed = GardState.create({
-      doc: html,
-      config: [...wgSchema, ...(plugins ? wgPlugins : [])],
-    });
-    const loaded = parsed.doc;
-    const at = middle(loaded.content.map((node) => node.length));
-    // The cursor in the middle paragraph before load, as ProseMirror's.
-    const state = parsed.update({ selection: { anchor: at } }).state;
-    timings.start = now();
-    const wg = create({ state, parent });
+// The parsed document and its state, the cursor in the middle paragraph, as
+// ProseMirror's.
+const wgState = (html: string, plugins: boolean) => {
+  const parsed = GardState.create({
+    doc: html,
+    config: [...wgSchema, ...(plugins ? wgPlugins : [])],
+  });
+  const loaded = parsed.doc;
+  const at = middle(loaded.content.map((node) => node.length));
+  return { state: parsed.update({ selection: { anchor: at } }).state, loaded, at };
+};
+
+const wgEditor = (wg: Wordgard, loaded: Plot, at: number, destroy: () => void): Editor => {
+  const update = (spec: Parameters<Wordgard["dispatch"]>[0]) => {
+    wg.dispatch(spec);
     wg.flush();
-    parent.getBoundingClientRect();
-    timings.load = now() - timings.start;
-    const update = (spec: Parameters<Wordgard["dispatch"]>[0]) => {
-      wg.dispatch(spec);
-      wg.flush();
-    };
-    // Paragraph positions, or the search term's, in document order, as
-    // Wordgard's commands give changes: out of order, each change becomes a
-    // change set of its own, composed into the others (quadratic: 1 s at 5,000
-    // paragraphs).
-    const find = (kind: Bulk) => {
-      const out: number[] = [];
-      let pos = 0;
-      for (const node of wg.state.doc.content) {
-        if (kind == "indent") out.push(pos);
-        else if (node instanceof Plot) {
-          const index = node.textContent().indexOf(searchTerm);
-          if (index >= 0) out.push(pos + 1 + index);
-        }
-        pos += node.length;
-      }
-      return out;
-    };
-    return {
-      type: (i) => update({ changes: { from: at + i, insert: [Leaf.text("x")] } }),
-      enter: () => {
-        Command.dispatch(wg, enter);
-        wg.flush();
-      },
-      format: (on) =>
-        update({
-          changes: {
-            from: 0,
-            to: wg.state.doc.length,
-            ...(on ? { add: Strong } : { remove: Strong }),
-          },
-        }),
-      bulk: (kind, level) => {
-        if (kind == "fontSize") {
-          // One change over the whole document: a mark holds one value, so
-          // setting it is one section however the runs were styled.
-          update({ changes: { from: 0, to: wg.state.doc.length, add: FontSize.of(fontSize) } });
-          return { search: 0, steps: 1, docs: 1 };
-        }
-        const start = now();
-        const positions = find(kind);
-        const search = now() - start;
-        const { doc } = wg.state;
-        // Each position in the document before the transaction: one pass.
-        const change = (pos: number) => {
-          if (kind == "indent") return { from: pos, add: Indent.of(level) };
-          const to = pos + searchTerm.length;
-          // ProseMirror's marksAcross: the match's own marks, less the
-          // non-inclusive ones (a link) that don't go on after it. Wordgard's
-          // `marks(across)` gives what typing over the range would get instead,
-          // the marks before it.
-          const after = doc.resolve(to).nodeAfter?.tag.marks ?? [];
-          const marks = doc
-            .resolve(pos + 1)
-            .marks()
-            .filter((mark) => mark.type.inclusive || mark.isInSet(after));
-          return { from: pos, to, insert: [Leaf.text(replacement, marks)] };
-        };
-        update({ changes: positions.map(change) });
-        return { search, steps: positions.length, docs: 1 };
-      },
-      undo: () => {
-        Command.dispatch(wg, wgUndo);
-        wg.flush();
-      },
-      pristine: () => unflagged(wg.state.doc.toJSON()) == unflagged(loaded.toJSON()),
-      destroy: () => wg.dom.remove(),
-    };
   };
+  // Paragraph positions, or the search term's, in document order, as
+  // Wordgard's commands give changes: out of order, each change becomes a
+  // change set of its own, composed into the others (quadratic: 1 s at 5,000
+  // paragraphs).
+  const find = (kind: Bulk) => {
+    const out: number[] = [];
+    let pos = 0;
+    for (const node of wg.state.doc.content) {
+      if (kind == "indent") out.push(pos);
+      else if (node instanceof Plot) {
+        const index = node.textContent().indexOf(searchTerm);
+        if (index >= 0) out.push(pos + 1 + index);
+      }
+      pos += node.length;
+    }
+    return out;
+  };
+  return {
+    type: (i) => update({ changes: { from: at + i, insert: [Leaf.text("x")] } }),
+    enter: () => {
+      Command.dispatch(wg, enter);
+      wg.flush();
+    },
+    format: (on) =>
+      update({
+        changes: {
+          from: 0,
+          to: wg.state.doc.length,
+          ...(on ? { add: Strong } : { remove: Strong }),
+        },
+      }),
+    bulk: (kind, level) => {
+      if (kind == "fontSize") {
+        // One change over the whole document: a mark holds one value, so
+        // setting it is one section however the runs were styled.
+        update({ changes: { from: 0, to: wg.state.doc.length, add: FontSize.of(fontSize) } });
+        return { search: 0, steps: 1, docs: 1 };
+      }
+      const start = now();
+      const positions = find(kind);
+      const search = now() - start;
+      const { doc } = wg.state;
+      // Each position in the document before the transaction: one pass.
+      const change = (pos: number) => {
+        if (kind == "indent") return { from: pos, add: Indent.of(level) };
+        const to = pos + searchTerm.length;
+        // ProseMirror's marksAcross: the match's own marks, less the
+        // non-inclusive ones (a link) that don't go on after it. Wordgard's
+        // `marks(across)` gives what typing over the range would get instead,
+        // the marks before it.
+        const after = doc.resolve(to).nodeAfter?.tag.marks ?? [];
+        const marks = doc
+          .resolve(pos + 1)
+          .marks()
+          .filter((mark) => mark.type.inclusive || mark.isInSet(after));
+        return { from: pos, to, insert: [Leaf.text(replacement, marks)] };
+      };
+      update({ changes: positions.map(change) });
+      return { search, steps: positions.length, docs: 1 };
+    },
+    undo: () => {
+      Command.dispatch(wg, wgUndo);
+      wg.flush();
+    },
+    pristine: () => unflagged(wg.state.doc.toJSON()) == unflagged(loaded.toJSON()),
+    destroy,
+  };
+};
+
+const wordgard: Mount = async (html, parent, plugins) => {
+  const { state, loaded, at } = wgState(html, plugins);
+  timings.start = now();
+  const wg = Wordgard.create({ state, parent });
+  wg.flush();
+  parent.getBoundingClientRect();
+  timings.load = now() - timings.start;
+  return wgEditor(wg, loaded, at, () => wg.dom.remove());
+};
+
+// Mounted as an app does, as react-prosemirror is below.
+const reactWordgard: Mount = (html, parent, plugins) => {
+  const { state, loaded, at } = wgState(html, plugins);
+  return new Promise((resolve) => {
+    let root: Root | null = null;
+    timings.start = now();
+    const Ready = () => {
+      useWordgardEffect((wg) => {
+        wg.flush();
+        parent.getBoundingClientRect();
+        timings.load = now() - timings.start;
+        resolve(wgEditor(wg, loaded, at, () => root?.unmount()));
+      }, []);
+      return null;
+    };
+    root = createRoot(parent);
+    root.render(
+      createElement(WordgardEditor, { state }, createElement(WordgardDoc), createElement(Ready))
+    );
+  });
+};
 
 const pmDoc = (html: string) => {
   const dom = document.createElement("div");
@@ -193,10 +222,10 @@ const pmMiddle = (doc: PMNode) => {
   return middle(lengths);
 };
 
-const pmState = (doc: PMNode, plugins: Plugin[], withPlugins: boolean) => {
+const pmState = (doc: PMNode, withPlugins: boolean) => {
   const state = EditorState.create({
     doc,
-    plugins: [...plugins, ...(withPlugins ? pmPlugins : []), pmHistory()],
+    plugins: [...(withPlugins ? pmPlugins : []), pmHistory()],
   });
   return state.apply(state.tr.setSelection(TextSelection.create(doc, pmMiddle(doc))));
 };
@@ -276,7 +305,7 @@ const pmEditor = (view: EditorView, destroy: () => void): Editor => {
 };
 
 const proseMirror: Mount = async (html, parent, plugins) => {
-  const state = pmState(pmDoc(html), [], plugins);
+  const state = pmState(pmDoc(html), plugins);
   timings.start = now();
   const view = new EditorView(parent, { state });
   parent.getBoundingClientRect();
@@ -287,10 +316,13 @@ const proseMirror: Mount = async (html, parent, plugins) => {
 // Mounted as an app does. Its dispatch commits with flushSync, so the DOM is
 // updated when it returns.
 const reactProseMirror: Mount = (html, parent, plugins) => {
-  const state = pmState(pmDoc(html), [reactKeys()], plugins);
+  const base = pmState(pmDoc(html), plugins);
   return new Promise((resolve) => {
     let root: Root | null = null;
     timings.start = now();
+    // Timed: reactKeys' tables are react-prosemirror's own work at load, as
+    // react-wordgard's keys are.
+    const state = base.reconfigure({ plugins: [reactKeys(), ...base.plugins] });
     const Ready = () => {
       useEditorEffect((view) => {
         parent.getBoundingClientRect();
@@ -312,8 +344,8 @@ const reactProseMirror: Mount = (html, parent, plugins) => {
 };
 
 const all: [string, Mount][] = [
-  ["react-wordgard", wordgard(ReactWordgard.create)],
-  ["Wordgard", wordgard(Wordgard.create)],
+  ["react-wordgard", reactWordgard],
+  ["Wordgard", wordgard],
   ["react-prosemirror", reactProseMirror],
   ["ProseMirror", proseMirror],
 ];

@@ -13,23 +13,26 @@ builds one per step, which is the engine's model, not the React layer's work.
 `npm run bench` and `npm run bench:heap`, 2026-11-05: 1,500 paragraphs of about 100 words (about
 300 A4 pages, a large real document), each with 2 to 5 marked runs, all directly under the root
 (no lists or tables); no plugins, no node views or other decorations; headless Chromium, React
-18.3.1 production build. Transactions are dispatched directly, so input handling isn't measured.
+18.3.1 production build. Both React views are mounted as an app does (`<ProseMirror>` and
+`<ProseMirrorDoc>`, `<WordgardEditor>` and `<WordgardDoc>`, in a React root), each one's own setup
+timed. Transactions are dispatched directly, so input handling isn't measured.
 
 | | react-prosemirror 3.2.11 | ProseMirror | react-wordgard | Wordgard |
 |---|---|---|---|---|
-| To first interaction (ms) | 715 | 61.0 | 97.0 | 70.3 |
-| Keystroke (ms) | 26.8 | 0.4 | 0.8 | 0.6 |
-| Allocated per keystroke (KB) | 2,871 | 49.8 | 252 | 193 |
-| Enter (ms) | 28.8 | 0.5 | 1.5 | 1.1 |
-| Bold all (ms) | 446 | 85.0 | 153 | 93.7 |
-| JS heap held after load (MB) | 103.4 | 4.0 | 13.4 | 2.9 |
+| To first interaction (ms) | 715 | 61.5 | 102 | 70.5 |
+| Keystroke (ms) | 25.3 | 0.4 | 1.0 | 0.6 |
+| Allocated per keystroke (KB) | 2,884 | 48.6 | 272 | 189 |
+| Enter (ms) | 26.2 | 0.5 | 2.1 | 1.1 |
+| Bold all (ms) | 461 | 89.0 | 155 | 94.3 |
+| JS heap held after load (MB) | 103.3 | 4.0 | 13.4 | 2.9 |
 
 The heap is from snapshots before and after mounting: the JS objects the loaded editor holds, the
 document included. The DOM is about the same size in every editor (30 to 33 MB).
 
-Over its plain editor: react-prosemirror costs 12× to first interaction and 67× per keystroke,
-react-wordgard 1.4× and 1.3×. react-prosemirror's keystroke grows with the document: 0.3 ms at 50
-paragraphs, 2.1 ms at 500, 26.8 ms at 1,500; react-wordgard's goes from 0.2 to 0.8 ms.
+Over its plain editor: react-prosemirror costs 12× to first interaction and 63× per keystroke,
+react-wordgard 1.4× and 1.7×. react-prosemirror's keystroke grows with the document: 0.3 ms at 50
+paragraphs, 2.1 ms at 500, 25.3 ms at 1,500; react-wordgard's goes from 0.2 to 1.0 ms. The timer
+ticks at 0.1 ms, so between sub-millisecond figures a ratio under about 1.5× is within noise.
 
 ## Where react-prosemirror's cost grows, and what react-wordgard does instead
 
@@ -57,7 +60,10 @@ paragraphs, 2.1 ms at 500, 26.8 ms at 1,500; react-wordgard's goes from 0.2 to 0
 ### Contexts, and one dispatch path instead of two
 
 - **react-prosemirror:** a transaction gives the state and document contexts new values, so React
-  scans every memoised node view for consumers. It supports two dispatch paths, synchronous
+  scans every memoised node view for consumers. At 1,500 paragraphs that is most of a keystroke:
+  of 26.5 ms of work (`npm run bench:profile`), 21.9 ms is React's render phase, nearly all of it
+  in `beginWork` walking react-prosemirror's 283,000 fibers (190 a paragraph; react-wordgard has
+  30), against 1.9 ms for the state update, `reactKeys` included. It supports two dispatch paths, synchronous
   (`flushSync`) and asynchronous (as React transitions), and keeps the view correct in both, which
   is what stops it from keeping its context values stable: that is only safe for synchronous
   dispatch. A patch doing so for synchronous dispatch cut a keystroke by about 30% at 2,500
@@ -103,8 +109,9 @@ react-wordgard, `DefaultNodeView` is a class with no hooks, `TextNodeView` a mem
 and the tiles are built after the commit, outside React.
 
 At 1,500 paragraphs react-prosemirror holds 99 MB above ProseMirror (3.1 million objects against
-0.1 million), react-wordgard 10.5 MB above Wordgard (0.26 million against 0.1 million). That per-node bookkeeping is the likely cause, read from the code, not attributed in a
-heap snapshot.
+0.1 million, 28 MB of them React's fibers), react-wordgard 10.5 MB above Wordgard (0.25 million
+objects against 0.1 million, 4.6 MB of fibers). That per-node bookkeeping is the likely cause, read
+from the code; the heap snapshot only breaks it down by class.
 
 ### Per-node cells
 
@@ -188,8 +195,8 @@ and marks would settle it.
 - **Maturity.** react-prosemirror runs in production editors over ProseMirror, which is many years
   old; react-wordgard is at 0.1, over Wordgard 0.6.
 - **The engine floor.** Plain ProseMirror types faster than plain Wordgard (0.4 against 0.6 ms a
-  keystroke and 50 against 193 KB allocated at 1,500 paragraphs), because each Wordgard transaction costs in proportion to the
-  document (`docs/wordgard-upstream-bugs.md`, 17). react-wordgard's keystroke sits on that floor.
+  keystroke and 49 against 189 KB allocated at 1,500 paragraphs), because each Wordgard
+  transaction costs in proportion to the document (`docs/wordgard-upstream-bugs.md`, 17). react-wordgard's keystroke sits on that floor.
 - **Internals.** Both reach into their engine: react-prosemirror subclasses `EditorView` and builds
   its view descriptions; react-wordgard subclasses Wordgard through a private constructor, swaps
   its renderer and replaces its observer, all typed in `src/wordgardInternals.ts`. Wordgard is

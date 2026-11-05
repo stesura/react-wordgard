@@ -230,7 +230,6 @@ const interactionRows = async (plugins: boolean, summary: Summary) => {
         enter,
         fixed(m((run) => run.enterKB)),
         format,
-        fixed(m((run) => run.memory)),
       ];
       rows.push(`| ${row.join(" | ")} |`);
       log(rows.at(-1) ?? "");
@@ -323,8 +322,8 @@ const bulkRows = async (plugins: boolean, summary: Summary) => {
 };
 
 const interactionTable = (rows: string[]) => [
-  "| Paragraphs | Editor | Load (ms) | First keystroke (ms) | To first interaction (ms) | Keystroke (ms) | Allocated per keystroke (KB) | Enter (ms) | Allocated per Enter (KB) | Bold all (ms) | Heap held after load (MB) |",
-  "|---|---|---|---|---|---|---|---|---|---|---|",
+  "| Paragraphs | Editor | Load (ms) | First keystroke (ms) | To first interaction (ms) | Keystroke (ms) | Allocated per keystroke (KB) | Enter (ms) | Allocated per Enter (KB) | Bold all (ms) |",
+  "|---|---|---|---|---|---|---|---|---|---|",
   ...rows,
 ];
 
