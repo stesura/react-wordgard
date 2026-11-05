@@ -1,8 +1,5 @@
-// The one place that depends on Wordgard internals missing from its typings
-// (src/editor/tile.ts, decoration.ts and editor.ts, and src/doc/node.ts in its
-// repo, at the pinned version). The declarations below are trusted, not
-// checked: re-read them against Wordgard's source after `npm run
-// update-wordgard`.
+// The one place depending on Wordgard internals missing from its typings. The declarations are
+// trusted, not checked: re-read them against Wordgard's source after `npm run update-wordgard`.
 import { type Attributes, type Node as DocNode, Elt, type Mark } from "wordgard/doc";
 import { Decoration, Widget, Wordgard } from "wordgard/editor";
 import { basicSchema } from "wordgard/schema";

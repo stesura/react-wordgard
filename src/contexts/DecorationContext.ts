@@ -1,8 +1,5 @@
-// The React decoration (shape, wrapper, mark or widget) a component is drawn
-// in, for the hooks react-prosemirror's node views use: its position, whether
-// its node is selected, and the handlers its components register. It takes
-// the place of react-prosemirror's GetPosContext, SelectNodeContext,
-// StopEventContext and IgnoreMutationContext.
+// The React decoration a component is drawn in, for the decoration hooks. Replaces
+// react-prosemirror's GetPosContext, SelectNodeContext, StopEventContext and IgnoreMutationContext.
 import { createContext, useContext } from "react";
 
 export type DecorationHandlers = {

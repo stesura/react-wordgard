@@ -1,15 +1,11 @@
-// Three stand-ins for an app's plugins, each written as its editor would have
-// it, to see how what handles a transaction scales with its steps:
-// - highlights: a decoration on each paragraph's last word (comments, search
-//   hits), mapped through every transaction. The last, away from where the
-//   benchmark types: in Wordgard, an Enter splitting a range wrapper in a
-//   transaction a correction adds to doubles the wrapper's drawing
+// Stand-ins for an app's plugins, each written as its editor would have it, to see how handling a
+// transaction scales with its steps:
+// - highlights: a decoration on each paragraph's last word, away from where the benchmark types: in
+//   Wordgard, an Enter splitting a range wrapper in a correction's transaction doubles its drawing
 //   (docs/benchmark-results.md);
-// - anchors: a position per paragraph (bookmarks, comment anchors), mapped
-//   through every transaction;
-// - edited: flags every paragraph a transaction touched, with a change of its
-//   own (ids, numbering, track changes): an appended transaction in
-//   ProseMirror, a correction in Wordgard.
+// - anchors: a position per paragraph, mapped through every transaction;
+// - edited: flags every paragraph a transaction touched, with a change of its own (an appended
+//   transaction in ProseMirror, a correction in Wordgard).
 import type { Node as PMNode } from "prosemirror-model";
 import { Plugin, PluginKey } from "prosemirror-state";
 import { DecorationSet, Decoration as PMDecoration } from "prosemirror-view";

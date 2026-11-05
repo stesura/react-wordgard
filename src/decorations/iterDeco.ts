@@ -1,9 +1,6 @@
-// Named after react-prosemirror's iterDeco, rewritten for Wordgard: lays out a
-// plot's content from Wordgard's DecoIterator (copied in ./DecoIterator.ts),
-// the way its ContentUpdate.build does (src/editor/tile.ts in its repo), for
-// React to render and ReactDocTile to build tiles over. Each plot is laid out
-// on its own; a plot that kept its identity outside the ranges an update
-// redraws keeps its previous layout.
+// Named after react-prosemirror's iterDeco, rewritten for Wordgard: lays out a plot's content from
+// DecoIterator, as Wordgard's ContentUpdate.build does. A plot that kept its identity outside the
+// redrawn ranges keeps its previous layout.
 import { Attributes, Elt, Leaf, Mark, type Node, type Plot } from "wordgard/doc";
 import { type Decoration, Widget } from "wordgard/editor";
 

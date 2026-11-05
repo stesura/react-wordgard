@@ -1,8 +1,5 @@
-// The benchmark's documents: seeded, so every editor and every run gets the
-// same one. About 100 words a paragraph, five paragraphs to an A4 page: 50,
-// 500, 1,500 and 5,000 paragraphs are about 10, 100, 300 and 1,000 pages.
-// Each paragraph has 2 to 5 marked runs (bold, italic, a link, a colour) and
-// the search term once, inside a marked run in every fourth paragraph.
+// Seeded documents, about 100 words a paragraph, five paragraphs to an A4 page. Each paragraph has
+// 2 to 5 marked runs and, in every fourth one, the search term inside a marked run.
 
 export const searchTerm = "acme";
 export const replacement = "Acme Corporation";

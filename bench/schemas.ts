@@ -1,10 +1,6 @@
-// The two schemas, alike: paragraphs (with an indent and an "edited" flag) and
-// headings, bold, italic, links, a text colour and a font size.
-// ProseMirror's is prosemirror-schema-basic's plus the paragraph attributes
-// and a textStyle mark holding the colour and the font size together, as
-// tiptap's does. Wordgard's is basicSchema plus its Color mark, a FontSize
-// mark, and Indent and Edited marks on paragraphs, as its Alignment is: one
-// value a mark, its idiom.
+// Two alike schemas: paragraphs (an indent, an "edited" flag), headings, bold, italic, links, a
+// colour and a font size. ProseMirror's holds the colour and size in one textStyle mark, as
+// tiptap's does; Wordgard's has a mark per value, its idiom.
 import { Schema } from "prosemirror-model";
 import { schema as basic } from "prosemirror-schema-basic";
 import { Mark } from "wordgard/doc";

@@ -1,7 +1,5 @@
-// DecorationRoot: the root of a React shape, wrapper or mark, drawn with the
-// tag its Elt says, Wordgard's attributes and the root's ref, the component's
-// own props merged in. Plain function components, so React 18 gives them no
-// ref: DecorationRoot takes it from its context.
+// Plain function components here, so React 18 gives them no ref: DecorationRoot takes it from its
+// context.
 import React from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";

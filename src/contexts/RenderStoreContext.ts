@@ -1,8 +1,6 @@
-// Named after our react-prosemirror fork's RenderStoreContext, rewritten for
-// Wordgard: what the view computes for rendering, held in one object per
-// content element and provided once, so its context value never changes and
-// memoised node views are never scanned for it. ReactDocTile writes it inside
-// Wordgard's flush, before React renders.
+// Named after our react-prosemirror fork's RenderStoreContext, rewritten for Wordgard: one object
+// per content element, which ReactDocTile writes inside the flush. Its value never changes, so
+// memoised node views aren't scanned for it.
 import { createContext, useContext } from "react";
 
 import type { NodeView } from "../decorations/iterDeco.js";

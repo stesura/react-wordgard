@@ -1,9 +1,5 @@
-// Named after ReactWidgetType: a React wrapper is a real Wordgard `Elt` with a
-// hole, the wrapper plain Wordgard draws (`Decoration.Tag.wrapper`,
-// `Decoration.Point.wrapper`), registered as drawn by a component, which
-// renders what it wraps as `children`. Registered as React shapes are (the
-// reserved attribute); its props are a React shape's without `contentDOMRef`:
-// `children` goes where the hole is.
+// Named after ReactWidgetType. A React wrapper is a real Wordgard `Elt` with a hole, registered as
+// React shapes are (the reserved attribute).
 import {
   type AllHTMLAttributes,
   type ComponentType,
@@ -19,6 +15,9 @@ import { type Node as DocNode, Elt } from "wordgard/doc";
 import { takesRef } from "../helpers/refs.js";
 import { idOf, reserved } from "./ReactShapeType.js";
 
+/**
+ * A React wrapper's props: as a shape's, without `contentDOMRef`. `children` is what it wraps.
+ */
 export type WrapperComponentProps<E extends Element = HTMLElement> =
   AllHTMLAttributes<HTMLElement> & {
     nodeProps: {
@@ -28,9 +27,12 @@ export type WrapperComponentProps<E extends Element = HTMLElement> =
     children: ReactNode;
   } & RefAttributes<E>;
 
+/** `createWrapper`'s options. */
 export type WrapperOptions = {
-  // The component's root element: `target` selectors match it, and plain
-  // Wordgard draws it. `span` around an inline node.
+  /**
+   * The component's root element, `div` by default: `target` selectors match it, and plain Wordgard
+   * draws it. `span` around an inline node.
+   */
   element?: string;
 };
 
@@ -47,6 +49,7 @@ const draws = new Map<string, (props: DrawProps) => ReactElement>();
 // By component, then root element, as React shapes are.
 const wrappers = new WeakMap<object, { id: string; elts: Map<string, Elt> }>();
 
+/** A wrapper, for `Decoration.Tag.wrapper` and `Decoration.Point.wrapper`. */
 export const createWrapper = <E extends Element = HTMLElement>(
   component: ComponentType<WrapperComponentProps<E>>,
   { element = "div" }: WrapperOptions = {}

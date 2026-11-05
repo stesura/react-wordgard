@@ -1,10 +1,6 @@
-// Named after react-prosemirror's DefaultNodeView, rewritten for Wordgard: a
-// node renders as the shape Wordgard's decorations give it (its
-// buildNodeShape), with the plot's content in the hole. In Wordgard every node
-// type has a shape, so there's no missing `toDOM` to check for. Widgets, as a
-// node's shape or inside it, are drawn by their component when they're React
-// widgets, else draw nothing: ReactDocTile puts their DOM in place. React
-// shapes and wrappers in the shape are drawn by ShapeView and WrapperView.
+// Named after react-prosemirror's DefaultNodeView, rewritten for Wordgard: a node renders as its
+// decorated shape (buildNodeShape). Every Wordgard node type has a shape, so there's no missing
+// `toDOM` to check for. Native widgets draw nothing: ReactDocTile puts their DOM in place.
 import React, { Component, type ReactElement, type ReactNode, createElement } from "react";
 import { Attributes, Elt, type Node } from "wordgard/doc";
 

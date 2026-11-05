@@ -1,7 +1,5 @@
-// Adapted from react-prosemirror's ReactEditorView, to fit Wordgard: it
-// extends Wordgard instead of EditorView and, where ReactEditorView replaces
-// the docView ProseMirror's constructor builds, has the base constructor build
-// a tile tree React renders.
+// Adapted from react-prosemirror's ReactEditorView, to fit Wordgard: it extends Wordgard, and its
+// base constructor builds a tile tree React renders, where ReactEditorView replaces the docView.
 import { Wordgard } from "wordgard/editor";
 import { GardState } from "wordgard/state";
 

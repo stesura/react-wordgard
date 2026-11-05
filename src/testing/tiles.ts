@@ -1,5 +1,4 @@
-// What the comparison tests compare: a tile tree, as classes, flags, lengths
-// and where each tile's DOM sits in the content element.
+// A tile tree as the comparison tests compare it.
 import type { Wordgard } from "wordgard/editor";
 
 import { DocTile, type Tile } from "../wordgardInternals.js";

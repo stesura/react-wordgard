@@ -1,8 +1,5 @@
-// What keeps a React decoration's component, counted in mounts: a mark change,
-// a retag (a node's opening token replaced by one of the same type, as
-// Wordgard's commands change a parameter) and a move within the node's parent
-// re-render it; a whole-node replacement, a type change and a move to another
-// parent remount it.
+// What keeps a React decoration's component: a mark change, a retag and a move within the parent
+// re-render it; a replacement, a type change and a move to another parent remount it.
 import React, { useLayoutEffect } from "react";
 import { Leaf } from "wordgard/doc";
 import { Decoration, type Wordgard } from "wordgard/editor";

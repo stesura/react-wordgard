@@ -1,10 +1,5 @@
-// React shapes: a node drawn by a component
-// that renders its content as `children` and changes its chrome and attributes
-// on its own, from editor state inside the flush, wrapped, while the user types
-// or composes, and with chrome beside a container's content; and React
-// wrappers, drawn around what they wrap, the same ways. After each
-// change, Wordgard's next flush must find nothing to redraw, and the tiles must
-// be what a fresh build over the same DOM gives.
+// React shapes and wrappers. After each change, Wordgard's next flush must find nothing to redraw,
+// and the tiles must be what a fresh build over the same DOM gives.
 import React, {
   createContext,
   createElement,

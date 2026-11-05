@@ -1,7 +1,6 @@
-// Named after react-prosemirror's reactKeys plugin, rewritten for Wordgard: no
-// plugin, since Wordgard hands the view its changes. Keys are kept per parent
-// plot, by child index, so rendering needs no positions and a plot that
-// keeps its identity keeps its keys without any work.
+// Named after react-prosemirror's reactKeys plugin, rewritten for Wordgard: no plugin, since
+// Wordgard hands the view its changes. Keys are kept per parent plot, by child index, so rendering
+// needs no positions.
 import type { Node, Plot } from "wordgard/doc";
 import type { Widget } from "wordgard/editor";
 

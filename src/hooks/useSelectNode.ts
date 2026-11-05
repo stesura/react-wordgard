@@ -1,7 +1,4 @@
-// Named after react-prosemirror's useSelectNode, rewritten for Wordgard:
-// `selectNode` runs once the node the React decoration draws becomes the node
-// selection, `deselectNode` once it stops being it, after the flush that draws
-// the change, as ProseMirror's NodeView.selectNode and deselectNode.
+// Named after react-prosemirror's useSelectNode, rewritten for Wordgard.
 import { useRef } from "react";
 import type { Wordgard } from "wordgard/editor";
 
@@ -11,6 +8,10 @@ import { useIsNodeSelected } from "./useIsNodeSelected.js";
 
 const noop = () => {};
 
+/**
+ * Calls `selectNode` when the node becomes the node selection, and `deselectNode` when it stops
+ * being it, once the editor's DOM is up to date (as `useEditorEffect`).
+ */
 export const useSelectNode = (
   selectNode: (wg: Wordgard) => void,
   deselectNode: (wg: Wordgard) => void = noop

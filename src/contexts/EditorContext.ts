@@ -1,6 +1,4 @@
-// Named after react-prosemirror's EditorContext, rewritten for Wordgard: the
-// editor, the state as of its last flush (react-prosemirror's state store),
-// and what the hooks register to run around its flush. One value per editor,
+// Named after react-prosemirror's EditorContext, rewritten for Wordgard. One value per editor,
 // which never changes, so memoised components aren't scanned for it.
 import { createContext, useContext } from "react";
 import { flushSync } from "react-dom";

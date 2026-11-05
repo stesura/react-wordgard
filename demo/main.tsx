@@ -1,8 +1,5 @@
-// Adapted from Wordgard's demo (demo/demo.ts in its repo), on react-wordgard's
-// components, with every kind of React decoration: a shape (the callout), a
-// widget drawing a block node (the resizable figure) and an inline one (the
-// mention, the inline image), and a mark shape (the link). Tables come as bare
-// schema elements, without their extension's cell selection.
+// Adapted from Wordgard's demo (demo/demo.ts in its repo), on react-wordgard's components, with
+// every kind of React decoration. Tables come without their extension's cell selection.
 import "./main.css";
 
 import React, { StrictMode, forwardRef, useState } from "react";

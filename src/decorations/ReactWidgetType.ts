@@ -1,11 +1,8 @@
-// Named after react-prosemirror's ReactWidgetType, rewritten for Wordgard: a
-// React widget type is a real Wordgard widget type, made by Widget.define with
-// the same spec, drawn by its component in the editor's own React tree. As
-// in react-prosemirror, the component forwards its ref to its root element,
-// which becomes the widget's DOM. Wordgard ignores what the component changes
-// inside that element, so it may re-render on its own, but not swap the
-// element itself: the parent's tile would put the old one back. An editable
-// one the user edits keeps the edit, where Wordgard would redraw it.
+// Named after react-prosemirror's ReactWidgetType, rewritten for Wordgard: a real Wordgard widget
+// type (Widget.define, same spec), drawn by its component in the editor's React tree. Its root,
+// which the component forwards its ref to, is the widget's DOM: the component may re-render inside
+// it, but not swap it, or the parent's tile puts the old one back. An editable one the user edits
+// keeps the edit, where Wordgard would redraw it.
 import {
   type AllHTMLAttributes,
   type ComponentType,
@@ -22,9 +19,10 @@ import { stopsEvent } from "../contexts/DecorationContext.js";
 import { takesRef } from "../helpers/refs.js";
 import { reserved } from "./ReactShapeType.js";
 
-// A widget drawing a node also gets the node's attributes (the selected-node
-// class, tag and mark attributes) as props, for its root element.
-// (`value` is the widget's.)
+/**
+ * A React widget's props: its `value`, and, for a widget drawing a node, the node's attributes for
+ * its root.
+ */
 export type WidgetComponentProps<Param, E extends Element = HTMLElement> = Omit<
   AllHTMLAttributes<HTMLElement>,
   "value"
@@ -32,13 +30,16 @@ export type WidgetComponentProps<Param, E extends Element = HTMLElement> = Omit<
   value: Param;
 } & RefAttributes<E>;
 
+/** `createWidgetType`'s spec: Wordgard's widget spec, with a component in place of `render`. */
 export type WidgetTypeSpec<Param, E extends Element = HTMLElement> = Omit<
   Widget.Spec<Param>,
   "render"
 > & {
   component: ComponentType<WidgetComponentProps<Param, E>>;
-  // The root DecorationRoot draws in the component. Wordgard doesn't look at a
-  // widget's element, so it's the component's choice.
+  /**
+   * The root `DecorationRoot` draws in the component, `span` by default. Wordgard doesn't look at a
+   * widget's element, so it's the component's choice.
+   */
   element?: string;
 };
 
@@ -54,6 +55,7 @@ const components = new WeakMap<Widget.Type<unknown>, { draw: Draw; element: stri
 // Wordgard, given a React widget, draws this.
 const placeholder = () => document.createElement("span");
 
+/** A widget type whose widgets, `type.of(value)`, the component draws. */
 export const createWidgetType = <Param, E extends Element = HTMLElement>(
   spec: WidgetTypeSpec<Param, E>
 ): Widget.Type<Param> => createWidgetTypeWithRender({ ...spec, render: placeholder });

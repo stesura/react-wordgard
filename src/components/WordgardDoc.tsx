@@ -1,9 +1,6 @@
-// Named after react-prosemirror's ProseMirrorDoc, rewritten for Wordgard:
-// puts the editor's element in the page, inside a `div` taking the props, and
-// renders its document through a portal into Wordgard's content element, so
-// the document shares the app's React tree and contexts. The portal commits
-// first and builds the tiles; attaching the element then connects the editor,
-// as Wordgard's own editor is built before it's connected.
+// Named after react-prosemirror's ProseMirrorDoc, rewritten for Wordgard. The portal commits first
+// and builds the tiles; attaching the element then connects the editor, as Wordgard's own editor is
+// built before it's connected.
 import React, {
   type HTMLAttributes,
   useCallback,
@@ -31,6 +28,11 @@ const DocPortal = ({ wg }: { wg: Wordgard }) => {
 
 type Props = Omit<HTMLAttributes<HTMLDivElement>, "children">;
 
+/**
+ * Puts the editor in the page, inside a `div` taking the props, and renders the document through a
+ * portal, in your React tree. It goes under its `<WordgardEditor>`, inside any other components,
+ * with other children before or after it. One per editor: a second throws.
+ */
 export const WordgardDoc = (props: Props) => {
   const { wg } = useEditorContext();
   const attach = useCallback(

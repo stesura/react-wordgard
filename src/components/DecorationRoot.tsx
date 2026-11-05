@@ -1,7 +1,5 @@
-// A React shape's, wrapper's or mark's root, drawn for its component: the tag
-// its Elt says, Wordgard's attributes and the root's ref, so the component
-// can't get them wrong. The component's own props win, but `className` joins
-// Wordgard's and `style` merges, its keys winning. Not in react-prosemirror.
+// Not in react-prosemirror. The component's own props win, but `className` joins Wordgard's and
+// `style` merges, its keys winning.
 import {
   type AllHTMLAttributes,
   type ReactNode,
@@ -15,8 +13,14 @@ import { DecorationRootContext } from "../contexts/DecorationRootContext.js";
 import { cssToStyle, htmlAttrsToReactProps } from "../helpers/props.js";
 import { mergeRefs, toCallbackRef } from "../helpers/refs.js";
 
+/** `DecorationRoot`'s props: its root's attributes, and its children. */
 export type DecorationRootProps = AllHTMLAttributes<HTMLElement> & { children?: ReactNode };
 
+/**
+ * The root element of a React shape, wrapper, mark or widget: the tag the decoration says, with
+ * Wordgard's attributes merged with the props. See [React
+ * decorations](https://github.com/stesura/react-wordgard#react-decorations).
+ */
 export const DecorationRoot = forwardRef<Element, DecorationRootProps>(
   ({ className, style, ...props }, ref) => {
     const root = useContext(DecorationRootContext);

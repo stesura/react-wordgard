@@ -1,7 +1,5 @@
-// Accessibility (docs/open-points.md): axe-core's checks over editors drawn by
-// React, compared with plain Wordgard drawing the same document, and with
-// React shapes, marks and widgets in it. Wordgard's own ARIA attributes (the
-// content element's role, label, multiline) must survive React's drawing.
+// axe-core over editors drawn by React, compared with plain Wordgard, React decorations included.
+// Wordgard's ARIA attributes must survive React's drawing.
 import axe from "axe-core";
 import React, { forwardRef } from "react";
 import { Decoration, Wordgard } from "wordgard/editor";

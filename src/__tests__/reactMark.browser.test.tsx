@@ -1,8 +1,5 @@
-// React marks: a mark drawn by a
-// component that renders the marked content as `children`, with chrome and
-// attributes from its own state, content React remounts, one component per run
-// of the mark, compositions inside it. After each change, Wordgard's next flush
-// must find nothing to redraw, and the tiles must be what a fresh editor builds.
+// React marks. After each change, Wordgard's next flush must find nothing to redraw, and the tiles
+// must be what a fresh editor builds.
 import React, { forwardRef, useLayoutEffect, useState } from "react";
 import { flushSync } from "react-dom";
 import { Leaf, type Mark } from "wordgard/doc";

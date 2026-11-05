@@ -1,9 +1,6 @@
-// Named after react-prosemirror's MarkView, rewritten for Wordgard: draws a
-// wrapper, either an element-shaped mark or the span holding a text run's
-// attribute-shaped marks, or a React mark's component. It draws what it holds
-// from its views, so it can be skipped while they keep their shape (iterDeco
-// keeps a wrapper's unchanged views; a node that changed gets its view from
-// its cell).
+// Named after react-prosemirror's MarkView, rewritten for Wordgard: an element-shaped mark, the
+// span of a text run's attribute-shaped marks, or a React mark. Memoised: iterDeco keeps a
+// wrapper's unchanged views.
 import React, { createElement, memo } from "react";
 import type { Mark } from "wordgard/doc";
 

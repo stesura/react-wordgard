@@ -1,6 +1,5 @@
-// Named after react-prosemirror's TextNodeView, rewritten for Wordgard: a text
-// leaf renders as a bare text node, its tile is built after the commit
-// (ReactDocTile). Skipped while its text is the same.
+// Named after react-prosemirror's TextNodeView, rewritten for Wordgard: a bare text node, whose
+// tile ReactDocTile builds after the commit.
 import { memo } from "react";
 
 type Props = {

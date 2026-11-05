@@ -1,5 +1,4 @@
-// A WordgardScope gives what it holds another editor: the hooks under it read,
-// call and listen to that one, and follow when it changes.
+// The hooks under a WordgardScope use its editor, and follow when it changes.
 import React, { Component, type ReactNode, createRef, useLayoutEffect } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";

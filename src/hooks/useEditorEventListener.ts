@@ -1,14 +1,7 @@
-// Named after react-prosemirror's useEditorEventListener, rewritten for
-// Wordgard: `handler` gets the editor's DOM events of `type` before Wordgard's
-// own handlers and keymaps, as react-prosemirror's `handleDOMEvents` came
-// before plugins: ReactWordgard installs a Wordgard.domEventHandler for each
-// type, at the highest precedence. Returning true says it handled the event:
-// Wordgard then calls `preventDefault` and goes no further. The latest
-// registered runs first, as in react-prosemirror. Unlike there, key events
-// during a composition don't come (Wordgard ignores them first), and handling
-// `input`, `beforeinput` or a composition event skips Wordgard's own tracking
-// of it. Among `prec.highest` handlers, these come first in an editor made
-// from `config`, after the state's own in one made from a `state`.
+// Named after react-prosemirror's useEditorEventListener, rewritten for Wordgard: ReactWordgard
+// installs a `prec.highest` Wordgard.domEventHandler per type, first in an editor made from
+// `config`, after the state's own in one made from a `state`. The latest registered runs first, as
+// in react-prosemirror.
 import { useLayoutEffect } from "react";
 import type { Wordgard } from "wordgard/editor";
 
@@ -16,6 +9,13 @@ import { useEditorContext } from "../contexts/EditorContext.js";
 import { type EditorEvent, listenersOf } from "../contexts/editorEvents.js";
 import { useEditorEventCallback } from "./useEditorEventCallback.js";
 
+/**
+ * Listens to the editor's DOM events of `type`, before Wordgard's handlers and keymaps. Returning
+ * `true` handles the event: Wordgard calls `preventDefault` and skips its own handling. The event
+ * types are listed under [Limits](https://github.com/stesura/react-wordgard#limits). Key events
+ * during a composition don't come; handling `input`, `beforeinput` or a composition event skips
+ * Wordgard's own handling of it, so leave typing to Wordgard.
+ */
 export const useEditorEventListener = <Type extends EditorEvent>(
   type: Type,
   handler: (wg: Wordgard, event: HTMLElementEventMap[Type]) => boolean | void

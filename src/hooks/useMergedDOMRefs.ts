@@ -1,9 +1,10 @@
-// Adapted from react-prosemirror's useMergedDOMRefs (src/refs.ts there),
-// without its typecast: one ref callback setting each of `refs`, as a React
-// decoration's component gives its root both the forwarded `ref` and
-// `contentDOMRef`, or a measuring ref.
+// Adapted from react-prosemirror's useMergedDOMRefs (src/refs.ts there), without its typecast.
 import { type Ref, type RefCallback, useCallback } from "react";
 
+/**
+ * One ref setting several, as for a root that's also the content element (`ref` and
+ * `contentDOMRef`).
+ */
 export const useMergedDOMRefs = <Value>(...refs: (Ref<Value> | undefined)[]): RefCallback<Value> =>
   useCallback(
     (value: Value) => {

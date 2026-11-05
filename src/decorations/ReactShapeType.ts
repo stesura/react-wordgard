@@ -1,14 +1,8 @@
-// Named after ReactWidgetType: a React shape is a real Wordgard `Elt`, the
-// shape plain Wordgard draws, registered as drawn by a component, which renders
-// the content as `children`. Wordgard resolves decorations on the Elt before
-// React renders (`target` selectors match its tag), so its tag is known up
-// front: `createShape` gives `Decoration.Tag.shape` a function of the tag, which
-// takes it from the tag's node type, per node (a heading's level). Without a
-// hole, as for the type's own shape, it draws an atom. Wordgard copies an Elt
-// when it adds attributes or wraps it, so the registration is a reserved
-// attribute, which every copy keeps; React never renders it. The props follow
-// react-prosemirror's node views (`nodeProps`, `contentDOMRef`, a forwarded
-// ref), named after the decoration: Wordgard has no node views.
+// Named after ReactWidgetType. A React shape is a real Wordgard `Elt`, registered as drawn by a
+// component through a reserved attribute, which every copy Wordgard makes of it keeps and React
+// never renders. Its tag is fixed before React renders (`target` selectors match it), so
+// `createShape` gives `Decoration.Tag.shape` a function of the tag. The props follow
+// react-prosemirror's node views (`nodeProps`, `contentDOMRef`, a forwarded ref).
 import {
   type AllHTMLAttributes,
   type ComponentType,
@@ -24,6 +18,13 @@ import { Attributes, type Node as DocNode, Elt } from "wordgard/doc";
 import { ignoresMutation } from "../contexts/DecorationContext.js";
 import { takesRef } from "../helpers/refs.js";
 
+/**
+ * A React shape's props: `nodeProps`, the content as `children`, and Wordgard's attributes and
+ * `ref` for its root. The content goes in the `contentDOMRef` element, else in the root; in an
+ * atom, `children` is empty and a `contentDOMRef` throws. With `<DecorationRoot>` as the root, the
+ * attributes and `ref` are taken care of; a root drawn by hand spreads them onto itself (see [A
+ * root drawn by hand](https://github.com/stesura/react-wordgard#a-root-drawn-by-hand)).
+ */
 export type ShapeComponentProps<E extends Element = HTMLElement> =
   AllHTMLAttributes<HTMLElement> & {
     nodeProps: {
@@ -34,10 +35,11 @@ export type ShapeComponentProps<E extends Element = HTMLElement> =
     children: ReactNode;
   } & RefAttributes<E>;
 
-// For Decoration.Tag.shape: a node's shape, its root the node type's own outer
-// element (tag and attributes), an atom where the type's shape is. `of` gives
-// the shape with `element` for its root: for Decoration.Point.shape, which
-// applies to whichever node follows, or a root other than the type's.
+/**
+ * What `createShape` returns: for `Decoration.Tag.shape`, a node's shape, its root the node type's
+ * own outer element, an atom where the type's shape is. `of` gives the shape with `element` for its
+ * root: for `Decoration.Point.shape`, or a root other than the type's.
+ */
 export type ReactShape = ((tag: DocNode.Tag) => Elt) & {
   of: (element: string, options?: { atom?: boolean }) => Elt;
 };
@@ -57,6 +59,10 @@ const draws = new Map<string, (props: DrawProps) => ReactElement>();
 // Wordgard sees no configuration change and the registry doesn't grow.
 const shapes = new WeakMap<object, ReactShape>();
 
+/**
+ * A node's shape, for `Decoration.Tag.shape(NodeType, shape)`. `shape.of(element)` is the shape
+ * with another root element, also for `Decoration.Point.shape`.
+ */
 export const createShape = <E extends Element = HTMLElement>(
   component: ComponentType<ShapeComponentProps<E>>
 ): ReactShape => {

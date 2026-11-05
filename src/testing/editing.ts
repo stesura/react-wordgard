@@ -1,6 +1,5 @@
-// What the React decoration tests do to an editor and read from it: the
-// user's typing and compositions, as the browser fires them, and the drawing a
-// fresh editor is compared with.
+// The user's typing and compositions as the browser fires them, and the drawing a fresh editor is
+// compared with.
 import type { Wordgard } from "wordgard/editor";
 
 import { TileFlag } from "../wordgardInternals.js";

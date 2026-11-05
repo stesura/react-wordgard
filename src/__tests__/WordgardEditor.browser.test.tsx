@@ -1,6 +1,4 @@
-// An editor hosted in the app's React tree (WordgardEditor, WordgardDoc)
-// draws what Wordgard draws, shares the app's contexts, and gives the hooks
-// the state, effects, callbacks and measures they promise.
+// An editor in the app's React tree (WordgardEditor, WordgardDoc), and the hooks over it.
 import React, {
   Component,
   type ReactNode,

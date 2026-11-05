@@ -1,9 +1,7 @@
-// How the React view keeps a composition alive through Wordgard's flush, as
-// Wordgard's ContentUpdate.composition does (src/editor/tile.ts in its repo):
-// the browser's text node stays as it is, in a tile of its own. React must not
-// write to it: when React drew it, React keeps rendering the value it last
-// committed there, in the wrappers it committed around it; when the browser
-// made it (or an element around it), React draws nothing in its place.
+// Keeps a composition alive through Wordgard's flush, as Wordgard's ContentUpdate.composition does:
+// the browser's text node stays, in a tile of its own, and React must not write to it. When React
+// drew it, React keeps rendering what it last committed there; when the browser made it, React
+// draws nothing in its place.
 import { Attributes, Elt, type Mark, type Plot } from "wordgard/doc";
 
 import {

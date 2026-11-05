@@ -1,9 +1,6 @@
-// The DOM events useEditorEventListener can listen to, and the handlers
-// ReactWordgard installs for them. Wordgard has a handler per event type, so
-// the types are fixed when the editor is created. Adding a handler makes
-// Wordgard's listener for the type non-passive: the events that block
-// scrolling (touch, wheel) aren't among them, nor the most frequent ones
-// (mousemove, pointer events), each of which would then walk the tiles.
+// The DOM events useEditorEventListener can listen to. Wordgard fixes its handlers' event types at
+// creation, and a handler makes its listener non-passive: scroll-blocking events (touch, wheel) and
+// frequent ones (mousemove, pointer events) are left out.
 import { Wordgard } from "wordgard/editor";
 import { GardState } from "wordgard/state";
 

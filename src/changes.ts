@@ -1,9 +1,6 @@
-// Named after Wordgard's editor/changes.ts: helpers over the change sections
-// DocTile.update receives, pairs of a length in the old document and -1 (kept),
-// -2 (redrawn: marks or decorations changed) or the length that replaced it.
-// Each is called once per node, and an update can have a section per node
-// (formatting the whole document): they search an index of the sections, built
-// once per update, rather than walk them.
+// Named after Wordgard's editor/changes.ts: helpers over the change sections DocTile.update gets,
+// pairs of an old length and -1 (kept), -2 (redrawn) or the new length. An update can have a
+// section per node, so they search an index built once per update rather than walk them.
 import type { Plot } from "wordgard/doc";
 
 type Index = {

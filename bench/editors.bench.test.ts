@@ -1,12 +1,6 @@
-// Times the editors of editors.ts on the documents of documents.ts: load, the
-// first keystroke, typing, Enter and bolding the whole document, with what a
-// keystroke and an Enter allocate; then bulk edits over every paragraph (an
-// indent, a Replace All, setting the font size of styled text), each one
-// transaction, with its steps, documents built, memory and undo. All of it
-// twice: without plugins, then with the stand-in plugins of plugins.ts. Each
-// pass starts with a summary table per document size.
-// `npm run bench` (React's production build), `npm run bench:dev`,
-// `npm run bench:smoke` (50 paragraphs, one run, to check it runs).
+// Times the editors of editors.ts: load, the first keystroke, typing, Enter, bolding the document,
+// and bulk edits over every paragraph as one transaction; without plugins, then with plugins.ts'.
+// `npm run bench` (React's production build), `npm run bench:dev`, `npm run bench:smoke`.
 import React from "react";
 import { commands } from "vitest/browser";
 

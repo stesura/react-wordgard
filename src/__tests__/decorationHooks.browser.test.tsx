@@ -1,7 +1,4 @@
-// The hooks React decorations use,
-// react-prosemirror's node view hooks for Wordgard: positions, stopped events,
-// claimed mutations, the node selection, editor event listeners before
-// keymaps, merged refs.
+// The decoration hooks: react-prosemirror's node view hooks, for Wordgard.
 import React, { forwardRef, useRef, useState } from "react";
 import { Elt, Leaf } from "wordgard/doc";
 import { Decoration, Wordgard } from "wordgard/editor";

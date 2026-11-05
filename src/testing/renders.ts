@@ -1,8 +1,5 @@
-// Which node views React rendered in its last commit, read from React's fibers
-// as React DevTools reads them: only subtrees React worked on are walked (one
-// it skipped keeps its children, and their flags, from an older commit), and a
-// fiber rendered when it's new or has the PerformedWork flag. React internals,
-// the same in React 18 and 19; for tests only.
+// Which node views React rendered in its last commit, read from React's fibers as React DevTools
+// does: only the subtrees React worked on. React internals, the same in React 18 and 19.
 import { Leaf, type Node, Plot } from "wordgard/doc";
 
 import { ChildNodeViews } from "../components/ChildNodeViews.js";

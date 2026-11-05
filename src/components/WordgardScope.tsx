@@ -1,8 +1,3 @@
-// Gives the components it holds an editor a WordgardEditor made elsewhere, in
-// place of the one around them: a toolbar acting on whichever of a page's
-// editors has focus (a document's, an open header's). The hooks under it
-// follow when `wg` changes: selectors subscribe to the new editor's state,
-// callbacks and listeners get it, effects run again.
 import React, { type ReactNode } from "react";
 import type { Wordgard } from "wordgard/editor";
 
@@ -13,6 +8,12 @@ type Props = {
   children?: ReactNode;
 };
 
+/**
+ * Gives the components it holds `wg`, an editor a `WordgardEditor` made elsewhere, in place of the
+ * one around them: for a toolbar acting on whichever of a page's editors has focus. The hooks under
+ * it follow when `wg` changes: selectors subscribe to the new editor's state, callbacks and
+ * listeners get it, effects run again. Any other editor throws.
+ */
 export const WordgardScope = ({ wg, children }: Props) => {
   const editor = findEditor(wg);
   if (!editor) throw new Error("WordgardScope takes an editor a WordgardEditor made");

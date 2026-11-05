@@ -1,7 +1,5 @@
-// Named after react-prosemirror's ReactNodeView, for Wordgard: draws a React
-// shape's component, with the node's content as its children. ReactDocTile
-// builds the tiles over what it commits; the component's own commits are
-// sorted out of Wordgard's DOM observer (`sortRecords`).
+// Named after react-prosemirror's ReactNodeView, for Wordgard: draws a React shape's component. Its
+// own commits are sorted out of Wordgard's DOM observer (`sortRecords`).
 import React, { type ReactNode, useMemo, useState } from "react";
 import type { Node } from "wordgard/doc";
 

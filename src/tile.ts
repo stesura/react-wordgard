@@ -1,11 +1,6 @@
-// Takes the role of Wordgard's own DocTile (src/editor/tile.ts in its repo):
-// React draws the document and the tiles are built over React's DOM, as
-// react-prosemirror's view descriptions are built over the DOM its components
-// render. Native widgets aren't React's: their DOM is rendered, reused,
-// connected and placed here, following Wordgard's ContentUpdate;
-// `setUneditable` is copied from it. React widgets are drawn by React, and
-// connected here. React commits into a root of its own, or, for an editor
-// WordgardEditor hosts, a portal in the app's tree (WordgardDoc).
+// Takes the role of Wordgard's DocTile (src/editor/tile.ts in its repo): the tiles are built over
+// React's DOM, as react-prosemirror's view descriptions are. Native widgets' DOM is placed here,
+// following Wordgard's ContentUpdate (`setUneditable` is copied from it).
 import { type ReactElement, createElement } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";

@@ -1,10 +1,6 @@
-// Named after ReactWidgetType: a React mark is a mark's element shape (for
-// `Decoration.Mark.shape`, or a mark type's own spec), the element plain
-// Wordgard draws, registered as drawn by a component, which renders the
-// marked content as `children`. Wordgard's mark shapes are declarative, so the
-// registration is the reserved attribute React shapes use, which the element
-// Wordgard makes from the shape keeps. The props follow react-prosemirror's
-// MarkComponentProps.
+// Named after ReactWidgetType. A React mark is a mark's element shape, registered as drawn by a
+// component through the reserved attribute React shapes use: Wordgard's mark shapes are
+// declarative. The props follow react-prosemirror's MarkComponentProps.
 import {
   type AllHTMLAttributes,
   type ComponentType,
@@ -21,6 +17,9 @@ import { takesRef } from "../helpers/refs.js";
 import type { Tile } from "../wordgardInternals.js";
 import { idOf, reserved } from "./ReactShapeType.js";
 
+/**
+ * A React mark's props, for each run of an equal mark: `markProps.mark` is the document's mark.
+ */
 export type MarkComponentProps<E extends Element = HTMLElement> = AllHTMLAttributes<HTMLElement> & {
   markProps: {
     mark: Mark;
@@ -30,10 +29,12 @@ export type MarkComponentProps<E extends Element = HTMLElement> = AllHTMLAttribu
   children: ReactNode;
 } & RefAttributes<E>;
 
+/** `createMarkShape`'s options. */
 export type MarkShapeOptions = {
-  // The component's root element, which plain Wordgard draws. Wordgard's mark
-  // shape is a static spec, also a mark type's own `shape` before the type
-  // exists, so the element can't come from the mark type.
+  /**
+   * The component's root element, `span` by default, which plain Wordgard draws. It can't come from
+   * the mark type: a mark type's own `shape` is written before the type exists.
+   */
   element?: string;
 };
 
@@ -54,6 +55,9 @@ type MarkShape = { element: string; attributes: Record<string, string> };
 // By component, then root element, as React shapes are.
 const marks = new WeakMap<object, { id: string; shapes: Map<string, MarkShape> }>();
 
+/**
+ * A mark's shape, for `Decoration.Mark.shape(MarkType, shape)` or a mark type's own `shape`.
+ */
 export const createMarkShape = <E extends Element = HTMLElement>(
   component: ComponentType<MarkComponentProps<E>>,
   { element = "span" }: MarkShapeOptions = {}

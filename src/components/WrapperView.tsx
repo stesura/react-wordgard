@@ -1,7 +1,4 @@
-// Draws a React wrapper's component, with what it wraps (the node's shape, or
-// the element its `target` picks) as its children. Like ShapeView, it has no
-// effects: ReactDocTile builds the tiles over what it commits, and the
-// component's own commits are sorted out of Wordgard's DOM observer.
+// Like ShapeView, no effects: ReactDocTile builds the tiles over what it commits.
 import React, { type ReactNode, useMemo, useState } from "react";
 import type { Node } from "wordgard/doc";
 

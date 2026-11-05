@@ -1,7 +1,5 @@
-// Named after react-prosemirror's ChildNodeViews, rewritten for Wordgard: draws
-// what iterDeco lays out: nodes, text, mark wrappers, Wordgard's hack nodes and
-// React widgets. Native widgets aren't React's: ReactDocTile puts their DOM in
-// place after the commit.
+// Named after react-prosemirror's ChildNodeViews, rewritten for Wordgard: draws what iterDeco lays
+// out. Native widgets aren't React's: ReactDocTile puts their DOM in place after the commit.
 import React, { memo } from "react";
 
 import { cellOf } from "../contexts/RenderStoreContext.js";

@@ -1,23 +1,22 @@
-// Named after react-prosemirror's useIgnoreMutation, rewritten for Wordgard:
-// when `ignoreMutation` returns true for a DOM mutation inside the React
-// decoration (its content included), Wordgard doesn't read it. Mutations in
-// the decoration's chrome never reach Wordgard anyway (`sortRecords`). Typing
-// isn't stopped: Wordgard takes it from `beforeinput`, not the mutation.
+// Named after react-prosemirror's useIgnoreMutation, rewritten for Wordgard. Chrome mutations are
+// dropped before, by `sortRecords`.
 import { useLayoutEffect } from "react";
 import type { Wordgard } from "wordgard/editor";
 
 import { useDecorationContext } from "../contexts/DecorationContext.js";
 import { useEditorEventCallback } from "./useEditorEventCallback.js";
 
-export const useIgnoreMutation = (
-  ignoreMutation: (wg: Wordgard, mutation: MutationRecord) => boolean
-) => {
+/**
+ * Wordgard doesn't read the DOM mutations `ignore` returns `true` for, typing aside (Wordgard takes
+ * it from `beforeinput`). Mutations in chrome and React widgets never reach Wordgard anyway.
+ */
+export const useIgnoreMutation = (ignore: (wg: Wordgard, mutation: MutationRecord) => boolean) => {
   const { handlers } = useDecorationContext("useIgnoreMutation");
-  const ignore = useEditorEventCallback(ignoreMutation);
+  const callback = useEditorEventCallback(ignore);
   useLayoutEffect(() => {
-    handlers.ignoreMutation.add(ignore);
+    handlers.ignoreMutation.add(callback);
     return () => {
-      handlers.ignoreMutation.delete(ignore);
+      handlers.ignoreMutation.delete(callback);
     };
-  }, [handlers, ignore]);
+  }, [handlers, callback]);
 };

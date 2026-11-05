@@ -1,7 +1,5 @@
-// Named after react-prosemirror's ReactMarkView, rewritten for Wordgard: draws
-// a React mark's component around the marked content. As ShapeView, it has no
-// effects: ReactDocTile builds the tiles over what it commits, and the
-// component's own commits are sorted out of Wordgard's DOM observer.
+// Named after react-prosemirror's ReactMarkView, rewritten for Wordgard. Like ShapeView, no
+// effects: ReactDocTile builds the tiles over what it commits.
 import React, { type ReactNode, useMemo, useState } from "react";
 import type { Mark } from "wordgard/doc";
 
