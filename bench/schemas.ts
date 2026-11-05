@@ -2,7 +2,7 @@
 // headings, bold, italic, links, a text colour and a font size.
 // ProseMirror's is prosemirror-schema-basic's plus the paragraph attributes
 // and a textStyle mark holding the colour and the font size together, as
-// Stesura's does. Wordgard's is basicSchema plus its Color mark, a FontSize
+// tiptap's does. Wordgard's is basicSchema plus its Color mark, a FontSize
 // mark, and Indent and Edited marks on paragraphs, as its Alignment is: one
 // value a mark, its idiom.
 import { Schema } from "prosemirror-model";
@@ -10,7 +10,7 @@ import { schema as basic } from "prosemirror-schema-basic";
 import { Mark } from "wordgard/doc";
 import { history } from "wordgard/history";
 import { basicSchema } from "wordgard/schema";
-import { GardState, Transaction } from "wordgard/state";
+import { GardState } from "wordgard/state";
 import { Color, Paragraph } from "wordgard/types";
 
 const indentPx = 24;
@@ -95,11 +95,8 @@ export const Edited = Mark.Type.define<string>("Edited", {
   shape: { attribute: "data-edited", value: 0 },
 });
 
-// A bulk edit's later transactions, joined into its first one's undo event.
-export const continuesEdit = Transaction.Annotation.define<boolean>();
-
 export const wgSchema = [
   basicSchema(),
   GardState.schemaElement.of([Color, FontSize, Indent, Edited]),
-  history({ joinToEvent: (tr, isAdjacent) => isAdjacent || tr.annotation(continuesEdit) === true }),
+  history(),
 ];

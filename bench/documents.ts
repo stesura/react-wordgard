@@ -63,9 +63,7 @@ const paragraph = (next: () => number, index: number) => {
 
 // For setting the font size everywhere: every word styled, in 6 runs of
 // differing size and colour, as formatted documents imported from Word are.
-// Stesura's textStyle makes that two steps a run (the old style removed, the
-// new one added), about 12 a paragraph: 60,554 steps for 4,811 paragraphs in
-// its worst corpus file.
+// In ProseMirror, a step a run: about 6 a paragraph.
 const sizes = ["11px", "12px", "13px", "15px", "16px", "18px"];
 const colors = ["#c0392b", "#2c3e50", "#16a085", "#8e44ad", "#d35400", "#2980b9"];
 const runsPerParagraph = 6;
