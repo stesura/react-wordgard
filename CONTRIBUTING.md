@@ -7,7 +7,9 @@ This project is written in TypeScript and published as ES modules only. It uses:
 - npm for package management;
 - tsc to build `dist/` and check types;
 - Vitest for tests, most of them in Chromium, Firefox and WebKit through Playwright;
-- ESLint and Prettier for linting and formatting.
+- ESLint and Prettier for linting and formatting;
+- dependency-cruiser for the rules on imports (`.dependency-cruiser.js`): no cycles, and no
+  development dependencies or test code in the published code.
 
 The source code lives in `src/`, with `src/index.ts` as the public API. How it works is in
 `docs/how-it-works.md`.
@@ -17,7 +19,7 @@ The source code lives in `src/`, with `src/index.ts` as the public API. How it w
 You need Node 22.12 or later. Run `npm install` to install dependencies, and
 `npx playwright install chromium firefox webkit` once for the browser tests.
 
-Check types, lint and formatting with `npm run check`, and fix what can be fixed with
+Check types, lint, imports and formatting with `npm run check`, and fix what can be fixed with
 `npm run fix`. Build with `npm run build`. Run the tests with `npm test`, and the demo with
 `npm run demo`.
 
