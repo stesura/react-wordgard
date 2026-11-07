@@ -1,3 +1,13 @@
+## Unreleased
+
+### New features
+
+`useEditorField(field, select?, isEqual?)` reads a state field or derived field, and `useEditorFieldEntry(field, key)` one entry of a field holding a `Map`. The editor's store compares each subscribed field once per flush and tells only its subscribers, so a component reading a field doesn't run anything on a flush that leaves the field as it was, where `useEditorStateSelector` reruns every selector on every flush. Both follow a `WordgardScope` to another editor.
+
+### Bug fixes
+
+SVG and MathML in shapes and decorations, such as the handle Wordgard's `imageResizing()` draws on an image, render in their namespace, with no React warnings: `svg:path` was drawn as an unknown `<svg:path>` element, `stroke-width` wasn't passed as `strokeWidth`, and a `style` attribute on them was dropped. A node type's shape can now hold SVG or MathML inside an `svg:svg` or `math:math` element.
+
 ## 0.2.1 (2026-11-05)
 
 ### New features

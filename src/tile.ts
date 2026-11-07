@@ -15,7 +15,7 @@ import {
 import { Widget, type Wordgard } from "wordgard/editor";
 import type { GardState } from "wordgard/state";
 
-import { attrsToRecord } from "./helpers/index.js";
+import { attrsToRecord, reactTagName } from "./helpers/index.js";
 import { ErrorBoundary } from "./components/ErrorBoundary.js";
 import { DocNodeView } from "./components/nodes/DocNodeView.js";
 import { stopsEvent } from "./contexts/DecorationContext.js";
@@ -131,13 +131,15 @@ const checkRenderable = (plot: Plot) => {
   renderable.add(plot);
 };
 
-// React can't draw an empty text node, nor namespaced elements from a tag name.
-const checkShape = (name: string, shape: Elt) => {
-  if (/^(svg|math):/.test(shape.tagName))
+// React can't draw an empty text node, nor an SVG or MathML element outside
+// <svg> or <math>: it takes the namespace from the parent.
+const checkShape = (name: string, shape: Elt, foreign = false) => {
+  const ns = /^(svg|math):(.*)$/.exec(shape.tagName);
+  if (ns && !foreign && ns[1] != ns[2])
     throw new Error(`react-wordgard can't render the shape of ${name} yet`);
   for (const child of shape.children) {
     if (child === "") throw new Error(`react-wordgard can't render the shape of ${name} yet`);
-    if (child instanceof Elt) checkShape(name, child);
+    if (child instanceof Elt) checkShape(name, child, foreign || !!ns);
   }
 };
 
@@ -748,7 +750,8 @@ const reactMarkTile = (
     throw new Error(
       "A React mark's component must draw a DecorationRoot, or forward its ref to its root element"
     );
-  if (dom.localName != view.elt.tagName) warnElement("mark", view.elt.tagName, dom.localName);
+  if (dom.localName != reactTagName(view.elt.tagName))
+    warnElement("mark", view.elt.tagName, dom.localName);
   const content = contentOf(handle) ?? dom;
   if (!dom.contains(content)) throw new Error("A React mark's content element is outside it");
   // Content React remounted in another element: its widget DOM, which React
@@ -804,7 +807,7 @@ const reactShapeTile = (
     throw new Error(
       `A React ${what}'s component must draw a DecorationRoot, or forward its ref to its root element`
     );
-  if (dom.localName != elt.tagName) warnElement(what, elt.tagName, dom.localName);
+  if (dom.localName != reactTagName(elt.tagName)) warnElement(what, elt.tagName, dom.localName);
   if (handle.wrapper && !handle.content)
     throw new Error("A React wrapper's component must draw its children");
   const atom = !handle.wrapper && !elt.hasContent;

@@ -84,6 +84,13 @@ const Toolbar = () => {
 - `useEditorState()`, `useEditorStateSelector(selector, isEqual?)`: the state as of the editor's
   last update (the one the DOM shows). Prefer the selector: the component re-renders only when its
   result changes (`Object.is`, or `isEqual`).
+- `useEditorField(field, select?, isEqual?)`: a state field's (or derived field's) value, or a part
+  of it. Prefer it to a selector reading a field: it compares the field once per update and runs
+  nothing when the field didn't change, where every `useEditorStateSelector` runs on every update.
+  `useEditorFieldEntry(field, key)` reads one entry of a field holding a `Map` (per-node data) and
+  re-renders only when that entry changes. The field must be in the editor's configuration
+  (`state.field` throws otherwise); a `Field.Derived` keeps its identity only if its compute
+  returns the same object (memoize it, or pass `compare`).
 - `useEditorEventCallback((wg, ...args) => …)`: a stable callback getting the editor, for event
   handlers. Commands run through `Command.dispatch(wg, command, param?)`; plain changes through
   `wg.dispatch({ changes: { from, to, insert }, selection })`.
@@ -183,6 +190,13 @@ Wordgard drives the update and React draws inside it, so there are two effect ho
   `useEditorStateSelector`. Wordgard's own tooltips and panels also work, as plain DOM.
 
 ## Drawing parts of the document with React
+
+**Keep the model apart from React.** A server (collaboration, AI, export) loads documents with
+the client's schema and fields, and throws on a type its schema lacks. Define node and mark types,
+schema elements, fields, commands and keys in a module without React that both sides import, and
+React decorations in a client module that imports those types and adds decorations only (no schema
+element, no field). Never define a type in the file holding its React shape. README: "Sharing the
+model with a server".
 
 Prefer Wordgard's declarative shapes (`Elt` shapes, `Decoration.Tag.attribute`, mark shapes) for
 anything that needs no code: React draws them all already. Use a React component where a part needs

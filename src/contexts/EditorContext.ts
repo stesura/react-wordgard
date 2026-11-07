@@ -5,11 +5,59 @@ import { flushSync } from "react-dom";
 import type { Wordgard } from "wordgard/editor";
 import type { GardState } from "wordgard/state";
 
+export type StateField<T> = GardState.Field<T> | GardState.Field.Derived<T>;
+
 export type EditorStore = {
   // The state the DOM shows: published inside the flush, in the same React
   // commit as the document.
   readonly getState: () => GardState;
   readonly subscribe: (listener: () => void) => () => void;
+  // Called when the published value of `field` changes or, given `key`, that entry of its map.
+  readonly subscribeField: (
+    field: StateField<unknown>,
+    listener: () => void,
+    key?: unknown
+  ) => () => void;
+};
+
+const NONE = Symbol("none");
+
+// A field the state lacks (a reconfiguration added or removed it) reads as
+// NONE: its subscribers are told, and the hook reading it throws.
+const read = (state: GardState, field: StateField<unknown>): unknown => {
+  try {
+    return state.field(field);
+  } catch {
+    return NONE;
+  }
+};
+
+// A value that isn't a Map compares whole: its entries' subscribers are told of any change.
+const entryOf = (value: unknown, key: unknown): unknown =>
+  value instanceof Map ? value.get(key) : value;
+
+type FieldListeners = {
+  readonly all: Set<() => void>;
+  readonly keys: Map<unknown, Set<() => void>>;
+};
+
+// One comparison per subscribed field per publish; entries only when the map changed.
+const notifyFields = (
+  fields: Map<StateField<unknown>, FieldListeners>,
+  before: GardState,
+  after: GardState
+) => {
+  const pending: (() => void)[] = [];
+  for (const [field, { all, keys }] of fields) {
+    const a = read(before, field);
+    const b = read(after, field);
+    if (a === b) continue;
+    pending.push(...all);
+    for (const [key, listeners] of keys) {
+      if (entryOf(a, key) !== entryOf(b, key)) pending.push(...listeners);
+    }
+  }
+  for (const listener of pending) listener();
 };
 
 // Reads in the flush's read phase, returning the write for its write phase, or
@@ -47,6 +95,7 @@ export const editorOf = (wg: Wordgard): Editor => {
   if (found) return found;
   let state = wg.state;
   const listeners = new Set<() => void>();
+  const fields = new Map<StateField<unknown>, FieldListeners>();
   const effects = new Set<() => void>();
   const measures = new Set<Measure>();
   let requested = false;
@@ -86,6 +135,19 @@ export const editorOf = (wg: Wordgard): Editor => {
         listeners.add(listener);
         return () => listeners.delete(listener);
       },
+      subscribeField: (field, listener, key) => {
+        let found = fields.get(field);
+        if (!found) fields.set(field, (found = { all: new Set(), keys: new Map() }));
+        const { all, keys } = found;
+        const set = key === undefined ? all : (keys.get(key) ?? new Set<() => void>());
+        if (key !== undefined) keys.set(key, set);
+        set.add(listener);
+        return () => {
+          set.delete(listener);
+          if (key !== undefined && !set.size) keys.delete(key);
+          if (!all.size && !keys.size) fields.delete(field);
+        };
+      },
     },
     afterFlush: (effect) => {
       effects.add(effect);
@@ -96,8 +158,10 @@ export const editorOf = (wg: Wordgard): Editor => {
     requestMeasure: () => wg.scheduleDOMRead(readMeasures),
     publish: (next) => {
       if (next == state) return;
+      const before = state;
       state = next;
       for (const listener of listeners) listener();
+      if (fields.size) notifyFields(fields, before, next);
     },
     readMeasures,
     runEffects,

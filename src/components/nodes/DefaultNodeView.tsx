@@ -9,7 +9,7 @@ import { attributedWidget, isReactWidget } from "../../decorations/ReactWidgetTy
 import { isReactWrapper } from "../../decorations/ReactWrapperType.js";
 import type { NodeCell } from "../../contexts/RenderStoreContext.js";
 import { type NodeView, uneditable } from "../../decorations/iterDeco.js";
-import { attrsToRecord, htmlAttrsToReactProps } from "../../helpers/index.js";
+import { attrsToRecord, eltProps, reactTagName } from "../../helpers/index.js";
 import type { DecoElt } from "../../wordgardInternals.js";
 import { ChildNodeViews } from "../ChildNodeViews.js";
 import { ShapeView } from "../ShapeView.js";
@@ -79,10 +79,10 @@ const renderShape = (
     key,
     ref,
     suppressContentEditableWarning: true,
-    ...htmlAttrsToReactProps(attrsToRecord(elt.attrs)),
+    ...eltProps(elt.tagName, attrsToRecord(elt.attrs)),
   };
   return createElement(
-    elt.tagName,
+    reactTagName(elt.tagName),
     props,
     ...elt.children.map((child, i) => {
       if (child === 0) return content;

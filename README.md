@@ -22,6 +22,7 @@ can re-render on its own without breaking the editor.
   - [Accessing the state outside the editor](#accessing-the-state-outside-the-editor)
   - [React decorations](#react-decorations)
   - [Should I use a shape, a wrapper or both?](#should-i-use-a-shape-a-wrapper-or-both)
+  - [Sharing the model with a server](#sharing-the-model-with-a-server)
   - [Accessibility](#accessibility)
   - [Limits](#limits)
 - [API](#api)
@@ -409,6 +410,85 @@ const Resizer = createWrapper(
 const config = [Decoration.Tag.shape(Image, ImageShape), Decoration.Tag.wrapper(Image, Resizer)];
 ```
 
+### Sharing the model with a server
+
+A collaboration server, an AI worker or an export job runs Wordgard's state without a view, and
+needs the client's schema and fields: loading a document that holds a node or mark type the
+schema lacks throws. Keep what defines the state in a module without React, which both sides
+import, and the React decorations in a client module that only adds decorations for its types:
+
+- **The model** (no React): node and mark types, `GardState.schemaElement`, state fields, the facets
+  the state reads, commands and key bindings. Plain decorations (`Elt` shapes, attribute
+  decorations) and `Wordgard.Plugin`s can stay here: nothing draws them on a server.
+- **The view** (client only): `createShape`, `createWrapper`, `createMarkShape` and
+  `createWidgetType` values, for the model's types. Never a schema element or a field: the client's
+  state would differ from the server's.
+
+A node type defined in the same file as its React shape makes the server import React and
+react-wordgard to read the schema.
+
+```ts
+// model.ts: no React. The server and the client both import it.
+import { Node, Plot } from "wordgard/doc";
+import { basicSchema } from "wordgard/schema";
+import { GardState } from "wordgard/state";
+
+export const Callout = Plot.define("Callout", {
+  blockContent: Node.Group.Content,
+  group: Node.Group.Content,
+  shape: { element: "aside", selector: "aside.callout", attributes: { class: "callout" } },
+});
+
+export const model = () => [basicSchema(), GardState.schemaElement.of(Callout)];
+```
+
+```ts
+// server.ts: loads documents with the same model.
+import type { Node } from "wordgard/doc";
+import { GardState } from "wordgard/state";
+
+import { model } from "./model";
+
+export const load = (saved: Node.JSON) => GardState.create({ config: model(), doc: saved });
+```
+
+```tsx
+// view.tsx: client only. React decorations for the model's types, nothing else.
+import { Decoration } from "wordgard/editor";
+import { DecorationRoot, createShape } from "@stesura/react-wordgard";
+
+import { Callout } from "./model";
+
+const CalloutShape = createShape(function Callout({ nodeProps: { contentDOMRef }, children }) {
+  return (
+    <DecorationRoot>
+      <span aria-hidden="true">!</span>
+      <div ref={contentDOMRef}>{children}</div>
+    </DecorationRoot>
+  );
+});
+
+export const view = [Decoration.Tag.shape(Callout, CalloutShape)];
+```
+
+```tsx
+// editor.tsx
+import type { Node } from "wordgard/doc";
+import { WordgardDoc, WordgardEditor } from "@stesura/react-wordgard";
+
+import { model } from "./model";
+import { view } from "./view";
+
+// At module level: composed once.
+const config = [model(), view];
+
+export const Editor = ({ doc }: { doc: Node.JSON }) => (
+  <WordgardEditor doc={doc} config={config}>
+    <WordgardDoc />
+  </WordgardEditor>
+);
+```
+
 ### Accessibility
 
 React decorations are your components: make them accessible as you would any other. What
@@ -568,6 +648,44 @@ export const SelectionInfo = () => {
   return <output>{empty ? "Cursor" : "Selection"}</output>;
 };
 ```
+
+#### `useEditorField`
+
+```ts
+type useEditorField = {
+  <T>(field: GardState.Field<T> | GardState.Field.Derived<T>): T;
+  <T, Result>(
+    field: GardState.Field<T> | GardState.Field.Derived<T>,
+    select: (value: T) => Result,
+    isEqual?: (a: Result, b: Result) => boolean
+  ): Result;
+};
+```
+
+A state field's value as of the last flush, or a part of it through `select`. The store compares
+each subscribed field once per flush (`===`) and tells only that field's subscribers: nothing runs
+on a flush that leaves the field as it was, where every `useEditorStateSelector` runs on every
+flush. The field must be in the editor's configuration (`state.field` throws otherwise). A
+`GardState.Field.Derived` keeps its identity only when its compute returns the same object, or
+with `compare`.
+
+```tsx
+export const MatchCount = () => (
+  <output>{useEditorField(searchState, (search) => search.count)}</output>
+);
+```
+
+#### `useEditorFieldEntry`
+
+```ts
+type useEditorFieldEntry = <K, V>(
+  field: GardState.Field<ReadonlyMap<K, V>> | GardState.Field.Derived<ReadonlyMap<K, V>>,
+  key: K
+) => V | undefined;
+```
+
+One entry of a field holding a `Map` (per-node data, keyed by id): the component re-renders only
+when that entry changes (`===`), not on the map's other entries.
 
 #### `useEditorEffect`
 

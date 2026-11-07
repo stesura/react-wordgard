@@ -5,7 +5,7 @@ import React, { createElement, memo } from "react";
 import type { Mark } from "wordgard/doc";
 
 import { type ChildView, shapeOf } from "../../decorations/iterDeco.js";
-import { attrsToRecord, htmlAttrsToReactProps } from "../../helpers/index.js";
+import { attrsToRecord, eltProps, reactTagName } from "../../helpers/index.js";
 import type { DecoElt } from "../../wordgardInternals.js";
 import { renderChildViews } from "../ChildNodeViews.js";
 import { viewRoot } from "../../viewRoots.js";
@@ -25,8 +25,8 @@ export const MarkView = memo(
       </ReactMarkView>
     ) : (
       createElement(
-        elt.tagName,
-        { ...htmlAttrsToReactProps(attrsToRecord(elt.attrs)), ref: viewRoot },
+        reactTagName(elt.tagName),
+        { ...eltProps(elt.tagName, attrsToRecord(elt.attrs)), ref: viewRoot },
         renderChildViews(views)
       )
     ),

@@ -10,7 +10,7 @@ import {
 } from "react";
 
 import { DecorationRootContext } from "../contexts/DecorationRootContext.js";
-import { cssToStyle, htmlAttrsToReactProps } from "../helpers/props.js";
+import { cssToStyle, eltProps, reactTagName } from "../helpers/props.js";
 import { mergeRefs, toCallbackRef } from "../helpers/refs.js";
 
 /** `DecorationRoot`'s props: its root's attributes, and its children. */
@@ -32,9 +32,9 @@ export const DecorationRoot = forwardRef<Element, DecorationRootProps>(
       );
     // Wordgard's style is a string, which React can't merge with an object.
     const { style: css, ...attrs } = root.attrs;
-    const own = htmlAttrsToReactProps(style ? attrs : root.attrs);
+    const own = eltProps(root.tagName, style ? attrs : root.attrs);
     const classes = [own.className, className].filter(Boolean).join(" ");
-    return createElement(root.tagName, {
+    return createElement(reactTagName(root.tagName), {
       ...own,
       ...props,
       className: classes || undefined,

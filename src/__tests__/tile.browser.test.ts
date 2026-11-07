@@ -84,6 +84,7 @@ const docs = {
     '<p>a<span class="atom">x</span>b</p><p><strong>a<span class="atom">x</span>b</strong></p><p><span class="atom">x</span></p>',
   "shape attributes":
     '<p>a<span class="marker"></span>b</p><table><tbody><tr><td colspan="2" rowspan="2">wide</td></tr></tbody></table>',
+  "SVG shapes": '<p>a<svg class="handle"></svg>b</p>',
 };
 
 // An inline plot, which Wordgard draws between two `wg-buffer` images.
@@ -126,6 +127,19 @@ const Marker = Leaf.define("Marker", {
   parseRules: [{ selector: "span.marker", precedence: 10 }],
 });
 
+// SVG, whose tags React takes without Wordgard's `svg:` and its attributes
+// camelCased.
+const svgHandle = Elt.mk("svg:svg", { class: "handle", viewBox: "0 0 20 20" }, [
+  Elt.mk("svg:path", { d: "M20 0L0 20", stroke: "#000", "stroke-width": "1.5" }),
+  Elt.mk("svg:polygon", { points: "0,20 20,20 20,0", fill: "transparent" }),
+]);
+
+const Icon = Leaf.define("Icon", {
+  inline: true,
+  shape: { structure: svgHandle },
+  parseRules: [{ selector: "svg.handle", precedence: 10 }],
+});
+
 // Widgets, drawn as spans (or a text node), editable, out of the flow or not.
 const label = (text: string) =>
   Object.assign(document.createElement("span"), { className: "w", textContent: text });
@@ -156,6 +170,14 @@ const pointAt = (...decos: [Decoration.Point, number][]) =>
   Decoration.Point.source.of(() => Decoration.Point.set(decos));
 const rangeOver = (...decos: [Decoration.Range, number, number][]) =>
   Decoration.Range.source.of(() => Decoration.Range.set(decos));
+// Wordgard's image resize handle, and MathML.
+const svgAndMath = [
+  pointAt([Decoration.Point.wrapper(Elt.mk("span", { class: "resize" }, [svgHandle, 0])), 2]),
+  Decoration.Tag.shape(
+    HorizontalRule,
+    Elt.mk("math:math", [Elt.mk("math:mi", { mathvariant: "bold" }, ["x"])])
+  ),
+];
 const decorated: Record<string, [string, GardState.Extension]> = {
   "tag attributes and wrappers": [
     "<p>one</p><h2>two</h2><p>three</p>",
@@ -253,6 +275,7 @@ const decorated: Record<string, [string, GardState.Extension]> = {
       ),
     ],
   ],
+  "SVG and MathML": [`<p>a<img src="${img}">b</p><hr>`, svgAndMath],
   "React tag and point widgets": [
     "<p>abcd</p><h2>two</h2><p></p><p>ef</p>",
     [
@@ -330,6 +353,7 @@ const config = [
     InlineAtom,
     Highlight,
     Marker,
+    Icon,
   ]),
 ];
 
@@ -1535,5 +1559,52 @@ describe("ReactDocTile", () => {
     expect(() =>
       ReactWordgard.create({ doc: '<p>a<span class="blank"></span>b</p>', config: blankConfig })
     ).toThrow(/can't render the shape of Blank/);
+  });
+
+  it("draws SVG and MathML in their namespaces, with nothing for React to warn about", () => {
+    const error = vi.spyOn(console, "error");
+    try {
+      const react = mount(
+        ReactWordgard.create,
+        `<p>a<img src="${img}">b</p><p><svg class="handle"></svg></p><hr>`,
+        [
+          svgAndMath,
+          // On the SVG leaf: a style, and an attribute React doesn't know.
+          pointAt([Decoration.Point.attributes({ style: "width: 12px", "my-attr": "1" }), 6]),
+        ]
+      );
+      editors.push(react);
+      const svg = "http://www.w3.org/2000/svg";
+      const handles = react.contentDOM.querySelectorAll("svg.handle");
+      expect(handles).toHaveLength(2);
+      for (const handle of handles) {
+        expect(handle.namespaceURI).toBe(svg);
+        expect(handle.querySelector("path")?.namespaceURI).toBe(svg);
+        expect(handle.querySelector("path")?.getAttribute("stroke-width")).toBe("1.5");
+      }
+      const icon = react.contentDOM.querySelector("svg.handle[my-attr]");
+      expect(icon?.getAttribute("my-attr")).toBe("1");
+      expect(icon?.getBoundingClientRect().width).toBe(12);
+      expect(react.contentDOM.querySelector("mi")?.namespaceURI).toBe(
+        "http://www.w3.org/1998/Math/MathML"
+      );
+      expect(error).not.toHaveBeenCalled();
+    } finally {
+      error.mockRestore();
+    }
+  });
+
+  it("refuses an SVG element outside <svg>", () => {
+    const Stray = Leaf.define("Stray", {
+      inline: true,
+      shape: { structure: Elt.mk("span", { class: "stray" }, [Elt.mk("svg:path", { d: "M0 0" })]) },
+      parseRules: [{ selector: "span.stray", precedence: 10 }],
+    });
+    expect(() =>
+      ReactWordgard.create({
+        doc: '<p>a<span class="stray"></span>b</p>',
+        config: [...config, GardState.schemaElement.of(Stray)],
+      })
+    ).toThrow(/can't render the shape of Stray/);
   });
 });

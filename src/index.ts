@@ -27,6 +27,7 @@ export {
 export { useEditorEffect } from "./hooks/useEditorEffect.js";
 export { useEditorEventCallback } from "./hooks/useEditorEventCallback.js";
 export { useEditorEventListener } from "./hooks/useEditorEventListener.js";
+export { useEditorField, useEditorFieldEntry } from "./hooks/useEditorField.js";
 export { type EditorLayoutEffect, useEditorLayoutEffect } from "./hooks/useEditorLayoutEffect.js";
 export { useEditorState } from "./hooks/useEditorState.js";
 export { useEditorStateSelector } from "./hooks/useEditorStateSelector.js";
