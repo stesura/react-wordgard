@@ -21,7 +21,8 @@ You need Node 22.12 or later. Run `npm install` to install dependencies, and
 
 Check types, lint, imports and formatting with `npm run check`, and fix what can be fixed with
 `npm run fix`. Build with `npm run build`. Run the tests with `npm test`, and the demo with
-`npm run demo`.
+`npm run demo`. The lockfile pins React 18: `npm run test:react19` type-checks and tests on React
+19, as CI does.
 
 `test/wordgard/` holds Wordgard's own tests, copied unchanged: don't edit them.
 `npm run update-wordgard` updates Wordgard and copies them again.
@@ -32,9 +33,7 @@ Versions follow semver; while on 0.x, a breaking change goes in a minor version.
 change adds a line to `CHANGELOG.md` under `## Unreleased`, in Wordgard's format: one sentence per
 paragraph, under `### Breaking changes`, `### Bug fixes` or `### New features`.
 
-To release, on `master`, run `npm run release:prepare -- <version>` (it names the `## Unreleased`
-section after the version and date, and sets it in `package.json`), commit and push, then
-`npm run release:publish`.
+Releasing is described in `RELEASE.md`.
 
 ## Security
 

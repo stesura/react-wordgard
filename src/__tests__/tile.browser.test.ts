@@ -40,6 +40,7 @@ import {
 
 import { ReactWordgard } from "../ReactWordgard.js";
 import { createWidgetType, createWidgetTypeWithRender } from "../decorations/ReactWidgetType.js";
+import { isSilencedWarning } from "../helpers/props.js";
 import { useNodePos } from "../hooks/useNodePos.js";
 import { useWordgard } from "../hooks/useWordgard.js";
 import { ReactDocTile, nodeViewOf } from "../tile.js";
@@ -1569,8 +1570,17 @@ describe("ReactDocTile", () => {
         `<p>a<img src="${img}">b</p><p><svg class="handle"></svg></p><hr>`,
         [
           svgAndMath,
-          // On the SVG leaf: a style, and an attribute React doesn't know.
-          pointAt([Decoration.Point.attributes({ style: "width: 12px", "my-attr": "1" }), 6]),
+          // On the SVG leaf: a style, an attribute React doesn't know, and ones
+          // React takes camelCased, whose case SVG keeps.
+          pointAt([
+            Decoration.Point.attributes({
+              style: "width: 12px",
+              "my-attr": "1",
+              tabindex: "-1",
+              spellcheck: "false",
+            }),
+            6,
+          ]),
         ]
       );
       editors.push(react);
@@ -1585,10 +1595,14 @@ describe("ReactDocTile", () => {
       const icon = react.contentDOM.querySelector("svg.handle[my-attr]");
       expect(icon?.getAttribute("my-attr")).toBe("1");
       expect(icon?.getBoundingClientRect().width).toBe(12);
+      expect(icon?.getAttributeNames()).toEqual(
+        expect.arrayContaining(["contenteditable", "tabindex", "spellcheck"])
+      );
       expect(react.contentDOM.querySelector("mi")?.namespaceURI).toBe(
         "http://www.w3.org/1998/Math/MathML"
       );
-      expect(error).not.toHaveBeenCalled();
+      // The console spy sits above our filter, so it sees what the filter drops.
+      expect(error.mock.calls.filter((call) => !isSilencedWarning(call))).toEqual([]);
     } finally {
       error.mockRestore();
     }

@@ -56,6 +56,7 @@
     "test": "vitest run",
     "test:unit": "vitest run --project unit",
     "test:browser": "vitest run --project browser",
+    "test:react19": "node scripts/test-react19.js",
     "bench": "vitest run --config bench/vitest.config.ts",
     "bench:dev": "vitest run --config bench/vitest.config.ts --mode development",
     "bench:smoke": "vitest run --config bench/vitest.config.ts --mode smoke",

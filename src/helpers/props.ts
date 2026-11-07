@@ -1,27 +1,35 @@
 // Adapted from react-prosemirror, for Wordgard: `draggable`, `hidden`,
 // `colspan` and `rowspan` render as Wordgard's own setAttribute does (shape
-// attributes, such as an image's `draggable="false"`, go through here).
+// attributes, such as an image's `draggable="false"`, go through here), and
+// SVG and MathML elements, which Wordgard draws, keep their attribute names.
 // mergeReactProps is left out: nothing uses it.
 
 import { type CSSProperties, HTMLProps } from "react";
 
 let patched = false;
 
+// The attribute names passed as they are on SVG or MathML elements, `tabindex`
+// in place of React's `tabIndex`.
+const foreignNames = new Set<string>();
+
+// React's warnings about the props this file chooses: `STYLE`, and the
+// attribute names on SVG and MathML.
+export const isSilencedWarning = (data: unknown[]) => {
+  const [message, prop, correction] = data;
+  return (
+    typeof message === "string" &&
+    message.includes("Invalid DOM property `%s`. Did you mean `%s`?") &&
+    ((prop === "STYLE" && correction === "style") ||
+      (typeof prop === "string" && foreignNames.has(prop)))
+  );
+};
+
 const patchConsoleError = () => {
   if (patched) return;
 
   const consoleError = console.error;
   console.error = (...data: unknown[]) => {
-    const [message, prop, correction] = data;
-    if (
-      typeof message === "string" &&
-      message.includes("Invalid DOM property `%s`. Did you mean `%s`?") &&
-      prop === "STYLE" &&
-      correction === "style"
-    ) {
-      return;
-    }
-    consoleError(...data);
+    if (!isSilencedWarning(data)) consoleError(...data);
   };
   patched = true;
 };
@@ -46,6 +54,8 @@ const svgHyphenated = new Set(
   ).split(" ")
 );
 
+const foreignMapped = new Set(["class", "style", "hidden", "disabled", "multiple", "required"]);
+
 /**
  * Given a record of HTML attributes, returns tho
  * equivalent React props. `foreign`: an SVG or MathML element's, whose
@@ -58,6 +68,20 @@ export const htmlAttrsToReactProps = (
   patchConsoleError();
   const props: Record<string, unknown> = {};
   for (const [attrName, attrValue] of Object.entries(attrs)) {
+    // React 19 sets a camelCased prop, `contentEditable` or `tabIndex`, under
+    // that name, whose case SVG and MathML keep: there, attributes go as they
+    // are. React maps `class` and `style` itself, and would drop the booleans
+    // given "".
+    if (foreign && !foreignMapped.has(attrName.toLowerCase())) {
+      if (svgHyphenated.has(attrName) || /^(xlink|xml|xmlns):/.test(attrName)) {
+        props[attrName.replace(/[-:]([a-z])/g, (_, char: string) => char.toUpperCase())] =
+          attrValue;
+      } else {
+        foreignNames.add(attrName);
+        props[attrName] = attrValue;
+      }
+      continue;
+    }
     switch (attrName.toLowerCase()) {
       case "class": {
         props.className = attrValue;
@@ -245,11 +269,7 @@ export const htmlAttrsToReactProps = (
         break;
       }
       default: {
-        const name =
-          foreign && (svgHyphenated.has(attrName) || /^(xlink|xml|xmlns):/.test(attrName))
-            ? attrName.replace(/[-:]([a-z])/g, (_, char: string) => char.toUpperCase())
-            : attrName;
-        props[name] = attrValue;
+        props[attrName] = attrValue;
         break;
       }
     }

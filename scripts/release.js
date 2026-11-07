@@ -2,7 +2,8 @@
 // the maintainer's to make:
 //
 //   npm run release:prepare -- <version>   CHANGELOG and version set, checks
-//                                          and tests run locally
+//                                          and tests run locally, on React 18
+//                                          and 19
 //   (commit and push)
 //   npm run release:publish                CI run on the pushed commit, then
 //                                          npm publish, tag, GitHub release,
@@ -89,6 +90,7 @@ const prepare = (version) => {
 
   npm("run", "check");
   npm("test");
+  npm("run", "test:react19");
   console.log(`\nReady: commit and push, then npm run release:publish.`);
 };
 
