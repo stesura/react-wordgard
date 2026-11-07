@@ -1,6 +1,6 @@
 ---
 name: react-wordgard
-description: Build rich text editors with Wordgard and react-wordgard in a React app. Use when creating or changing a Wordgard editor drawn by React - hosting it, drawing nodes, marks, wrappers or widgets as React components, reading the editor's state in components, positioning menus and popovers, handling the editor's events, or migrating react-prosemirror node views.
+description: Build rich text editors with Wordgard and react-wordgard in a React app. Use whenever the work involves Wordgard or react-wordgard - writing, reviewing, debugging or discussing code that uses them, or working on react-wordgard itself. Covers hosting the editor, drawing nodes, marks, wrappers or widgets as React components, reading the editor's state in components, positioning menus and popovers, handling the editor's events, and migrating react-prosemirror node views.
 ---
 
 # Building editors with Wordgard and react-wordgard
