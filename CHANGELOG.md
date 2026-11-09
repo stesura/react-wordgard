@@ -4,6 +4,8 @@
 
 `nodeWrapper(NodeType, component)` puts a component around every node of a type that renders no element of its own: its `children` is the node's drawing. It hands the node's shape data through a context and re-renders on its own without drawing the node again, where `createWrapper` draws an element. A reconfiguration that changes the wrappers draws the whole document again; one giving them again unchanged does nothing. Text can't be wrapped.
 
+`nodeWrapper` also takes a function picking node types, asked once per type: a fallback wrapper for every block type an extension has no wrapper of its own for. `NodeRootProps`, in a node wrapper, gives the element of a node Wordgard draws a class, a style and attributes; a React shape draws its own root and ignores them.
+
 `isTrailingBreak(dom)` tells the `<br>` Wordgard ends a textblock with from a line break's, which Wordgard draws the same.
 
 `staticCopy(dom)` copies what an editor drew, to lay out as it does elsewhere: without ids or the editor's own attributes, its trailing breaks classed `wg-trailing-break`.

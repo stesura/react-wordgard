@@ -448,7 +448,11 @@ layout (a margin that should collapse, a measured height). Several on one type n
 precedence outermost. `nodeProps.getPos` throws during the first render (no tiles yet): call it
 from handlers and effects.
 
-- Only a React shape reads the context; a node Wordgard draws ignores it. Text can't be wrapped.
+- Only a React shape reads the context. A node Wordgard draws gets its element's props from
+  `<NodeRootProps node={nodeProps.node} className style attributes>` in the wrapper (kept mounted:
+  rendering it conditionally remounts the node). Text can't be wrapped.
+- `nodeWrapper((type) => boolean, component)` wraps every type the function picks (a fallback for
+  a host's block types), asked once per type; define the function at module level.
 - Put the wrappers in the configuration once: a reconfiguration that changes them draws the whole
   document again (and drops an IME composition). Data that changes goes through the component's
   state or a store, never the configuration.

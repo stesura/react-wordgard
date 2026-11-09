@@ -10,6 +10,7 @@ export {
   createMarkShape,
 } from "./decorations/ReactMarkType.js";
 export { type NodeWrapperComponentProps, nodeWrapper } from "./decorations/ReactNodeWrapper.js";
+export { NodeRootProps, type NodeRootPropsValue } from "./components/NodeRootProps.js";
 export {
   type ReactShape,
   type ShapeComponentProps,

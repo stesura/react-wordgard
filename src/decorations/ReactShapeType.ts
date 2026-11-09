@@ -16,6 +16,7 @@ import {
 import { Attributes, type Node as DocNode, Elt } from "wordgard/doc";
 
 import { ignoresMutation } from "../contexts/DecorationContext.js";
+import { isDrawnRoot } from "../components/NodeRootProps.js";
 import { takesRef } from "../helpers/refs.js";
 
 /**
@@ -246,7 +247,9 @@ export const sortRecords = (
     const { target } = record;
     if (record.type == "attributes") {
       if (!(target instanceof Element)) return true;
-      return !contents.has(target) && !roots.has(target) && !shapeAround(target);
+      return (
+        !contents.has(target) && !roots.has(target) && !isDrawnRoot(target) && !shapeAround(target)
+      );
     }
     const own = record.type == "childList" && target instanceof Element && contentShape(target);
     if (own) {

@@ -11,6 +11,7 @@ import React, {
 import { Attributes, Elt, type Node } from "wordgard/doc";
 
 import { NodeWrapperContext } from "../../contexts/NodeWrapperContext.js";
+import { DrawnRoot } from "../NodeRootProps.js";
 import type { NodeWrappers } from "../../decorations/ReactNodeWrapper.js";
 import { isReactShape, nodePos, shapeAttributes } from "../../decorations/ReactShapeType.js";
 import { attributedWidget, isReactWidget } from "../../decorations/ReactWidgetType.js";
@@ -35,6 +36,8 @@ type NodeDraw = {
   node: Node;
   content: ReactNode;
   selected: boolean;
+  /** It has node wrappers: an element Wordgard draws for it takes their props (`NodeRootProps`). */
+  wrapped: boolean;
 };
 
 const renderShape = (
@@ -42,7 +45,8 @@ const renderShape = (
   shape: DecoElt,
   inEditable: boolean,
   key?: number,
-  ref?: (dom: Element | null) => void
+  ref?: (dom: Element | null) => void,
+  root = false
 ): ReactElement => {
   const { node, content, selected } = draw;
   const widget = attributedWidget(shape);
@@ -83,24 +87,28 @@ const renderShape = (
         outerRef={ref}
       />
     );
+  const children = elt.children.map((child, i) => {
+    if (child === 0) return content;
+    if (typeof child == "string") return child;
+    if (child instanceof Elt) return renderShape(draw, child, inner, i);
+    return isReactWidget(child) ? <WidgetView key={i} widget={child} selected={selected} /> : null;
+  });
+  if (root && draw.wrapped)
+    return createElement(DrawnRoot, {
+      key,
+      node,
+      tagName: elt.tagName,
+      attrs: attrsToRecord(elt.attrs),
+      elementRef: ref,
+      children,
+    });
   const props = {
     key,
     ref,
     suppressContentEditableWarning: true,
     ...eltProps(elt.tagName, attrsToRecord(elt.attrs)),
   };
-  return createElement(
-    reactTagName(elt.tagName),
-    props,
-    ...elt.children.map((child, i) => {
-      if (child === 0) return content;
-      if (typeof child == "string") return child;
-      if (child instanceof Elt) return renderShape(draw, child, inner, i);
-      return isReactWidget(child) ? (
-        <WidgetView key={i} widget={child} selected={selected} />
-      ) : null;
-    })
-  );
+  return createElement(reactTagName(elt.tagName), props, ...children);
 };
 
 // What a React wrapper wraps: its hole holds one element or widget, whose root
@@ -135,14 +143,26 @@ const isSelected = (shape: DecoElt): boolean =>
 type DOMRef = (dom: Element | null) => void;
 
 // `widgetRef` gets the root of a node drawn as a React widget, `ref` any other.
-const draw = ({ node, shape, children }: NodeView, ref: DOMRef, widgetRef: DOMRef) => {
+const draw = (
+  { node, shape, children }: NodeView,
+  wrapped: boolean,
+  ref: DOMRef,
+  widgetRef: DOMRef
+) => {
   if (!(shape instanceof Elt))
     return isReactWidget(shape) ? <WidgetView widget={shape} outerRef={widgetRef} /> : null;
   // Keyed, so React keeps the content where a shape moves its hole: the tile
   // build counts on an element React kept keeping its content.
   const content =
     node.isPlot && children ? <ChildNodeViews key="content" views={children} /> : null;
-  return renderShape({ node, content, selected: isSelected(shape) }, shape, true, undefined, ref);
+  return renderShape(
+    { node, content, selected: isSelected(shape), wrapped },
+    shape,
+    true,
+    undefined,
+    ref,
+    true
+  );
 };
 
 // The node wrappers around a drawing, the first outermost.
@@ -152,7 +172,7 @@ const wrap = (
   getPos: () => number,
   drawing: ReactElement | null
 ): ReactElement | null => {
-  const components = wrappers.get(node.type);
+  const components = wrappers.of(node.type);
   if (!components) return drawing;
   const nodeProps = { node, getPos };
   return components.reduceRight<ReactElement | null>(
@@ -211,6 +231,12 @@ export class DefaultNodeView extends Component<Props> {
 
   render() {
     const view = (this.drawn = this.props.cell.view);
-    return wrap(this.context, view.node, this.getPos, draw(view, this.rootRef, this.widgetRef));
+    const wrapped = !!this.context.of(view.node.type);
+    return wrap(
+      this.context,
+      view.node,
+      this.getPos,
+      draw(view, wrapped, this.rootRef, this.widgetRef)
+    );
   }
 }

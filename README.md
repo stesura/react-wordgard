@@ -469,6 +469,30 @@ the node's tiles don't exist yet when it first renders) and `children`. It wraps
 shape draws and nodes Wordgard draws, but only a React shape reads its context. It can't wrap text
 (`nodeWrapper` throws).
 
+Instead of a type, `nodeWrapper` takes a function picking types: `nodeWrapper((type) => type.isBlock
+&& !mine.has(type), Fallback)` wraps every block type an extension draws nothing of its own for (a
+host's). It's asked once per type, never for text; define it once, at module level, as the
+component.
+
+A node Wordgard draws reads no context. Its wrapper gives its element props with `NodeRootProps`:
+a class joined with the node's, a style merged over its, attributes over its own. Keep it mounted,
+with no props when there's nothing to give: rendering it conditionally remounts the node.
+
+```tsx
+import { NodeRootProps, type NodeWrapperComponentProps } from "@stesura/react-wordgard";
+
+function Lead({ nodeProps: { node }, children }: NodeWrapperComponentProps) {
+  const lead = useSyncExternalStore(subscribe, () => leads.get(node));
+  return (
+    <NodeRootProps node={node} style={lead ? { paddingTop: lead } : undefined}>
+      {children}
+    </NodeRootProps>
+  );
+}
+```
+
+A React shape ignores them: it draws its own root, from its own context.
+
 The wrappers belong in the configuration once: a reconfiguration that adds, drops or reorders them
 draws the whole document again, and drops an IME composition in progress. A compartment given the
 same wrappers again changes nothing. What changes goes through the component's state or a store,
@@ -653,13 +677,30 @@ A wrapper, for `Decoration.Tag.wrapper` and `Decoration.Point.wrapper`.
 
 ```ts
 type nodeWrapper = (
-  type: Node.Type.Ref<any>,
+  type: Node.Type.Ref<any> | ((type: Node.Type) => boolean),
   component: ComponentType<NodeWrapperComponentProps>
 ) => GardState.Extension;
 ```
 
-A component around the drawing of every node of `type`, rendering no element of its own: see
+A component around the drawing of every node of `type`, or of every type the function picks,
+rendering no element of its own: see
 [Handing a node data without drawing it](#handing-a-node-data-without-drawing-it).
+
+#### `NodeRootProps`
+
+```ts
+type NodeRootProps = (props: {
+  node: Node;
+  className?: string;
+  style?: CSSProperties;
+  attributes?: Record<string, string | number | undefined>;
+  children?: ReactNode;
+}) => ReactElement;
+```
+
+In a node wrapper, around its `children`: props for the element of the node it wraps, when
+Wordgard draws that node: the outermost element of its decorated shape, a `Decoration.Tag.wrapper`'s
+when one wraps it (a React wrapper takes none). Several wrappers on one node merge theirs, the inner ones' winning.
 
 #### `createMarkShape`
 
