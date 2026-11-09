@@ -20,6 +20,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary.js";
 import { DocNodeView } from "./components/nodes/DocNodeView.js";
 import { stopsEvent } from "./contexts/DecorationContext.js";
 import { EditorContext, editorOf } from "./contexts/EditorContext.js";
+import { NodeWrapperContext } from "./contexts/NodeWrapperContext.js";
 import {
   type RenderStore,
   RenderStoreContext,
@@ -29,6 +30,7 @@ import { viewRoots } from "./viewRoots.js";
 import { contentOf, isReactShape, shapeOfRoot, sortRecords } from "./decorations/ReactShapeType.js";
 import { attributedWidget, isReactWidget, widgetRoots } from "./decorations/ReactWidgetType.js";
 import { isReactWrapper } from "./decorations/ReactWrapperType.js";
+import { nodeWrappers } from "./decorations/ReactNodeWrapper.js";
 import { markOfTile, markTiles } from "./decorations/ReactMarkType.js";
 import { DecoIterator, getDecoSet } from "./decorations/DecoIterator.js";
 import {
@@ -1089,7 +1091,7 @@ const newEntry = (commit: Entry["commit"]): Entry => ({
   failures: 0,
 });
 
-const docElement = (wg: Wordgard, entry: Entry, views: readonly ChildView[]) =>
+const docElement = (wg: Wordgard, entry: Entry, state: GardState, views: readonly ChildView[]) =>
   createElement(
     ErrorBoundary,
     {
@@ -1105,7 +1107,11 @@ const docElement = (wg: Wordgard, entry: Entry, views: readonly ChildView[]) =>
       createElement(
         RenderStoreContext.Provider,
         { value: entry.store },
-        createElement(DocNodeView, { views })
+        createElement(
+          NodeWrapperContext.Provider,
+          { value: state.facet(nodeWrappers) },
+          createElement(DocNodeView, { views })
+        )
       )
     )
   );
@@ -1206,7 +1212,7 @@ export class ReactDocTile extends DocTile {
     roots.set(dom, entry);
     const laid = firstLayout(state, entry);
     entry.last = laid;
-    element = docElement(wg, entry, laid.views);
+    element = docElement(wg, entry, state, laid.views);
     return new ReactDocTile(state, dom, null, laid.decoSet);
   };
 
@@ -1237,7 +1243,7 @@ export class ReactDocTile extends DocTile {
   ) => {
     const entry = rootOf(dom);
     const editor = editorOf(options.wg);
-    const element = docElement(options.wg, entry, views);
+    const element = docElement(options.wg, entry, state, views);
     const before = { state: editor.store.getState(), last: entry.last };
     entry.last = { state, decoSet, views };
     let takeBack = () => {};
@@ -1312,10 +1318,18 @@ export class ReactDocTile extends DocTile {
   updateRanges(
     state: GardState,
     decoSet: DecoSet,
-    changes: readonly number[],
+    ranges: readonly number[],
     wg: Wordgard,
     info?: CompositionInfo | null
   ) {
+    // Other node wrappers: everything is laid out and built again. Not as
+    // updates (Wordgard's way for its decoration facets): React remounts a
+    // node whose wrappers changed, and an update would keep its old tiles.
+    // Unchanged nodes keep their keys (mapKeys), so only wrapped ones remount.
+    const changes =
+      this.state.facet(nodeWrappers) == state.facet(nodeWrappers)
+        ? ranges
+        : [this.state.doc.length, state.doc.length];
     const entry = rootOf(this.dom);
     const editor = editorOf(wg);
     if (editor.measures.size) wg.scheduleDOMRead(editor.readMeasures);

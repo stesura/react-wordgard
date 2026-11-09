@@ -22,6 +22,7 @@ can re-render on its own without breaking the editor.
   - [Accessing the state outside the editor](#accessing-the-state-outside-the-editor)
   - [React decorations](#react-decorations)
   - [Should I use a shape, a wrapper or both?](#should-i-use-a-shape-a-wrapper-or-both)
+  - [Handing a node data without drawing it](#handing-a-node-data-without-drawing-it)
   - [Sharing the model with a server](#sharing-the-model-with-a-server)
   - [Accessibility](#accessibility)
   - [Limits](#limits)
@@ -30,6 +31,7 @@ can re-render on its own without breaking the editor.
   - [Decoration factories](#decoration-factories)
   - [Editor hooks](#editor-hooks)
   - [Decoration hooks](#decoration-hooks)
+  - [Helpers](#helpers)
   - [Props types](#props-types)
 - [Migrating from react-prosemirror](#migrating-from-react-prosemirror)
   - [Migrating a node view](#migrating-a-node-view)
@@ -274,6 +276,9 @@ const config = [
 - `createWrapper(component, { element? })`, for `Decoration.Tag.wrapper` and
   `Decoration.Point.wrapper`: the same props without `contentDOMRef`, and what it wraps as
   `children`. Its root is a `div` by default.
+- `nodeWrapper(NodeType, component)`, an extension: a component around every node of a type that
+  renders no element of its own, for handing the node's shape data through a context. See
+  [Handing a node data without drawing it](#handing-a-node-data-without-drawing-it).
 - `createMarkShape(component, { element? })`, for `Decoration.Mark.shape`: `markProps` (`mark`,
   `getPos`, `contentDOMRef`) and `children`, one component per run of the mark. Its root is a
   `span` by default.
@@ -409,6 +414,65 @@ const Resizer = createWrapper(
 
 const config = [Decoration.Tag.shape(Image, ImageShape), Decoration.Tag.wrapper(Image, Resizer)];
 ```
+
+### Handing a node data without drawing it
+
+`createWrapper` draws an element around the node. To give a node's shape something from outside it
+(a layout's offsets, a status from a store) without an element, which would change the layout, use
+`nodeWrapper(NodeType, component)`: its component renders no element, and `children` is the
+node's drawing, to render as it is. It hands the shape data through a context, and re-renders from
+its own state or a store without drawing the node again. Several on one type nest, the one with the
+highest precedence outermost.
+
+```tsx
+import { createContext, useContext, useSyncExternalStore } from "react";
+import { Decoration } from "wordgard/editor";
+import { Paragraph } from "wordgard/types";
+import {
+  DecorationRoot,
+  type NodeWrapperComponentProps,
+  createShape,
+  nodeWrapper,
+} from "@stesura/react-wordgard";
+
+// A review status, kept outside the editor.
+let status = "draft";
+const listeners = new Set<() => void>();
+const subscribe = (listener: () => void) => {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+};
+export const setStatus = (next: string) => {
+  status = next;
+  for (const listener of listeners) listener();
+};
+
+const Flag = createContext<string | undefined>(undefined);
+
+function FlagProvider({ children }: NodeWrapperComponentProps) {
+  const flag = useSyncExternalStore(subscribe, () => status);
+  return <Flag.Provider value={flag}>{children}</Flag.Provider>;
+}
+
+const ParagraphShape = createShape(function ParagraphShape({ children }) {
+  return <DecorationRoot data-flag={useContext(Flag)}>{children}</DecorationRoot>;
+});
+
+export const flagged = [
+  Decoration.Tag.shape(Paragraph, ParagraphShape),
+  nodeWrapper(Paragraph, FlagProvider),
+];
+```
+
+A node wrapper's component gets `nodeProps` (`node`, and `getPos` for event handlers and effects:
+the node's tiles don't exist yet when it first renders) and `children`. It wraps nodes a React
+shape draws and nodes Wordgard draws, but only a React shape reads its context. It can't wrap text
+(`nodeWrapper` throws).
+
+The wrappers belong in the configuration once: a reconfiguration that adds, drops or reorders them
+draws the whole document again, and drops an IME composition in progress. A compartment given the
+same wrappers again changes nothing. What changes goes through the component's state or a store,
+as above.
 
 ### Sharing the model with a server
 
@@ -584,6 +648,18 @@ type createWrapper = <E extends Element = HTMLElement>(
 ```
 
 A wrapper, for `Decoration.Tag.wrapper` and `Decoration.Point.wrapper`.
+
+#### `nodeWrapper`
+
+```ts
+type nodeWrapper = (
+  type: Node.Type.Ref<any>,
+  component: ComponentType<NodeWrapperComponentProps>
+) => GardState.Extension;
+```
+
+A component around the drawing of every node of `type`, rendering no element of its own: see
+[Handing a node data without drawing it](#handing-a-node-data-without-drawing-it).
 
 #### `createMarkShape`
 
@@ -838,6 +914,31 @@ type useMergedDOMRefs = <Value>(...refs: (Ref<Value> | undefined)[]) => RefCallb
 One ref setting several, as for a root that's also the content element (`ref` and
 `contentDOMRef`).
 
+### Helpers
+
+#### `isTrailingBreak`
+
+```ts
+type isTrailingBreak = (dom: Node) => boolean;
+```
+
+Whether `dom` is the `<br>` Wordgard ends a textblock with to hold the cursor (react-prosemirror's
+`ProseMirror-trailingBreak`), not a line break's: it adds no line of its own, except after a line
+break. Wordgard draws both the same, so it reads the editor's tiles, and a copy of the DOM doesn't
+tell: see `staticCopy`.
+
+#### `staticCopy`
+
+```ts
+type staticCopy = (dom: Element) => Element;
+```
+
+A copy of what an editor drew under `dom` (its content element, or a node's), to lay out as it does
+outside the editor: a header's copy on every page. It has no ids, no `contenteditable`, no selection
+classes and none of Wordgard's composition buffers; its trailing `<br>`s have the class
+`wg-trailing-break`. It keeps the editor's chrome, focusable parts included (a code block's
+`<select>`): mount copies in an `inert` element.
+
 ### Props types
 
 #### `ShapeComponentProps`
@@ -872,6 +973,20 @@ type WrapperComponentProps<E extends Element = HTMLElement> = AllHTMLAttributes<
 ```
 
 A React wrapper's props: as a shape's, without `contentDOMRef`. `children` is what it wraps.
+
+#### `NodeWrapperComponentProps`
+
+```ts
+type NodeWrapperComponentProps = {
+  nodeProps: {
+    node: Node;
+    getPos: () => number;
+  };
+  children: ReactNode;
+};
+```
+
+A node wrapper's props: the node, its position, and its drawing as `children`.
 
 #### `MarkComponentProps`
 

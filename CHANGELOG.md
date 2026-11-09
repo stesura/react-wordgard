@@ -1,5 +1,13 @@
 ## Unreleased
 
+### New features
+
+`nodeWrapper(NodeType, component)` puts a component around every node of a type that renders no element of its own: its `children` is the node's drawing. It hands the node's shape data through a context and re-renders on its own without drawing the node again, where `createWrapper` draws an element. A reconfiguration that changes the wrappers draws the whole document again; one giving them again unchanged does nothing. Text can't be wrapped.
+
+`isTrailingBreak(dom)` tells the `<br>` Wordgard ends a textblock with from a line break's, which Wordgard draws the same.
+
+`staticCopy(dom)` copies what an editor drew, to lay out as it does elsewhere: without ids or the editor's own attributes, its trailing breaks classed `wg-trailing-break`.
+
 ### Bug fixes
 
 A React shape, wrapper, mark or widget drawn again with the same attributes keeps its `DecorationRoot`'s context value. A node whose attributes come from a decoration got a new value each time something inside it changed, and React then rendered every `DecorationRoot` inside it: on React 19, a key typed in a section drawn by a React shape cost every paragraph in it.

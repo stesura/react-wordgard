@@ -1,10 +1,18 @@
 // Named after react-prosemirror's DefaultNodeView, rewritten for Wordgard: a node renders as its
 // decorated shape (buildNodeShape). Every Wordgard node type has a shape, so there's no missing
 // `toDOM` to check for. Native widgets draw nothing: ReactDocTile puts their DOM in place.
-import React, { Component, type ReactElement, type ReactNode, createElement } from "react";
+import React, {
+  Component,
+  type ContextType,
+  type ReactElement,
+  type ReactNode,
+  createElement,
+} from "react";
 import { Attributes, Elt, type Node } from "wordgard/doc";
 
-import { isReactShape, shapeAttributes } from "../../decorations/ReactShapeType.js";
+import { NodeWrapperContext } from "../../contexts/NodeWrapperContext.js";
+import type { NodeWrappers } from "../../decorations/ReactNodeWrapper.js";
+import { isReactShape, nodePos, shapeAttributes } from "../../decorations/ReactShapeType.js";
 import { attributedWidget, isReactWidget } from "../../decorations/ReactWidgetType.js";
 import { isReactWrapper } from "../../decorations/ReactWrapperType.js";
 import type { NodeCell } from "../../contexts/RenderStoreContext.js";
@@ -124,18 +132,32 @@ const isSelected = (shape: DecoElt): boolean =>
   (Attributes.get(shape.attrs, "class") ?? "").split(" ").includes("wg-selected-node") ||
   shape.children.some((child) => child instanceof Elt && isSelected(child));
 
-const draw = ({ node, shape, children }: NodeView) => {
-  if (!(shape instanceof Elt)) return isReactWidget(shape) ? <WidgetView widget={shape} /> : null;
+type DOMRef = (dom: Element | null) => void;
+
+// `widgetRef` gets the root of a node drawn as a React widget, `ref` any other.
+const draw = ({ node, shape, children }: NodeView, ref: DOMRef, widgetRef: DOMRef) => {
+  if (!(shape instanceof Elt))
+    return isReactWidget(shape) ? <WidgetView widget={shape} outerRef={widgetRef} /> : null;
   // Keyed, so React keeps the content where a shape moves its hole: the tile
   // build counts on an element React kept keeping its content.
   const content =
     node.isPlot && children ? <ChildNodeViews key="content" views={children} /> : null;
-  return renderShape(
-    { node, content, selected: isSelected(shape) },
-    shape,
-    true,
-    undefined,
-    viewRoot
+  return renderShape({ node, content, selected: isSelected(shape) }, shape, true, undefined, ref);
+};
+
+// The node wrappers around a drawing, the first outermost.
+const wrap = (
+  wrappers: NodeWrappers,
+  node: Node,
+  getPos: () => number,
+  drawing: ReactElement | null
+): ReactElement | null => {
+  const components = wrappers.get(node.type);
+  if (!components) return drawing;
+  const nodeProps = { node, getPos };
+  return components.reduceRight<ReactElement | null>(
+    (inner, component) => createElement(component, { nodeProps, children: inner }),
+    drawing
   );
 };
 
@@ -145,9 +167,22 @@ const draw = ({ node, shape, children }: NodeView) => {
 // state and an update no effect (useSyncExternalStore made Bold all over 5,000
 // paragraphs about 15% slower, and held more memory).
 export class DefaultNodeView extends Component<Props> {
+  // Its node wrappers, a context, so a reconfiguration's render reaches every node.
+  static contextType = NodeWrapperContext;
+  declare context: ContextType<typeof NodeWrapperContext>;
   // What it drew last, to catch a view its cell got before it listened.
   private drawn: NodeView | null = null;
   private readonly redraw = () => this.forceUpdate();
+  // The node's root element, for its wrappers' `getPos`.
+  private readonly root: { root: Element | null } = { root: null };
+  private readonly widgetRef = (dom: Element | null) => {
+    this.root.root = dom;
+  };
+  private readonly rootRef = (dom: Element | null) => {
+    viewRoot(dom);
+    this.widgetRef(dom);
+  };
+  private readonly getPos = nodePos(this.root);
 
   shouldComponentUpdate(next: Props) {
     return next.cell != this.props.cell;
@@ -175,7 +210,7 @@ export class DefaultNodeView extends Component<Props> {
   }
 
   render() {
-    this.drawn = this.props.cell.view;
-    return draw(this.drawn);
+    const view = (this.drawn = this.props.cell.view);
+    return wrap(this.context, view.node, this.getPos, draw(view, this.rootRef, this.widgetRef));
   }
 }

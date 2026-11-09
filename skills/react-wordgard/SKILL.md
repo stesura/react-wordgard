@@ -207,12 +207,13 @@ the config again (per editor) is safe; a component created inside a render is ne
 components need no memoizing: React draws a node again only when it changed, or from the
 component's own state, contexts and hooks.
 
-| Need                                                         | Factory                                   | Passed to                                                                             |
-| ------------------------------------------------------------ | ----------------------------------------- | ------------------------------------------------------------------------------------- |
-| A node, with content or an atom (callout, image, mention)    | `createShape(component)`                  | `Decoration.Tag.shape(Type, shape)`; `shape.of(element, { atom? })` for `Point.shape` |
-| An element around a node or part of its shape                | `createWrapper(component, { element })`   | `Decoration.Tag.wrapper(Type, wrapper, { target? })`, `Decoration.Point.wrapper`      |
-| A mark's element (link, comment highlight)                   | `createMarkShape(component, { element })` | `Decoration.Mark.shape(MarkType, shape)`                                              |
-| A widget at a position or beside a node (placeholder, badge) | `createWidgetType({ component, … })`      | `Decoration.Point.widget(MyType.of(value), { side })`, `Decoration.Tag.widget`        |
+| Need                                                          | Factory                                   | Passed to                                                                             |
+| ------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------- |
+| A node, with content or an atom (callout, image, mention)     | `createShape(component)`                  | `Decoration.Tag.shape(Type, shape)`; `shape.of(element, { atom? })` for `Point.shape` |
+| An element around a node or part of its shape                 | `createWrapper(component, { element })`   | `Decoration.Tag.wrapper(Type, wrapper, { target? })`, `Decoration.Point.wrapper`      |
+| A mark's element (link, comment highlight)                    | `createMarkShape(component, { element })` | `Decoration.Mark.shape(MarkType, shape)`                                              |
+| A widget at a position or beside a node (placeholder, badge)  | `createWidgetType({ component, … })`      | `Decoration.Point.widget(MyType.of(value), { side })`, `Decoration.Tag.widget`        |
+| Data for a node's shape, with no element (a layout's offsets) | `nodeWrapper(Type, component)`            | `config` directly: it is an extension                                                 |
 
 ```tsx
 import { Decoration } from "wordgard/editor";
@@ -436,6 +437,27 @@ export const imageConfig = [
   and register that, or give each feature a wrapper or a tag widget of its own.
 - Porting a react-prosemirror node view that draws chrome around the node's own element: keep the
   type's shape (or a React shape for the element), and move the chrome into a wrapper.
+
+### Handing a node data without drawing it
+
+`nodeWrapper(Type, component)` is a component around every node of a type that renders **no
+element**: its `children` is the node's drawing, rendered as it is. It hands the node's React shape
+data through a context (a store's value, a layout's offsets), and re-renders from its own state or
+store without the node drawing again. Use it, not `createWrapper`, when an element would change the
+layout (a margin that should collapse, a measured height). Several on one type nest, the highest
+precedence outermost. `nodeProps.getPos` throws during the first render (no tiles yet): call it
+from handlers and effects.
+
+- Only a React shape reads the context; a node Wordgard draws ignores it. Text can't be wrapped.
+- Put the wrappers in the configuration once: a reconfiguration that changes them draws the whole
+  document again (and drops an IME composition). Data that changes goes through the component's
+  state or a store, never the configuration.
+- Copies from `staticCopy` keep the editor's focusable chrome (a code block's `<select>`): mount
+  them `inert`.
+- `isTrailingBreak(dom)` tells the `<br>` Wordgard ends a textblock with from a line break's
+  (they look the same), from the editor's tiles; `staticCopy(dom)` copies what an editor drew
+  (no ids, no `contenteditable`, no selection classes), its trailing breaks classed
+  `wg-trailing-break`, to lay out elsewhere.
 
 ### Changing a node without remounting it
 
