@@ -1,6 +1,6 @@
 // Plain function components here, so React 18 gives them no ref: DecorationRoot takes it from its
 // context.
-import React from "react";
+import React, { memo, useContext, useLayoutEffect } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { Decoration, type Wordgard } from "wordgard/editor";
@@ -11,6 +11,7 @@ import { Blockquote, Heading, Image, Link, Paragraph } from "wordgard/types";
 import { ReactWordgard } from "../ReactWordgard.js";
 import { DecorationRoot } from "../components/DecorationRoot.js";
 import { ErrorBoundary } from "../components/ErrorBoundary.js";
+import { DecorationRootContext } from "../contexts/DecorationRootContext.js";
 import { createMarkShape } from "../decorations/ReactMarkType.js";
 import { createShape } from "../decorations/ReactShapeType.js";
 import { createWidgetType } from "../decorations/ReactWidgetType.js";
@@ -85,7 +86,78 @@ describe("The factories", () => {
   });
 });
 
+// A reader of DecorationRoot's context that renders only when the value
+// changes, counting its commits.
+const countingReader = (reads: { count: number }) =>
+  memo(function Reader() {
+    useContext(DecorationRootContext);
+    useLayoutEffect(() => {
+      reads.count++;
+    });
+    return null;
+  });
+
+// Attributes from a point decoration: a new Elt for the quote in each layout.
+const quoteKind = Decoration.Point.source.of(() =>
+  Decoration.Point.set([[Decoration.Point.attributes({ "data-kind": "quote" }), 0]])
+);
+
 describe("DecorationRoot", () => {
+  it("keeps its context's value while the node's attributes hold", () => {
+    // A node drawn again for a change inside it, its attributes the same: the
+    // same value, or React renders every reader of the context in it (on React
+    // 19, every DecorationRoot below, which made a key in a section cost every
+    // paragraph's).
+    const reads = { count: 0 };
+    const Reader = countingReader(reads);
+    const draws = { count: 0 };
+    const Quote = createShape(function Quote({ nodeProps: { contentDOMRef }, children }) {
+      draws.count++;
+      return (
+        <DecorationRoot>
+          <Reader />
+          <div ref={contentDOMRef}>{children}</div>
+        </DecorationRoot>
+      );
+    });
+    const wg = create({
+      doc: "<blockquote><p>a</p><p>b</p></blockquote>",
+      config: [basicSchema(), blockquote(), Decoration.Tag.shape(Blockquote, Quote), quoteKind],
+    });
+    expect(wg.contentDOM.querySelector("blockquote")?.dataset.kind).toBe("quote");
+    const [drawsBefore, readsBefore] = [draws.count, reads.count];
+    typeInto(wg, textIn(wg, "blockquote p"), 1, "x");
+    wg.flush();
+    expect(textIn(wg, "blockquote p").data).toBe("ax");
+    expect(draws.count).toBeGreaterThan(drawsBefore);
+    expect(reads.count).toBe(readsBefore);
+    expect(drawn(wg)).toEqual(fresh(wg));
+  });
+
+  it("keeps a wrapper's context value while its attributes hold", () => {
+    const reads = { count: 0 };
+    const Reader = countingReader(reads);
+    const Frame = createWrapper(function Frame({ children }) {
+      return (
+        <DecorationRoot className="frame">
+          <Reader />
+          {children}
+        </DecorationRoot>
+      );
+    });
+    const wg = create({
+      doc: "<blockquote><p>a</p><p>b</p></blockquote>",
+      config: [basicSchema(), blockquote(), Decoration.Tag.wrapper(Blockquote, Frame), quoteKind],
+    });
+    expect(wg.contentDOM.querySelector("[data-kind=quote]")).not.toBeNull();
+    const readsBefore = reads.count;
+    typeInto(wg, textIn(wg, "blockquote p"), 1, "x");
+    wg.flush();
+    expect(textIn(wg, "blockquote p").data).toBe("ax");
+    expect(reads.count).toBe(readsBefore);
+    expect(drawn(wg)).toEqual(fresh(wg));
+  });
+
   it("draws a shape's root, its tag the node type's, without a warning", () => {
     const error = vi.spyOn(console, "error");
     const wg = create({ doc: "<blockquote><p>a</p></blockquote>", config: quoteConfig() });

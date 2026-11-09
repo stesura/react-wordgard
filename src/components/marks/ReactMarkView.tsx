@@ -11,7 +11,7 @@ import {
 import { drawMark } from "../../decorations/ReactMarkType.js";
 import { createShapeHandle, shapeAttributes } from "../../decorations/ReactShapeType.js";
 import { DecorationRootContext } from "../../contexts/DecorationRootContext.js";
-import { attrsToRecord, componentProps } from "../../helpers/index.js";
+import { componentProps, useAttrsRecord } from "../../helpers/index.js";
 import { mergeRefs } from "../../helpers/refs.js";
 import type { DecoElt } from "../../wordgardInternals.js";
 
@@ -33,7 +33,7 @@ export const ReactMarkView = ({ elt, mark, children }: Props) => {
   const rootRef = useMemo(() => mergeRefs(ref, decorationRoot(handlers)), [ref, handlers]);
   // A mark is no node: never selected.
   const decoration = useMemo(() => ({ handlers, selected: false }), [handlers]);
-  const attrs = useMemo(() => attrsToRecord(shapeAttributes(elt)), [elt]);
+  const attrs = useAttrsRecord(shapeAttributes(elt));
   const root = useMemo(
     () => ({ tagName: elt.tagName, attrs, ref: rootRef }),
     [elt.tagName, attrs, rootRef]

@@ -1,3 +1,9 @@
+## Unreleased
+
+### Bug fixes
+
+A React shape, wrapper, mark or widget drawn again with the same attributes keeps its `DecorationRoot`'s context value. A node whose attributes come from a decoration got a new value each time something inside it changed, and React then rendered every `DecorationRoot` inside it: on React 19, a key typed in a section drawn by a React shape cost every paragraph in it.
+
 ## 0.2.2 (2026-11-07)
 
 ### New features

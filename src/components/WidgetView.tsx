@@ -10,7 +10,7 @@ import {
 } from "../contexts/DecorationContext.js";
 import { DecorationRootContext } from "../contexts/DecorationRootContext.js";
 import { drawWidget, widgetElement, widgetRoot } from "../decorations/ReactWidgetType.js";
-import { attrsToRecord, componentProps } from "../helpers/index.js";
+import { componentProps, useAttrsRecord } from "../helpers/index.js";
 import { mergeRefs } from "../helpers/refs.js";
 
 type Props = {
@@ -48,7 +48,7 @@ export const WidgetView = memo(
       [root, handlers, outerRef]
     );
     const decoration = useMemo(() => ({ handlers, selected }), [handlers, selected]);
-    const record = useMemo(() => attrsToRecord(attrs), [attrs]);
+    const record = useAttrsRecord(attrs);
     const tagName = widgetElement(widget);
     const decorationRootValue = useMemo(
       () => ({ tagName, attrs: record, ref }),

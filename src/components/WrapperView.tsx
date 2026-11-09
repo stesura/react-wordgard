@@ -10,7 +10,7 @@ import {
 import { createWrapperHandle, nodePos, shapeAttributes } from "../decorations/ReactShapeType.js";
 import { drawWrapper } from "../decorations/ReactWrapperType.js";
 import { DecorationRootContext } from "../contexts/DecorationRootContext.js";
-import { attrsToRecord, componentProps } from "../helpers/index.js";
+import { componentProps, useAttrsRecord } from "../helpers/index.js";
 import { mergeRefs } from "../helpers/refs.js";
 import type { DecoElt } from "../wordgardInternals.js";
 
@@ -31,7 +31,7 @@ export const WrapperView = ({ elt, node, wrapped, selected, outerRef }: Props) =
     [ref, outerRef, handlers]
   );
   const decoration = useMemo(() => ({ handlers, selected }), [handlers, selected]);
-  const attrs = useMemo(() => attrsToRecord(shapeAttributes(elt)), [elt]);
+  const attrs = useAttrsRecord(shapeAttributes(elt));
   const root = useMemo(
     () => ({ tagName: elt.tagName, attrs, ref: rootRef }),
     [elt.tagName, attrs, rootRef]
