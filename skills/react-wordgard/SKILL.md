@@ -378,9 +378,12 @@ export const badges = [
 - `createWidgetType({ component, element?, eq?, editable?, inFlow?, propagateEvent?, connect?,
 disconnect? })` returns a real `Widget.Type`: its widgets are `Type.of(value)`. The component
   gets `value`.
-- **Draw its root with `<DecorationRoot>`**: `element` (`span` by default), the ref, and the
-  node's attributes for a widget drawing a node. Or by hand: any element, with the `ref` the
-  component gets (`forwardRef` on React 18), which it **must** put on its root.
+- **Draw its root with `<DecorationRoot>`**: `element` (`span` by default), the ref,
+  `contentEditable={false}` unless the type is `editable`, and the node's attributes for a widget
+  drawing a node. Or by hand: any element, with the `ref` the component gets (`forwardRef` on
+  React 18), which it **must** put on its root, and its other props spread on it (without them,
+  `contenteditable` is set after insertion: a style recalculation over the document in Chromium
+  when the page has `:has()` rules).
 - Widgets are uneditable unless their spec sets `editable`, as in Wordgard. A React widget
   re-renders freely while it keeps its root element.
 - A widget drawing a node (`Decoration.Tag.shape(Type, (tag) => W.of(tag.param))`):

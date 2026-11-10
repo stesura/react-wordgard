@@ -1053,8 +1053,10 @@ type WidgetComponentProps<Param, E extends Element = HTMLElement> = Omit<
 > & { value: Param } & RefAttributes<E>;
 ```
 
-A React widget's props: its `value`, and, for a widget drawing a node, the node's attributes for
-its root.
+A React widget's props: its `value`, and the attributes for its root: `contentEditable={false}`
+unless its type is `editable`, and, for a widget drawing a node, the node's attributes. A root
+drawn by hand spreads them: set after React inserts the element, `contenteditable` can cost a
+style recalculation over the whole document (Chromium, with `:has()` rules on the page).
 
 Also exported: `DecorationRootProps`, `ReactShape`, `WrapperOptions`, `MarkShapeOptions`,
 `WidgetTypeSpec` and `EditorLayoutEffect`, the types used above.

@@ -323,6 +323,28 @@ describe("DecorationRoot in a widget", () => {
     badgeMounts.count = 0;
   });
 
+  it("draws a non-editable widget's root uneditable, never writing the attribute once it's in the page", () => {
+    const wg = create({
+      doc: "<p>ab</p>",
+      config: [basicSchema(), Decoration.Tag.widget(Paragraph, "start", Badge.of("¶"))],
+    });
+    // Widgets built in a live editor (a document loaded into it): written after
+    // React inserted them, the attribute costs a style invalidation over the
+    // document (Chromium, with `:has()` rules on the page).
+    const observer = new MutationObserver(() => {});
+    observer.observe(wg.contentDOM, { subtree: true, attributeFilter: ["contenteditable"] });
+    wg.dispatch({
+      changes: { from: wg.state.doc.length, insert: [Paragraph.create([]), Paragraph.create([])] },
+    });
+    wg.flush();
+    const written = observer.takeRecords().map((record) => record.target);
+    observer.disconnect();
+    const badges = [...wg.contentDOM.querySelectorAll(".badge")];
+    expect(badges).toHaveLength(3);
+    for (const badge of badges) expect(badge.getAttribute("contenteditable")).toBe("false");
+    expect(written).toEqual([]);
+  });
+
   it("draws a widget's root, its element the widget type's, without a warning", () => {
     const error = vi.spyOn(console, "error");
     const wg = create({
@@ -336,7 +358,7 @@ describe("DecorationRoot in a widget", () => {
       ],
     });
     expect(wg.contentDOM.innerHTML).toBe(
-      '<p><span data-mount="1" class="badge" contenteditable="false">¶</span>a' +
+      '<p><span contenteditable="false" data-mount="1" class="badge">¶</span>a' +
         '<i contenteditable="false">!</i>b</p>'
     );
     expect(error).not.toHaveBeenCalled();
