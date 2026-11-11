@@ -216,6 +216,78 @@ export const App = () => (
 );
 ```
 
+A component outside the editor's tree can also use the hooks, under a `<WordgardScope wg={wg}>`:
+they then read that editor, and follow when `wg` changes. A toolbar shared by several editors
+keeps the one that has focus in the store, and puts its controls in a scope:
+
+```tsx
+import { atom, useAtomValue, useSetAtom } from "jotai";
+import { Command, toggleStrong } from "wordgard/command";
+import type { Wordgard } from "wordgard/editor";
+import { basicSchema } from "wordgard/schema";
+import {
+  WordgardDoc,
+  WordgardEditor,
+  WordgardScope,
+  useEditorEventCallback,
+  useEditorEventListener,
+  useEditorStateSelector,
+} from "@stesura/react-wordgard";
+
+const focusedAtom = atom<Wordgard | null>(null);
+
+// Under each editor: tells the store when it takes focus.
+const TrackFocus = () => {
+  const setFocused = useSetAtom(focusedAtom);
+  useEditorEventListener("focus", (wg) => {
+    setFocused(wg);
+  });
+  return null;
+};
+
+// Uses the hooks, as it would under a <WordgardEditor>.
+const BoldButton = () => {
+  const empty = useEditorStateSelector((state) => state.selection.empty);
+  const bold = useEditorEventCallback((wg) => Command.dispatch(wg, toggleStrong));
+  return (
+    <button
+      disabled={empty}
+      onMouseDown={(event) => {
+        event.preventDefault();
+        bold();
+      }}
+    >
+      Bold
+    </button>
+  );
+};
+
+// Outside every editor.
+const Toolbar = () => {
+  const wg = useAtomValue(focusedAtom);
+  return wg ? (
+    <WordgardScope wg={wg}>
+      <BoldButton />
+    </WordgardScope>
+  ) : null;
+};
+
+const Editor = ({ doc }: { doc: string }) => (
+  <WordgardEditor doc={doc} config={[basicSchema()]}>
+    <TrackFocus />
+    <WordgardDoc />
+  </WordgardEditor>
+);
+
+export const App = () => (
+  <>
+    <Toolbar />
+    <Editor doc="<p>Body</p>" />
+    <Editor doc="<p>Notes</p>" />
+  </>
+);
+```
+
 ### React decorations
 
 Node decorations (shapes, wrappers, widgets) and mark decorations can be React components. Shapes,
@@ -602,8 +674,8 @@ react-wordgard adds:
 
 ## API
 
-Everything is exported from `@stesura/react-wordgard`. Editor hooks work under `<WordgardEditor>`,
-decoration hooks in a React decoration's component; elsewhere, they throw.
+Everything is exported from `@stesura/react-wordgard`. Editor hooks work under `<WordgardEditor>`
+or `<WordgardScope>`, decoration hooks in a React decoration's component; elsewhere, they throw.
 
 ### Components
 
@@ -631,6 +703,19 @@ type WordgardDoc = (props: Omit<HTMLAttributes<HTMLDivElement>, "children">) => 
 Puts the editor in the page, inside a `div` taking the props, and renders the document through a
 portal, in your React tree. It goes under its `<WordgardEditor>`, inside any other components, with
 other children before or after it. One per editor: a second throws.
+
+#### `WordgardScope`
+
+```ts
+type WordgardScope = (props: { wg: Wordgard; children?: ReactNode }) => JSX.Element;
+```
+
+Gives the components it holds `wg`, an editor a `<WordgardEditor>` made elsewhere, in place of the
+one around them, or where there's none: for a toolbar acting on whichever of a page's editors has
+focus. The editor hooks under it follow when `wg` changes: selectors and fields read the new
+editor's state, callbacks and listeners get it, effects run again. It draws nothing, and an editor
+react-wordgard didn't make (`Wordgard.create`) throws. See
+[Accessing the state outside the editor](#accessing-the-state-outside-the-editor).
 
 #### `DecorationRoot`
 

@@ -1,3 +1,5 @@
+// Not in react-prosemirror, whose components take their refs with forwardRef: a decoration's root
+// also gets its ref from DecorationRoot's context.
 import { type ForwardedRef, type RefCallback, version } from "react";
 
 type DOMRef = (dom: Element | null) => void;

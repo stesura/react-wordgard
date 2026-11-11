@@ -1,3 +1,5 @@
+// Not in react-prosemirror: a state field read through the store's per-field subscriptions
+// (EditorContext), where a selector runs on every flush.
 import { useCallback } from "react";
 import { useSyncExternalStoreWithSelector } from "use-sync-external-store/with-selector";
 

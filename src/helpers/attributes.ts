@@ -1,3 +1,4 @@
+// Not in react-prosemirror, whose DOM specs give attributes as objects.
 import { useMemo, useState } from "react";
 import type { Attributes } from "wordgard/doc";
 

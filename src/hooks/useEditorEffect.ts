@@ -27,10 +27,10 @@ export const useEditorEffect = (
         cancel(run);
         if (typeof cleanup == "function") cleanup();
       };
-      // The caller's dependencies, as with React's own effects, and the editor:
-      // a WordgardScope can change it.
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     },
+    // The caller's dependencies, as with React's own effects, and the editor:
+    // a WordgardScope can change it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     dependencies && [wg, ...dependencies]
   );
 };

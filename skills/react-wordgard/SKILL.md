@@ -108,13 +108,15 @@ const Toolbar = () => {
 ### Reaching the editor from outside its `WordgardEditor`
 
 The editor owns its state: there's no controlled `state` prop to lift into React, as with
-react-prosemirror. The hooks throw outside `WordgardEditor`. Two ways:
+react-prosemirror. The hooks throw outside `WordgardEditor` (or a `WordgardScope`, below). Two
+ways:
 
 1. **Lift `WordgardEditor`** over everything that needs the editor (it draws no DOM; the document
    goes where `WordgardDoc` is). Prefer this.
 2. **Share the editor through a store** where it can't wrap the component (another part of the
    app, a portal): a component under `WordgardEditor` puts the editor in the store from
-   `useEditorEffect`, and the component outside reads it and uses `wg` directly (not the hooks).
+   `useEditorEffect`, and the component outside reads it. It uses `wg` directly, or puts what
+   needs the hooks under `<WordgardScope wg={wg}>`.
 
 ```tsx
 import { atom, useAtomValue, useSetAtom } from "jotai";
@@ -162,6 +164,54 @@ Any store works (Jotai here, Zustand, `useSyncExternalStore`). A sub-editor (a h
 is its own `WordgardEditor`, often drawn inside a React shape of the main one; a toolbar acting on
 whichever editor has focus keeps the focused one in such a store, set from
 `useEditorEventListener("focus", …)` in each.
+
+`<WordgardScope wg={wg}>` gives the components it holds an editor a `WordgardEditor` made
+elsewhere, in place of the one around them or where there's none: the editor hooks under it read
+that editor and follow when `wg` changes (selectors and fields re-read, callbacks and listeners get
+it, effects run again). That toolbar renders its controls, written with the hooks, under a scope
+for the focused editor:
+
+```tsx
+import { atom, useAtomValue } from "jotai";
+import { Command, toggleStrong } from "wordgard/command";
+import type { Wordgard } from "wordgard/editor";
+import {
+  WordgardScope,
+  useEditorEventCallback,
+  useEditorStateSelector,
+} from "@stesura/react-wordgard";
+
+// Set from useEditorEventListener("focus", …) under each WordgardEditor.
+const focusedAtom = atom<Wordgard | null>(null);
+
+const BoldButton = () => {
+  const empty = useEditorStateSelector((state) => state.selection.empty);
+  const bold = useEditorEventCallback((wg) => Command.dispatch(wg, toggleStrong));
+  return (
+    <button
+      disabled={empty}
+      onMouseDown={(event) => {
+        event.preventDefault();
+        bold();
+      }}
+    >
+      Bold
+    </button>
+  );
+};
+
+export const Toolbar = () => {
+  const wg = useAtomValue(focusedAtom);
+  return wg ? (
+    <WordgardScope wg={wg}>
+      <BoldButton />
+    </WordgardScope>
+  ) : null;
+};
+```
+
+It draws nothing (the document is still its `WordgardDoc`'s), and takes only an editor a
+`WordgardEditor` made.
 
 To react to changes without re-rendering (autosave, a debounced copy), add a
 `Wordgard.updateListener.of((update) => …)` to `config`; `update.docChanged` and `update.state`
@@ -552,7 +602,9 @@ https://wordgard.net/docs/prosemirror/
   a factory's value went to the other decoration.
 - "…is called outside a React shape, wrapper, mark or widget": a decoration hook (`useNodePos`,
   `useStopEvent`, `useIgnoreMutation`, `useSelectNode`, `useIsNodeSelected`) used elsewhere.
-  "Used outside a Wordgard editor": an editor hook outside `WordgardEditor`.
+  "Used outside a Wordgard editor": an editor hook outside `WordgardEditor` and `WordgardScope`.
+- "WordgardScope takes an editor a WordgardEditor made": a `WordgardScope` given an editor from
+  `Wordgard.create`.
 - "This React shape or wrapper isn't drawn" (or widget, or mark): `useNodePos()`'s function called
   during render or after unmount; call it in handlers and effects.
 - "Leaf nodes shapes shouldn't have a content hole": a React shape's `.of(element)` given to a

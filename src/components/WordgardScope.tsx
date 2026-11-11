@@ -1,3 +1,5 @@
+// Not in react-prosemirror, whose state is lifted into React and passed to whatever needs it: here
+// the hooks read the editor from their context.
 import React, { type ReactNode } from "react";
 import type { Wordgard } from "wordgard/editor";
 
