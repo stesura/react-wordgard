@@ -294,6 +294,30 @@ describe("Node wrappers", () => {
     expect({ ...now, html: now.html.replace(' style=""', "") }).toEqual(fresh(wg));
   });
 
+  // React 18 would set the node's style string, then clear the properties the
+  // dropped object had, the node's own among them.
+  it("keep a drawn node's own style when they drop theirs", () => {
+    const styled = [
+      basicSchema(),
+      blockquote(),
+      Decoration.Tag.attribute(Blockquote, "style", "margin-left: 2px"),
+      nodeWrapper(Blockquote, LeadWrapper),
+      nodeWrapper(Blockquote, RootLead),
+    ];
+    for (const lead of ["1", null]) {
+      initial.lead = lead;
+      const wg = create({ config: styled });
+      const quote = wg.contentDOM.querySelector("blockquote");
+      control(wg).setLead("2");
+      expect(quote?.style.paddingTop).toBe("2px");
+      expect(quote?.style.marginLeft).toBe("2px");
+      control(wg).setLead(null);
+      expect(quote?.style.paddingTop).toBe("");
+      expect(quote?.style.marginLeft).toBe("2px");
+      expect(wg.contentDOM.querySelector("blockquote")).toBe(quote);
+    }
+  });
+
   it("refuse text", () => {
     expect(() => nodeWrapper(Leaf.Text, LeadWrapper)).toThrow("can't wrap text");
   });

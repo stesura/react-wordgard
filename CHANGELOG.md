@@ -34,6 +34,8 @@ After a component threw while rendering, the next update draws the document agai
 
 A reconfiguration giving a node wrapper to an atom directly in the document (a horizontal rule), or taking it away, no longer throws "React's DOM is missing a node".
 
+A `DecorationRoot`, or a node given props by `NodeRootProps`, keeps Wordgard's own style when its component stops passing a `style`. On React 18 the properties the two shared were cleared: a centred paragraph lost its alignment.
+
 ## 0.2.2 (2026-11-07)
 
 ### New features

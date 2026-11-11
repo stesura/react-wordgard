@@ -12,6 +12,7 @@ import {
 } from "react";
 import type { Node } from "wordgard/doc";
 
+import { useStyleObject } from "../helpers/attributes.js";
 import { cssToStyle, eltProps, reactTagName } from "../helpers/props.js";
 
 /** What node wrappers give the element of a node Wordgard draws. */
@@ -96,8 +97,9 @@ export const DrawnRoot = ({ node, tagName, attrs, elementRef, children }: DrawnR
   const given = scoped?.node == node ? scoped.props : null;
   const ref = useMemo(() => rootRef(elementRef), [elementRef]);
   // Wordgard's style is a string, which React can't merge with an object.
+  const styled = useStyleObject(!!given?.style);
   const { style: css, ...rest } = attrs;
-  const own = eltProps(tagName, given?.style ? rest : attrs);
+  const own = eltProps(tagName, styled ? rest : attrs);
   const extra = given?.attributes ? eltProps(tagName, attributeRecord(given.attributes)) : {};
   const className = [own.className, given?.className].filter(Boolean).join(" ") || undefined;
   return createElement(
@@ -106,7 +108,7 @@ export const DrawnRoot = ({ node, tagName, attrs, elementRef, children }: DrawnR
       ...own,
       ...extra,
       className,
-      ...(given?.style && { style: { ...cssToStyle(css), ...given.style } }),
+      ...(styled && { style: { ...cssToStyle(css), ...given?.style } }),
       ref,
       suppressContentEditableWarning: true,
     },

@@ -10,6 +10,7 @@ import {
 } from "react";
 
 import { DecorationRootContext } from "../contexts/DecorationRootContext.js";
+import { useStyleObject } from "../helpers/attributes.js";
 import { cssToStyle, eltProps, reactTagName } from "../helpers/props.js";
 import { mergeRefs, toCallbackRef } from "../helpers/refs.js";
 
@@ -26,19 +27,20 @@ export const DecorationRoot = forwardRef<Element, DecorationRootProps>(
     const root = useContext(DecorationRootContext);
     const rootRef = root?.ref;
     const merged = useMemo(() => mergeRefs(rootRef, toCallbackRef(ref)), [rootRef, ref]);
+    const styled = useStyleObject(!!style);
     if (!root)
       throw new Error(
         "DecorationRoot is the root of a React shape, wrapper, mark or widget: use it in their component"
       );
     // Wordgard's style is a string, which React can't merge with an object.
     const { style: css, ...attrs } = root.attrs;
-    const own = eltProps(root.tagName, style ? attrs : root.attrs);
+    const own = eltProps(root.tagName, styled ? attrs : root.attrs);
     const classes = [own.className, className].filter(Boolean).join(" ");
     return createElement(reactTagName(root.tagName), {
       ...own,
       ...props,
       className: classes || undefined,
-      ...(style && { style: { ...cssToStyle(css), ...style } }),
+      ...(styled && { style: { ...cssToStyle(css), ...style } }),
       ref: merged,
       suppressContentEditableWarning: true,
     });

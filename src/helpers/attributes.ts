@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { Attributes } from "wordgard/doc";
 
 // Wordgard's attributes are a flat [name, value, ...] array.
@@ -18,6 +18,15 @@ export const attrsToRecord = (attrs: Attributes) => {
 export const useAttrsRecord = (attrs: Attributes): Record<string, string> => {
   const key = JSON.stringify(attrs);
   return useMemo(() => attrsToRecord(parseAttrs(key)), [key]);
+};
+
+// Whether an element's style goes to React as an object: from the first time its component gives
+// one, for good. Going back to Wordgard's string (`STYLE`), React 18 sets it and then clears the
+// properties the object had, Wordgard's among them.
+export const useStyleObject = (given: boolean) => {
+  const [latched, setLatched] = useState(given);
+  if (given && !latched) setLatched(true);
+  return given || latched;
 };
 
 const parseAttrs = (key: string): Attributes => {

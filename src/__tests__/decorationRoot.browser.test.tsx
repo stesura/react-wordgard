@@ -1,6 +1,6 @@
 // Plain function components here, so React 18 gives them no ref: DecorationRoot takes it from its
 // context.
-import React, { memo, useContext, useLayoutEffect } from "react";
+import React, { memo, useContext, useLayoutEffect, useState } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { Decoration, type Wordgard } from "wordgard/editor";
@@ -191,6 +191,39 @@ describe("DecorationRoot", () => {
     expect(quote?.style.getPropertyValue("--gap")).toBe("1px");
     expect(quote?.dataset["kind"]).toBe("mine");
     expect(quote?.title).toBe("Quote");
+  });
+
+  // React 18 would set Wordgard's style string, then clear the properties the
+  // dropped object had, Wordgard's among them.
+  it("keeps Wordgard's style when the component drops its own", () => {
+    const control: { tint: ((on: boolean) => void) | null } = { tint: null };
+    const Tinted = ({ children }: { children?: React.ReactNode }) => {
+      const [tint, setTint] = useState(false);
+      useLayoutEffect(() => {
+        control.tint = (on) => flushSync(() => setTint(on));
+      }, []);
+      return (
+        <DecorationRoot style={tint ? { color: "red" } : undefined}>{children}</DecorationRoot>
+      );
+    };
+    const wg = create({
+      doc: "<blockquote><p>a</p></blockquote>",
+      config: [
+        basicSchema(),
+        blockquote(),
+        Decoration.Tag.shape(Blockquote, createShape(Tinted)),
+        Decoration.Tag.attribute(Blockquote, "style", "margin-left: 2px"),
+      ],
+    });
+    const quote = wg.contentDOM.querySelector<HTMLElement>("blockquote");
+    expect(quote?.getAttribute("style")).toBe("margin-left: 2px");
+    control.tint?.(true);
+    expect(quote?.style.color).toBe("red");
+    expect(quote?.style.marginLeft).toBe("2px");
+    control.tint?.(false);
+    expect(quote?.style.color).toBe("");
+    expect(quote?.style.marginLeft).toBe("2px");
+    expect(wg.contentDOM.querySelector("blockquote")).toBe(quote);
   });
 
   it("follows a heading's level", () => {
