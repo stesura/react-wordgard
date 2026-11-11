@@ -52,8 +52,8 @@ export const WidgetView = memo(
     const tagName = widgetElement(widget);
     const own = useAttrsRecord(attrs);
     // A non-editable widget's root is drawn as Wordgard's setUneditable leaves it
-    // (since 0.7.0, only a void element gets contenteditable="false":
-    // docs/wordgard-upstream-bugs.md), with React setting the attribute before
+    // (since 0.7.0, only a void element gets contenteditable="false", a Wordgard
+    // bug), with React setting the attribute before
     // it inserts the element. Set later, it costs a style invalidation over the
     // document in Chromium when the page has `:has()` rules (Tailwind's
     // `group-has-*`): quadratic over a document's widgets.

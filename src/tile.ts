@@ -335,7 +335,7 @@ const placeWidget = (tile: Tile, cursor: ChildCursor, context: BuildContext, fre
 };
 
 // Wordgard's setUneditable, which since 0.7.0 marks only void elements
-// uneditable (docs/wordgard-upstream-bugs.md). It wraps a text node in a <span>
+// uneditable, its test reading inverted. It wraps a text node in a <span>
 // its sync then takes the text back out of, so text is left as it is here.
 // Returns whether the DOM is uneditable.
 const setUneditable = (dom: Element | Text) => {

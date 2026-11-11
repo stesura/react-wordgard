@@ -229,8 +229,7 @@ const keepSame = (
 const isPoint = (view: ChildView | undefined) => view?.type == "buffer" || view?.type == "widget";
 
 // A spanning wrapper continues the previous sibling when it draws the same
-// element, taking in the points between them (ContentUpdate.enterSpanning,
-// minus a Wordgard bug: docs/wordgard-upstream-bugs.md).
+// element, taking in the points between them (ContentUpdate.enterSpanning).
 const openWrapper = (views: ChildView[], { elt, spanning, mark }: WrapperView) => {
   let i = views.length - 1;
   while (isPoint(views[i])) i--;
@@ -469,7 +468,7 @@ export const iterDeco = (
       at = pos + node.length;
       if (node.isPlot) context.atoms.add(node);
       // `Leaf.Text.of("")` still makes empty text leaves; React draws nothing for
-      // them (docs/wordgard-upstream-bugs.md).
+      // them.
       if (node.is(Leaf.Text) && !node.param) return;
       let target = wrapped(sources(wrappers));
       if (!node.is(Leaf.Text)) {

@@ -121,8 +121,8 @@ const Highlight = Mark.define("Highlight", {
 });
 
 // Wordgard 0.7.0 disconnects the widgets in a node's shape kept through an
-// edit inside the node, and doesn't connect them again
-// (docs/wordgard-upstream-bugs.md). React's build leaves them connected.
+// edit inside the node, and doesn't connect them again, a bug of its
+// `copyEltStructure`. React's build leaves them connected.
 const withoutStrayDisconnect = (log: readonly string[]) => {
   const stray = log.indexOf("disconnect quote");
   return log.filter((_, i) => i != stray);

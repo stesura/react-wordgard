@@ -96,7 +96,7 @@ ticks at 0.1 ms, so between sub-millisecond figures a ratio under about 1.5× is
   `DocTile.create` is swapped for ours for the length of the constructor, so the first draw is
   React's, not a Wordgard draw thrown away.
   **Cost:** the swap relies on Wordgard's internals; it breaks if Wordgard looks `DocTile` up on
-  the class (`docs/wordgard-upstream-bugs.md`, "Choosing the renderer before the first draw").
+  the class.
 
 ## What else react-wordgard does
 
@@ -127,8 +127,7 @@ keys all hold the same view or cell keeps its shape, so its memoised parent skip
   per node made load, Enter and Bold all slower and held 5 MB more, so it was dropped. The cells
   and class instances hold about 1 MB more at 5,000 paragraphs.
 - **Not done:** React still clones the fibers of the changed node's siblings on the way down, and
-  an Enter or a paste renders the whole parent list. Chunking long lists would cut both
-  (`docs/open-points.md`, "Performance").
+  an Enter or a paste renders the whole parent list. Chunking long lists would cut both.
 
 ### Laying out only what changed
 
@@ -196,7 +195,8 @@ and marks would settle it.
   old; react-wordgard is at 0.1, over Wordgard 0.6.
 - **The engine floor.** Plain ProseMirror types faster than plain Wordgard (0.4 against 0.6 ms a
   keystroke and 49 against 189 KB allocated at 1,500 paragraphs), because each Wordgard
-  transaction costs in proportion to the document (`docs/wordgard-upstream-bugs.md`, 17). react-wordgard's keystroke sits on that floor.
+  transaction costs in proportion to the document: each new document checks every top-level child
+  against the schema. react-wordgard's keystroke sits on that floor.
 - **Internals.** Both reach into their engine: react-prosemirror subclasses `EditorView` and builds
   its view descriptions; react-wordgard subclasses Wordgard through a private constructor, swaps
   its renderer and replaces its observer, all typed in `src/wordgardInternals.ts`. Wordgard is

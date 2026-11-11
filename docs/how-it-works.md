@@ -1,7 +1,7 @@
 # How react-wordgard works (2026-11-03)
 
-How the library draws Wordgard with React, end to end, and the decisions behind it. For what's
-still open, see `docs/open-points.md`. Keep this file in step when the design changes.
+How the library draws Wordgard with React, end to end, and the decisions behind it. Keep this file
+in step when the design changes.
 
 ## The idea in one paragraph
 
@@ -339,5 +339,6 @@ All typed in `src/wordgardInternals.ts`, re-read after `npm run update-wordgard`
 (swapped in the constructor), and, since React shapes, the `DOMObserver`'s `observer` and `queue`
 and `scheduleFlush`. A Wordgard release changing any of these can break us: the peer is pinned
 exactly, and the copied Wordgard tests (`test/wordgard/`, the `view` project runs them on
-`ReactWordgard`) are the alarm at `npm run update-wordgard`. The Wordgard changes that would remove some of this are the requests at the end of
-`docs/wordgard-upstream-bugs.md`.
+`ReactWordgard`) are the alarm at `npm run update-wordgard`. Some of this would go if Wordgard
+took the renderer from the subclass before its first draw, mapped positions over bare change
+sections publicly, or offered a renderer interface.

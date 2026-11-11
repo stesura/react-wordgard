@@ -1,5 +1,5 @@
 // Typing at a gap cursor should insert a paragraph there. Between editable blocks, Chromium and
-// WebKit don't reliably, on plain Wordgard too (docs/wordgard-upstream-bugs.md, 12): too unsteady
+// WebKit don't reliably, on plain Wordgard too (Wordgard issue #108): too unsteady
 // for `it.fails`, so asserted in Firefox only. Between uneditable ones, Wordgard 0.7.0's block
 // buffers keep the browsers editing.
 import { Wordgard } from "wordgard/editor";

@@ -362,7 +362,7 @@ describe("DecorationRoot in a widget", () => {
     badgeMounts.count = 0;
   });
 
-  // Wordgard 0.7.0 makes only a void root uneditable (docs/wordgard-upstream-bugs.md).
+  // Wordgard 0.7.0 makes only a void root uneditable: its `setUneditable` test reads inverted.
   it("draws a non-editable widget's root as Wordgard does, never writing the attribute once it's in the page", () => {
     const wg = create({
       doc: "<p>ab</p>",

@@ -71,7 +71,7 @@ const sectionAt = (ends: readonly number[], pos: number, inclusive = false) => {
 // leaf is its token, and Wordgard's update merges adjacent replaced sections:
 // a leaf in a replaced section of unchanged length is retagged, at the same
 // offset in it. A copy, since `update` gets bare sections and Wordgard can't
-// map over those (docs/wordgard-upstream-bugs.md, "Requests").
+// map over those.
 export const mapNodePos = (changes: readonly number[], pos: number, leaf = false) => {
   const { startA, endA, startB, endB, ins } = indexOf(changes);
   const k = sectionAt(endA, pos);
