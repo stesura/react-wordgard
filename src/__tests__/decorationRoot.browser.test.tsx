@@ -4,9 +4,9 @@ import React, { memo, useContext, useLayoutEffect } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { Decoration, type Wordgard } from "wordgard/editor";
-import { basicSchema, blockquote, image } from "wordgard/schema";
+import { basicSchema, blockquote, horizontalRule, image } from "wordgard/schema";
 import { GardSelection, type GardState } from "wordgard/state";
-import { Blockquote, Heading, Image, Link, Paragraph } from "wordgard/types";
+import { Blockquote, Heading, HorizontalRule, Image, Link, Paragraph } from "wordgard/types";
 
 import { ReactWordgard } from "../ReactWordgard.js";
 import { DecorationRoot } from "../components/DecorationRoot.js";
@@ -317,16 +317,27 @@ const Tag = createWidgetType({
   },
   element: "i",
 });
+const Icon = createWidgetType({
+  component: function Icon() {
+    return <DecorationRoot className="icon" alt="" />;
+  },
+  element: "img",
+});
 
 describe("DecorationRoot in a widget", () => {
   afterEach(() => {
     badgeMounts.count = 0;
   });
 
-  it("draws a non-editable widget's root uneditable, never writing the attribute once it's in the page", () => {
+  // Wordgard 0.7.0 makes only a void root uneditable (docs/wordgard-upstream-bugs.md).
+  it("draws a non-editable widget's root as Wordgard does, never writing the attribute once it's in the page", () => {
     const wg = create({
       doc: "<p>ab</p>",
-      config: [basicSchema(), Decoration.Tag.widget(Paragraph, "start", Badge.of("¶"))],
+      config: [
+        basicSchema(),
+        Decoration.Tag.widget(Paragraph, "start", Badge.of("¶")),
+        Decoration.Tag.widget(Paragraph, "start", Icon.of(null)),
+      ],
     });
     // Widgets built in a live editor (a document loaded into it): written after
     // React inserted them, the attribute costs a style invalidation over the
@@ -340,8 +351,11 @@ describe("DecorationRoot in a widget", () => {
     const written = observer.takeRecords().map((record) => record.target);
     observer.disconnect();
     const badges = [...wg.contentDOM.querySelectorAll(".badge")];
+    const icons = [...wg.contentDOM.querySelectorAll(".icon")];
     expect(badges).toHaveLength(3);
-    for (const badge of badges) expect(badge.getAttribute("contenteditable")).toBe("false");
+    expect(icons).toHaveLength(3);
+    for (const badge of badges) expect(badge.getAttribute("contenteditable")).toBe(null);
+    for (const icon of icons) expect(icon.getAttribute("contenteditable")).toBe("false");
     expect(written).toEqual([]);
   });
 
@@ -358,8 +372,7 @@ describe("DecorationRoot in a widget", () => {
       ],
     });
     expect(wg.contentDOM.innerHTML).toBe(
-      '<p><span contenteditable="false" data-mount="1" class="badge">¶</span>a' +
-        '<i contenteditable="false">!</i>b</p>'
+      '<p><span data-mount="1" class="badge">¶</span>a<i>!</i>b</p>'
     );
     expect(error).not.toHaveBeenCalled();
     // A fresh editor's badge is another mount.
@@ -393,5 +406,27 @@ describe("DecorationRoot in a widget", () => {
     expect(badge()).toBe(before);
     expect(before?.className).toBe("wg-selected-node badge");
     expect(badgeMounts.count).toBe(1);
+  });
+
+  // Wordgard puts the attributes on an element around the widget, which it
+  // makes uneditable: React draws them on the widget's root.
+  it("draws a widget drawing a node with attributes uneditable, block buffers around it", () => {
+    const wg = create({
+      doc: "<hr><p>a</p>",
+      config: [
+        basicSchema(),
+        horizontalRule(),
+        Decoration.Tag.shape(HorizontalRule, Badge.of("-")),
+      ],
+    });
+    const badge = () => wg.contentDOM.querySelector(".badge");
+    expect(badge()?.getAttribute("contenteditable")).toBe(null);
+    const found = wg.state.doc.nodeAt(0);
+    if (!found) throw new Error("No rule");
+    wg.dispatch({ selection: GardSelection.node(0, found) });
+    wg.flush();
+    expect(badge()?.getAttribute("contenteditable")).toBe("false");
+    expect(badge()?.previousElementSibling?.className).toBe("wg-blockBuffer");
+    expect(badge()?.nextElementSibling?.nodeName).toBe("P");
   });
 });

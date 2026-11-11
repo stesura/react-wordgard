@@ -1,4 +1,4 @@
-// Copied from Wordgard 0.6.2 (src/editor/decoration.ts in its repo: DecoIterator,
+// Copied from Wordgard 0.7.0 (src/editor/decoration.ts in its repo: DecoIterator,
 // SpanIterator, getDecoSet and the shape helpers), which doesn't export them.
 // Changes, so React can lay out one plot at a time:
 // - `walker.enter` says whether to descend. When it doesn't, the walk goes
@@ -6,8 +6,7 @@
 // - The walker gets each node's position, and is told which widgets come from
 //   point decorations.
 // - A walk can start before the previous one ended.
-// - Decoration sets come from the DecoSet, not from calling sources again, and
-//   range sets are split into layers a cursor can seek into.
+// - Decoration sets come from the DecoSet, not from calling sources again.
 // - `nodeWrappers` without wrappers returns a shared empty array, as upstream.
 // - It records the document's mark behind a mark of an overridden shape
 //   (`documentMark`), for React marks.
@@ -66,8 +65,8 @@ export interface DecoWalker {
 
 export const getDecoSet = (state: GardState): DecoSet => {
   const set: DecoSet = { points: new Map(), ranges: new Map() };
-  for (const src of state.facet(Decoration.Point.source)) set.points.set(src, src(state));
-  for (const src of state.facet(Decoration.Range.source)) set.ranges.set(src, src(state));
+  for (const src of state.facet(Decoration.Point.source.reader)) set.points.set(src, src(state));
+  for (const src of state.facet(Decoration.Range.source.reader)) set.ranges.set(src, src(state));
   return set;
 };
 
@@ -240,22 +239,6 @@ const pastPlotAt = (pos: Pos, target: number) => {
   return target;
 };
 
-// Wordgard bug (docs/wordgard-upstream-bugs.md): a range set's second layer can
-// hold overlapping ranges, which its cursor can't seek into. Wordgard walks
-// forward only; React's per-plot walks seek, so they get the set's ranges in
-// layers that don't overlap.
-const seekable = memo((set: Decoration.Range.Set): readonly Decoration.Range.Set[] => {
-  const layers: { to: number; ranges: [Decoration.Range, number, number][] }[] = [];
-  for (const cursor = set.cursor(0); cursor.value; cursor.next()) {
-    const { value, from, to } = cursor;
-    let layer = layers.find((layer) => layer.to <= from);
-    if (!layer) layers.push((layer = { to, ranges: [] }));
-    layer.ranges.push([value, from, to]);
-    layer.to = to;
-  }
-  return layers.length > 1 ? layers.map(({ ranges }) => Decoration.Range.set(ranges)) : [set];
-});
-
 const none: readonly WrapperSource[] = [];
 
 export class DecoIterator {
@@ -274,13 +257,13 @@ export class DecoIterator {
     readonly decoSet: DecoSet
   ) {
     const { tagShape, tagWidget, tagWrapper, tagAttribute, markShape } = getDecorationInternals();
-    this.tagShapes = state.facet(tagShape);
-    this.globalWidgets = state.facet(tagWidget);
-    this.globalWrappers = state.facet(tagWrapper);
-    this.globalAttrs = state.facet(tagAttribute);
-    this.markShapes = state.facet(markShape);
+    this.tagShapes = state.facet(tagShape.reader);
+    this.globalWidgets = state.facet(tagWidget.reader);
+    this.globalWrappers = state.facet(tagWrapper.reader);
+    this.globalAttrs = state.facet(tagAttribute.reader);
+    this.markShapes = state.facet(markShape.reader);
     this.pos = state.doc.resolve(0);
-    this.rangeCursor = RangeSet.cursor([...decoSet.ranges.values()].flatMap(seekable));
+    this.rangeCursor = RangeSet.cursor([...decoSet.ranges.values()]);
     this.pointSets = [...decoSet.points.values()];
     this.pointCursor = PointSet.cursor(this.pointSets);
   }
@@ -346,7 +329,8 @@ export class DecoIterator {
     let started = inclusiveStart;
     let atomParent: Pos.Plot | undefined;
     for (let p: Pos.Plot | null = pos.parent; p; p = p.parent)
-      if (this.state.isAtom(p.node.type)) atomParent = p;
+      if (!p.node.isDoc && (this.state.isAtom(p.node.type) || this.hasAtomShape(p.before)))
+        atomParent = p;
 
     // Track points that may apply to the node at the start of the next range
     const pendingDeco: Decoration.Point[] = [];
@@ -369,8 +353,7 @@ export class DecoIterator {
         if (started) this.widgets(node.tag, WidgetPlace.Before, walker);
         else started = true;
         const hasPending = pendingPos == pos && !node.isText;
-        let shape =
-          hasPending && pendingShape ? pendingShape : this.tagShape(node.tag, iter.active);
+        let shape = this.tagShape(node.tag, iter.active, hasPending ? pendingShape : null);
         if (hasPending) for (const deco of pendingDeco) shape = applyDeco(shape, deco, node.tag);
         if (shape.hasContent) throw new Error("Leaf nodes shapes shouldn't have a content hole");
         walker.node(node, shape, this.nodeWrappers(node.tag, iter.active, true), undefined, pos);
@@ -380,31 +363,32 @@ export class DecoIterator {
         flushSkipped();
         if (started) this.widgets(node.tag, WidgetPlace.Before, walker);
         else started = true;
-        let shape =
-          pendingShape && pendingPos == pos ? pendingShape : this.tagShape(node.tag, iter.active);
+        let shape = this.tagShape(node.tag, iter.active, pendingPos == pos ? pendingShape : null);
         if (pendingPos == pos)
           for (const deco of pendingDeco) shape = applyDeco(shape, deco, node.tag);
         const wrappers = this.nodeWrappers(node.tag, iter.active, !shape.hasContent);
         const atom = !shape.hasContent;
         if (atom) {
           walker.node(node, shape, wrappers, pos + node.length > to ? to - pos : undefined, pos);
-        } else if (shape instanceof Elt && !walker.enter(node, shape, wrappers, pos)) {
-          skipped = node.tag;
-          return false;
+        } else {
+          if (shape instanceof Elt && !walker.enter(node, shape, wrappers, pos)) {
+            skipped = node.tag;
+            return false;
+          }
+          this.widgets(node.tag, WidgetPlace.Start, walker);
         }
-        this.widgets(node.tag, WidgetPlace.Start, walker);
         return !atom;
       },
       leavePlot: (tag) => {
         flushSkipped();
-        if (started) this.widgets(tag, WidgetPlace.End, walker);
+        if (started && !atomParent) this.widgets(tag, WidgetPlace.End, walker);
         else started = true;
         walker.leave();
         this.widgets(tag, WidgetPlace.After, walker);
       },
     };
 
-    if (inclusiveStart) {
+    if (inclusiveStart && !atomParent) {
       const before = pos.nodeBefore;
       if (before) this.widgets(before.tag, WidgetPlace.After, walker);
       else this.widgets(pos.parent.node.tag, WidgetPlace.Start, walker);
@@ -416,8 +400,10 @@ export class DecoIterator {
         const done = atomParent.after <= to;
         walker.nodePart(atomParent.node, end - pos.pos, done);
         pos = pos.advance(end - pos.pos);
-        if (done) this.widgets(atomParent.node.tag, WidgetPlace.After, walker);
-        atomParent = undefined;
+        if (done) {
+          this.widgets(atomParent.node.tag, WidgetPlace.After, walker);
+          atomParent = undefined;
+        }
         while (iter.point && iter.from < end) iter.next();
       } else if (iter.point) {
         // Inside a plot the walk went past.
@@ -462,10 +448,9 @@ export class DecoIterator {
     this.pos = pos;
   }
 
-  tagShape(tag: Node.Tag, active: readonly Decoration.Range[]) {
+  tagShape(tag: Node.Tag, active: readonly Decoration.Range[], fromPoint: Decoration.Shape | null) {
     const { AttributeRangeDecoration } = getDecorationInternals();
-    const override = this.tagShapes.get(tag.type);
-    let shape = override ? override(tag) : baseTagShape(tag);
+    let shape = fromPoint ?? this.tagShapes.get(tag.type)?.(tag) ?? baseTagShape(tag);
     if (tag.marks.length) shape = addMarkAttributes(this.markShapes, shape, tag);
     let add: string[] | undefined;
     for (const src of this.globalAttrs)
@@ -493,6 +478,20 @@ export class DecoIterator {
       else shape = attributeWidget(shape, add, tag.type.isBlock ? "div" : "span");
     }
     return shape;
+  }
+
+  atomCache = new Map<number, boolean>();
+
+  hasAtomShape(pos: number) {
+    const { ShapeDecoration } = getDecorationInternals();
+    let has = this.atomCache.get(pos);
+    if (has === undefined) {
+      has = this.pointSets.some((set) =>
+        set.at(pos, (deco) => deco instanceof ShapeDecoration && !deco.shape.hasContent)
+      );
+      this.atomCache.set(pos, has);
+    }
+    return has;
   }
 }
 

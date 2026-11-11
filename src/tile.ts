@@ -1,6 +1,7 @@
 // Takes the role of Wordgard's DocTile (src/editor/tile.ts in its repo): the tiles are built over
 // React's DOM, as react-prosemirror's view descriptions are. Native widgets' DOM is placed here,
-// following Wordgard's ContentUpdate (`setUneditable` is copied from it).
+// following Wordgard's ContentUpdate (`setUneditable` and `ensureBlockSeparators` are copied from
+// it, as of 0.7.0).
 import { type ReactElement, createElement } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
@@ -37,6 +38,7 @@ import {
   type ChildView,
   type Layout,
   type NodeView,
+  VOID,
   iterDeco,
   sameNodeView,
   uneditable,
@@ -80,8 +82,8 @@ type Laid = { state: GardState; decoSet: DecoSet; views: readonly ChildView[] };
 // `revert` handing React back the last one committed, `last` is what was last
 // rendered (for the portal to mount).
 // `rendered` records what React committed into text nodes and wrapper
-// elements, `layouts` each plot's content as last laid out, and `composition`
-// the last render's composition.
+// elements, `layouts` each plot's content as last laid out, `atoms` the plots
+// last drawn as atoms, and `composition` the last render's composition.
 const roots = new WeakMap<
   Element,
   {
@@ -93,6 +95,7 @@ const roots = new WeakMap<
     store: RenderStore;
     rendered: Rendered;
     layouts: WeakMap<Plot, Layout>;
+    atoms: WeakSet<Plot>;
     composition: CompositionView | null;
     // An error React threw rendering the document, and how many it threw: the
     // next render mounts the document anew.
@@ -176,6 +179,7 @@ const childCursor = (dom: Element, chrome: ReadonlySet<Node> = noChrome) => {
   let last: ChildNode | null = null;
   let widgets = false;
   const order: ChildNode[] = [];
+  const trailing: ChildNode[] = [];
   const after = () => (last ? last.nextSibling : dom.firstChild);
   return {
     // Whether `skip` may be used: with widget DOM among the children, which
@@ -205,6 +209,18 @@ const childCursor = (dom: Element, chrome: ReadonlySet<Node> = noChrome) => {
       widgets = true;
       order.push(node);
     },
+    // Places widget DOM before `ref`, a node already handed out or placed, or
+    // last, after any chrome.
+    insert: (node: ChildNode, ref: ChildNode | null) => {
+      widgets = true;
+      if (!ref) {
+        trailing.push(node);
+        return;
+      }
+      const at = order.indexOf(ref);
+      if (at < 0) throw new Error("Widget DOM placed before a node not handed out");
+      order.splice(at, 0, node);
+    },
     // Checks React drew no more, puts the widget DOM in place and returns what
     // the element no longer holds.
     done: () => {
@@ -216,6 +232,7 @@ const childCursor = (dom: Element, chrome: ReadonlySet<Node> = noChrome) => {
         if (!widgetDOM.has(child)) throw new Error("React's DOM has extra nodes");
         widgets = true;
       }
+      order.push(...trailing);
       if (!widgets) {
         holdsWidgets.delete(dom);
         return [];
@@ -315,16 +332,66 @@ const placeWidget = (tile: Tile, cursor: ChildCursor, context: BuildContext, fre
   return synced(tile);
 };
 
-// Wordgard's setUneditable. It wraps a text node in a <span> its sync then
-// takes the text back out of (docs/wordgard-upstream-bugs.md), so text is left
-// as it is here.
+// Wordgard's setUneditable, which since 0.7.0 marks only void elements
+// uneditable (docs/wordgard-upstream-bugs.md). It wraps a text node in a <span>
+// its sync then takes the text back out of, so text is left as it is here.
+// Returns whether the DOM is uneditable.
 const setUneditable = (dom: Element | Text) => {
-  if (
-    dom instanceof HTMLElement &&
-    dom.contentEditable == "inherit" &&
-    !/^(br|hr|img|input|wbr)$/i.test(dom.nodeName)
-  )
+  if (!(dom instanceof HTMLElement)) return false;
+  const cur = dom.contentEditable;
+  if (cur == "false") return true;
+  if (cur != "inherit" || !VOID.test(dom.nodeName)) return false;
+  dom.contentEditable = "false";
+  return true;
+};
+
+// The flag a widget's tile gets for its DOM, in editable content.
+const uneditableFlag = (widget: Widget, dom: Element | Text) =>
+  !widget.type.editable && setUneditable(dom) ? TileFlag.Uneditable : 0;
+
+// What React draws besides Wordgard's structure: uneditable, as 0.6.2's
+// setUneditable made a widget.
+const makeUneditable = (dom: Element) => {
+  if (dom instanceof HTMLElement && dom.contentEditable == "inherit" && !VOID.test(dom.nodeName))
     dom.contentEditable = "false";
+};
+
+// Wordgard's ensureBlockSeparators: an `<img class="wg-blockBuffer">` beside an
+// uneditable block at the start or end of a block plot's content, and between
+// two, so Chrome and Safari keep editing with the cursor there. One already
+// beside the block is used again.
+const addBlockSeparators = (tile: CompositeTile, cursor: ChildCursor, context: BuildContext) => {
+  const { WidgetTile } = getTileClasses();
+  const reusable = (node: ChildNode | null) =>
+    node instanceof Element &&
+    widgetDOM.has(node) &&
+    !context.taken.has(node) &&
+    node.wgTile instanceof WidgetTile &&
+    node.wgTile.widget == Widget.blockImg
+      ? node
+      : null;
+  const { children } = tile;
+  for (let i = 0, prev: Tile | null = null; ; i++) {
+    const next = i < children.length ? children[i] : null;
+    if (next?.isNodeInner) continue;
+    if (!next && !prev) break;
+    if (
+      (!next || (next.flags & TileFlag.Uneditable && !(next.flags & TileFlag.PointBefore))) &&
+      (!prev || (prev.flags & TileFlag.Uneditable && !(prev.flags & TileFlag.PointAfter)))
+    ) {
+      const ref = next ? next.dom : null;
+      const dom =
+        reusable(ref ? ref.previousSibling : tile.dom.lastChild) ??
+        Widget.blockImg.render(context.wg);
+      const flags = TileFlag.Point | TileFlag.PointAfter;
+      tile.putChild(synced(new WidgetTile(Widget.blockImg, null, flags, dom)), i++);
+      widgetDOM.add(dom);
+      context.taken.add(dom);
+      cursor.insert(dom, ref);
+    }
+    if (!next) break;
+    prev = next;
+  }
 };
 
 const pointSide = (side: number) =>
@@ -398,10 +465,13 @@ const addChildTiles = (
       if (isReactWidget(widget)) {
         const keep = (tile: WidgetTile) =>
           matching(tile) && widgetsAt(pool, context, pos).includes(tile);
-        const tile = reactWidgetTile(cursor.next(), context, keep, (dom) => {
-          if (!widget.type.editable) setUneditable(dom);
-          return new WidgetTile(widget, null, TileFlag.Point | side, dom);
-        });
+        const tile = reactWidgetTile(
+          cursor.next(),
+          context,
+          keep,
+          (dom) =>
+            new WidgetTile(widget, null, TileFlag.Point | side | uneditableFlag(widget, dom), dom)
+        );
         add(tile);
         continue;
       }
@@ -412,8 +482,8 @@ const addChildTiles = (
         continue;
       }
       const dom = widget.render(context.wg);
-      if (!widget.type.editable) setUneditable(dom);
-      const tile = new WidgetTile(widget, null, TileFlag.Point | side, dom);
+      const flags = TileFlag.Point | side | uneditableFlag(widget, dom);
+      const tile = new WidgetTile(widget, null, flags, dom);
       add(placeWidget(tile, cursor, context, true));
       continue;
     }
@@ -427,10 +497,13 @@ const addChildTiles = (
           const oldView = tileViews.get(old);
           return !!oldView && sameNodeView(oldView, view) && !redrawn(context.changes, pos);
         };
-        const tile = reactWidgetTile(cursor.next(), context, keep, (dom) => {
-          if (!shape.type.editable) setUneditable(dom);
-          return new WidgetTile(shape, tag, TileFlag.Atom, dom, node.length);
-        });
+        const tile = reactWidgetTile(
+          cursor.next(),
+          context,
+          keep,
+          (dom) =>
+            new WidgetTile(shape, tag, TileFlag.Atom | uneditableFlag(shape, dom), dom, node.length)
+        );
         tileViews.set(tile, view);
         add(tile);
         continue;
@@ -448,8 +521,8 @@ const addChildTiles = (
       }
       if (old) context.reused.set(old, Reused.DOM);
       const dom = old ? old.dom : shape.render(context.wg);
-      if (!shape.type.editable) setUneditable(dom);
-      const tile = new WidgetTile(shape, tag, TileFlag.Atom, dom, node.length);
+      const flags = TileFlag.Atom | uneditableFlag(shape, dom);
+      const tile = new WidgetTile(shape, tag, flags, dom, node.length);
       tileViews.set(tile, view);
       add(placeWidget(tile, cursor, context, true));
       continue;
@@ -501,6 +574,7 @@ const addChildTiles = (
       const tile = shapeTile(shape, tag, node.length, elementOf(dom, node.name), {
         inEditable: true,
         container: isContainer(node),
+        blocks: holdsBlocks(node),
         afterContent: 0,
         keepShape,
         fill,
@@ -515,8 +589,10 @@ const addChildTiles = (
       context.rendered.wrappers.set(element, keyAt(i));
       const wrapperKept = kept && !!element.wgTile;
       if (view.mark) {
-        const fill = (tile: CompositeTile, content: ChildCursor, contentKept: boolean) =>
+        const fill = (tile: CompositeTile, content: ChildCursor, contentKept: boolean) => {
           addChildTiles(tile, plot, view.children, content, context, pool, pos, contentKept);
+          if (holdsBlocks(plot)) addBlockSeparators(tile, content, context);
+        };
         const tile = reactMarkTile(view, view.mark, flags, element, context, fill, wrapperKept);
         markViews.set(tile, { view, plot });
         add(tile);
@@ -525,6 +601,7 @@ const addChildTiles = (
       const tile = EltTile.of(view.elt, null, flags, 0, element);
       const content = childCursor(element);
       addChildTiles(tile, plot, view.children, content, context, pool, pos, wrapperKept);
+      if (holdsBlocks(plot)) addBlockSeparators(tile, content, context);
       finish(content, context);
       tile.length = tile.children.reduce((length, ch) => length + ch.length, 0);
       add(synced(tile));
@@ -577,6 +654,8 @@ type ShapeContext = {
   // Whether the plot's content is blocks, beside which a React shape may draw
   // chrome in the content element.
   container: boolean;
+  // Whether its content is blocks, for block buffers (ensureHackNodes' test).
+  blocks: boolean;
   afterContent: number;
   keepShape: boolean;
   // Adds the plot's content tiles at the hole; `pool` knows what the element
@@ -597,17 +676,17 @@ const shapeTile = (
   if (isReactShape(shape) || isReactWrapper(shape))
     return reactShapeTile(shape, tag, length, dom, shapeContext);
   const attributed = attributedWidget(shape);
-  if (attributed) return attributedWidgetTile(attributed, tag, length, dom, shapeContext);
+  if (attributed) return attributedWidgetTile(attributed, shape, tag, length, dom, shapeContext);
   const { inEditable, afterContent, keepShape, fill, context } = shapeContext;
   const { EltTile, WidgetTile } = getTileClasses();
   const previous = dom.wgTile ?? null;
-  const { shape: elt, inEditable: inner } = uneditable(shape, inEditable);
+  const { shape: elt, inEditable: inner, flag } = uneditable(shape, inEditable);
   const flags = tag
     ? elt.hasContent
       ? 0
       : TileFlag.Atom
     : TileFlag.NodeInner | (elt.hasContent ? 0 : TileFlag.Point);
-  const tile = EltTile.of(elt, tag, flags | afterContent, tag ? length : 0, dom);
+  const tile = EltTile.of(elt, tag, flags | flag | afterContent, tag ? length : 0, dom);
   const cursor = childCursor(dom);
   let after = 0;
   for (const child of elt.children) {
@@ -626,10 +705,12 @@ const shapeTile = (
     } else if (isReactWidget(child)) {
       const flags = TileFlag.Point | TileFlag.NodeInner | after;
       const keep = (old: WidgetTile) => keepShape && old.isNodeInner && old.widget.eq(child);
-      const widget = reactWidgetTile(cursor.next(), context, keep, (dom) => {
-        if (inner && !child.type.editable) setUneditable(dom);
-        return new WidgetTile(child, null, flags, dom);
-      });
+      const widget = reactWidgetTile(
+        cursor.next(),
+        context,
+        keep,
+        (dom) => new WidgetTile(child, null, flags | (inner ? uneditableFlag(child, dom) : 0), dom)
+      );
       tile.addChild(widget);
     } else {
       // A widget in the shape: kept whole in a kept shape, else an equal one's
@@ -646,11 +727,13 @@ const shapeTile = (
       }
       if (old) context.reused.set(old, Reused.DOM);
       const dom = old ? old.dom : child.render(context.wg);
-      if (inner && !child.type.editable) setUneditable(dom);
-      const flags = TileFlag.Point | TileFlag.NodeInner | after;
+      const flags =
+        TileFlag.Point | TileFlag.NodeInner | after | (inner ? uneditableFlag(child, dom) : 0);
       tile.addChild(placeWidget(new WidgetTile(child, null, flags, dom), cursor, context, true));
     }
   }
+  if (tile.flags & TileFlag.PlotContent && shapeContext.blocks)
+    addBlockSeparators(tile, cursor, context);
   finish(cursor, context);
   // What `sync()` computes for tiles whose length follows their children.
   if (!(tile.flags & TileFlag.Atom))
@@ -660,20 +743,26 @@ const shapeTile = (
 
 // A React widget with the attributes Wordgard would wrap it in an element for:
 // the view draws the widget alone, its attributes as props.
+// Uneditable as Wordgard makes the element it wraps the widget in, not as it
+// makes the widget, which that element holds.
 const attributedWidgetTile = (
   widget: Widget,
+  wrapper: DecoElt,
   tag: DocNode.Tag | null,
   length: number,
   dom: Element,
   { inEditable, afterContent, keepShape, context }: ShapeContext
 ): Tile => {
   const { WidgetTile } = getTileClasses();
-  const flags = (tag ? TileFlag.Atom : TileFlag.Point | TileFlag.NodeInner) | afterContent;
+  const { flag } = uneditable(wrapper, inEditable);
+  const flags = (tag ? TileFlag.Atom : TileFlag.Point | TileFlag.NodeInner) | afterContent | flag;
   const keep = (old: WidgetTile) => keepShape && old.widget.eq(widget);
-  return reactWidgetTile(dom, context, keep, (dom) => {
-    if (inEditable && !widget.type.editable) setUneditable(dom);
-    return new WidgetTile(widget, tag, flags, dom, tag ? length : 0);
-  });
+  return reactWidgetTile(
+    dom,
+    context,
+    keep,
+    (dom) => new WidgetTile(widget, tag, flags, dom, tag ? length : 0)
+  );
 };
 
 // What a React shape's component draws besides the content element and the
@@ -719,7 +808,7 @@ const ownTile = (
 
 const addChromeTile = (tile: CompositeTile, child: ChildNode, flags: number) => {
   if (!(child instanceof Element || child instanceof Text)) return;
-  if (child instanceof Element) setUneditable(child);
+  if (child instanceof Element) makeUneditable(child);
   const { WidgetTile } = getTileClasses();
   tile.addChild(synced(new WidgetTile(chrome, null, flags, child)));
 };
@@ -801,7 +890,7 @@ const reactShapeTile = (
   dom: Element,
   shapeContext: ShapeContext
 ): Tile => {
-  const { afterContent, container, fill, context } = shapeContext;
+  const { afterContent, container, blocks, fill, context } = shapeContext;
   const { EltTile, WidgetTile } = getTileClasses();
   const handle = shapeOfRoot(dom);
   const what = isReactWrapper(elt) ? "wrapper" : "shape";
@@ -822,8 +911,8 @@ const reactShapeTile = (
     );
   // A wrapper around an atom: uneditable, as Wordgard makes a shape without a
   // hole.
-  const { inEditable } = uneditable(elt, shapeContext.inEditable);
-  if (!inEditable && shapeContext.inEditable) setUneditable(dom);
+  const { inEditable, flag } = uneditable(elt, shapeContext.inEditable);
+  if (flag) makeUneditable(dom);
   // Content React remounted in another element: the widget DOM placed in the
   // old one, which React doesn't remove, comes out (to be reused from the
   // pool, or dropped), and the old content's widgets make the pool.
@@ -844,10 +933,13 @@ const reactShapeTile = (
     const flags = TileFlag.Point | TileFlag.NodeInner | after;
     const keep = (old: WidgetTile) =>
       shapeContext.keepShape && old.isNodeInner && old.widget.eq(child);
-    return reactWidgetTile(element, context, keep, (dom) => {
-      if (inEditable && !child.type.editable) setUneditable(dom);
-      return new WidgetTile(child, null, flags, dom);
-    });
+    return reactWidgetTile(
+      element,
+      context,
+      keep,
+      (dom) =>
+        new WidgetTile(child, null, flags | (inEditable ? uneditableFlag(child, dom) : 0), dom)
+    );
   };
   const addChrome = (tile: CompositeTile, child: ChildNode, after: number) =>
     addChromeTile(tile, child, TileFlag.Point | TileFlag.NodeInner | after);
@@ -874,6 +966,7 @@ const reactShapeTile = (
       const cursor = childCursor(element, new Set([...before, ...after]));
       fill(tile, cursor, widgetPool(moved ?? previous));
       for (const child of after) addChrome(tile, child, TileFlag.AfterContent);
+      if (blocks) addBlockSeparators(tile, cursor, context);
       finish(cursor, context);
     } else {
       let after = 0;
@@ -899,7 +992,7 @@ const reactShapeTile = (
   const hole = elt.hasContent;
   const innerFlags = TileFlag.NodeInner | (hole ? 0 : TileFlag.Point);
   const flags = tag ? (hole ? 0 : TileFlag.Atom) : innerFlags;
-  return build(dom, elt, tag, flags | afterContent);
+  return build(dom, elt, tag, flags | flag | afterContent);
 };
 
 // Takes the widget DOM under `tile` out of the page, unless it's in `keep`.
@@ -913,6 +1006,9 @@ const removeWidgetDOM = (tile: Tile, keep: Element) => {
 // A plot whose content is blocks: no text, so no browser edits in its content
 // element itself.
 const isContainer = (node: DocNode) => node.isPlot && !node.isTextblock && !node.isInline;
+
+// A plot whose content is blocks, which Wordgard puts block buffers in.
+const holdsBlocks = (node: DocNode) => node.isPlot && !node.inlineContent;
 
 // Whether a React shape's content is text, from the node its tile was built
 // for (records only come once it's built).
@@ -1068,6 +1164,7 @@ const layout = (
       store: entry.store,
       changes,
       layouts: entry.layouts,
+      atoms: entry.atoms,
       composition,
       composing,
       replaced,
@@ -1086,6 +1183,7 @@ const newEntry = (commit: Entry["commit"]): Entry => ({
   store: { keys: new WeakMap(), pending: new Map() },
   rendered: { texts: new WeakMap(), wrappers: new WeakMap() },
   layouts: new WeakMap(),
+  atoms: new WeakSet(),
   composition: null,
   error: null,
   failures: 0,
@@ -1109,7 +1207,7 @@ const docElement = (wg: Wordgard, entry: Entry, state: GardState, views: readonl
         { value: entry.store },
         createElement(
           NodeWrapperContext.Provider,
-          { value: state.facet(nodeWrappers) },
+          { value: state.facet(nodeWrappers.reader) },
           createElement(DocNodeView, { views })
         )
       )
@@ -1300,6 +1398,7 @@ export class ReactDocTile extends DocTile {
     // Wordgard's content element stays; React's children in it only in an
     // update (a mount draws them anew).
     addChildTiles(tile, state.doc, views, cursor, context, widgetPool(old), 0, !!changes && !!old);
+    if (holdsBlocks(state.doc)) addBlockSeparators(tile, cursor, context);
     finish(cursor, context);
     for (const stray of context.strays) if (!context.taken.has(stray)) stray.remove();
     // What the build itself moved (widget DOM, strays) isn't a shape's change.
@@ -1327,7 +1426,7 @@ export class ReactDocTile extends DocTile {
     // node whose wrappers changed, and an update would keep its old tiles.
     // Unchanged nodes keep their keys (mapKeys), so only wrapped ones remount.
     const changes =
-      this.state.facet(nodeWrappers) == state.facet(nodeWrappers)
+      this.state.facet(nodeWrappers.reader) == state.facet(nodeWrappers.reader)
         ? ranges
         : [this.state.doc.length, state.doc.length];
     const entry = rootOf(this.dom);
@@ -1452,6 +1551,7 @@ const rebuildShape = (old: Tile, wg: Wordgard) => {
   const tile = shapeTile(shape, tag, node.length, elementOf(old.dom, node.name), {
     inEditable: true,
     container: isContainer(node),
+    blocks: holdsBlocks(node),
     afterContent: 0,
     keepShape: true,
     fill,
@@ -1472,18 +1572,21 @@ const rebuildMark = (old: Tile, wg: Wordgard) => {
   const oldContent = markContents.get(old);
   const pos = old.posBefore;
   const fill = (tile: CompositeTile, cursor: ChildCursor) => {
-    if (oldContent && oldContent.dom == tile.dom) keepContent(oldContent, tile, cursor, context);
-    else
-      addChildTiles(
-        tile,
-        plot,
-        view.children,
-        cursor,
-        context,
-        widgetPool(oldContent ?? null),
-        pos,
-        false
-      );
+    if (oldContent && oldContent.dom == tile.dom) {
+      keepContent(oldContent, tile, cursor, context);
+      return;
+    }
+    addChildTiles(
+      tile,
+      plot,
+      view.children,
+      cursor,
+      context,
+      widgetPool(oldContent ?? null),
+      pos,
+      false
+    );
+    if (holdsBlocks(plot)) addBlockSeparators(tile, cursor, context);
   };
   const flags = old.flags & (TileFlag.Wrapper | TileFlag.Spanning);
   const tile = reactMarkTile(view, mark, flags, elementOf(old.dom, "a mark"), context, fill, false);

@@ -201,7 +201,7 @@ describe("React marks", () => {
         )
       ),
     });
-    const native = '<span class="native" contenteditable="false"></span>';
+    const native = '<span class="native"></span>';
     expect(wg.contentDOM.querySelector("a .text")?.innerHTML).toBe(`b${native}c`);
     expect(connected.native).toBe(1);
     control(wg).setBoxed(true);

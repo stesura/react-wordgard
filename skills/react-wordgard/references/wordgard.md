@@ -132,8 +132,10 @@ export const examples = (wg: Wordgard, pos: number, node: Node, target: number) 
 
 - **Extensions, not plugins.** The configuration is a tree of extensions (CodeMirror 6's system):
   facets (`GardState.Facet`), state fields, precedence (`GardState.prec.highest(…)`), and
-  compartments (`new GardState.Compartment()`, `.of(…)`, `.reconfigure(…)` in an effect) or
+  compartments (`GardState.Compartment.define()`, `.of(…)`, `.reconfigure(…)` in an effect) or
   `GardState.appendConfig` to change it later.
+- **Reading a facet:** `state.facet(SomeFacet.reader)`. 0.7.0's typings refuse
+  `state.facet(SomeFacet)` (it works at runtime).
 - **Plugin state** is a field: `GardState.Field.define({ create, update: (value, tr) => …, provide })`.
 - **Plugin views** are `Wordgard.Plugin.define((wg) => ({ update(update) {}, docUpdate(wg) {} }))`.
 - **Props** are facets: `Wordgard.domEventHandler(type, (event, wg) => handled)`,
@@ -185,5 +187,6 @@ export const examples = (wg: Wordgard, pos: number, node: Node, target: number) 
   keystroke.
 - **Drag-and-drop inside the editor rebuilds what it moves from HTML** (Wordgard 0.6): moved nodes
   are new objects, and whatever their HTML doesn't carry is lost.
-- **`Wordgard.label` names the outer element in 0.6.2**, not the textbox: use
-  `Wordgard.contentAttributes.of({ "aria-label": … })`.
+- **A non-`editable` widget's root gets `contenteditable="false"` only when it's a void
+  element** (0.7.0's `setUneditable`). The widget still can't be edited; set the attribute
+  yourself where a style or a script reads it.

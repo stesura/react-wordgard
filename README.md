@@ -69,8 +69,7 @@ The API stays as close to react-prosemirror's as Wordgard allows.
 npm install @stesura/react-wordgard wordgard react react-dom
 ```
 
-- `wordgard` 0.6.2 or a later 0.6 patch. A new minor (0.7) needs a react-wordgard release made
-  for it, as react-wordgard uses Wordgard's internals.
+- `wordgard` 0.7.0 exactly: react-wordgard uses Wordgard's internals, which any release can change.
 - `react` and `react-dom` 18 or 19.
 - Only one copy of `wordgard` in your app: `npm ls wordgard` should list one version. With two, the
   editor won't work.
@@ -118,7 +117,7 @@ export const Editor = () => {
         basicSchema(),
         image(),
         Decoration.Tag.shape(Image, ImageShape),
-        Wordgard.contentAttributes.of({ "aria-label": "Document" }),
+        Wordgard.label("Document"),
       ]}
     >
       <WordCount />
@@ -364,7 +363,10 @@ const config = [Decoration.Tag.widget(Paragraph, "start", Pilcrow.of("¶"))];
   another `element` (`createWidgetType({ component, element: "div" })`): Wordgard doesn't look at
   a widget's element, so it's the widget's choice. Or the component draws its root by hand, with
   the `ref` it gets (`forwardRef` on React 18), as a shape's can.
-- Widgets are uneditable unless their spec sets `editable`, as in Wordgard.
+- A widget whose spec doesn't set `editable` can't be edited, as in Wordgard. Its root is drawn
+  as Wordgard 0.7.0 draws it: only a void root (`img`, `br`, `hr`, `input`, `wbr`), or a widget
+  drawing a node with attributes (a selected one), gets `contenteditable="false"`. Set it yourself
+  where a style or a script reads it.
 - A widget can also draw a node, as Wordgard allows:
   `Decoration.Tag.shape(nodeType, (tag) => type.of(tag.param))`. `DecorationRoot` puts the node's
   attributes on its root (a root drawn by hand gets them as props). A React shape is the usual
@@ -1054,7 +1056,8 @@ type WidgetComponentProps<Param, E extends Element = HTMLElement> = Omit<
 ```
 
 A React widget's props: its `value`, and the attributes for its root: `contentEditable={false}`
-unless its type is `editable`, and, for a widget drawing a node, the node's attributes. A root
+for a void root unless its type is `editable`, and, for a widget drawing a node, the node's
+attributes. A root
 drawn by hand spreads them: set after React inserts the element, `contenteditable` can cost a
 style recalculation over the whole document (Chromium, with `:has()` rules on the page).
 

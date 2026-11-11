@@ -115,10 +115,11 @@ export const TileFlag = {
   Composition: 0x80,
   Synced: 0x100,
   Atom: 0x200,
-  HasContent: 0x400,
-  AfterContent: 0x800,
-  ContentNotLast: 0x1000,
-  Dirty: 0x2000,
+  Uneditable: 0x400,
+  HasContent: 0x800,
+  AfterContent: 0x1000,
+  ContentNotLast: 0x2000,
+  Dirty: 0x4000,
 } as const;
 
 // Wordgard's `Reused`, how a tile of the previous tree was used in the new one:
@@ -200,6 +201,8 @@ declare module "wordgard/editor" {
     const br: Widget<null>;
     // The `<img class="wg-buffer">` at the start and end of an inline plot.
     const img: Widget<null>;
+    // The `<img class="wg-blockBuffer">` between uneditable blocks.
+    const blockImg: Widget<null>;
     // Text inside a node's shape.
     const text: Widget.Type<string>;
     // A text node's own shape.

@@ -94,14 +94,9 @@ const installed = GardState.Facet.define<boolean, boolean>({
   combine: (values) => values.length > 0,
 });
 
-export const hasEditorEventHandlers = (state: GardState) => state.facet(installed);
-
-// Wordgard redoes its handlers only when its plugins change: this one makes
-// adding or dropping the handlers such a change.
-const refresh = Wordgard.Plugin.define(() => ({}));
+export const hasEditorEventHandlers = (state: GardState) => state.facet(installed.reader);
 
 export const editorEventHandlers = GardState.prec.highest([
   editorEvents.map(handler),
   installed.of(true),
-  refresh,
 ]);

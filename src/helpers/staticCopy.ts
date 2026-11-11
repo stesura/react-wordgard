@@ -11,7 +11,7 @@ const TRAILING_BREAK = "wg-trailing-break";
  * A copy of what an editor drew under `dom` (its content element, or a node's element), to lay out
  * as it does outside the editor: a header's copy on every page. It has no ids, which would repeat
  * the document's, and none of the editor's own: no `contenteditable`, no selection classes, none of
- * Wordgard's composition buffers. The `<br>`s Wordgard ends textblocks with get the class
+ * Wordgard's buffers. The `<br>`s Wordgard ends textblocks with get the class
  * `wg-trailing-break`, which only the editor's tiles tell from a line break's.
  */
 export const staticCopy = (dom: Element): Element => {
@@ -22,7 +22,7 @@ export const staticCopy = (dom: Element): Element => {
     const source = sources[i];
     if (source && isTrailingBreak(source)) br.classList.add(TRAILING_BREAK);
   });
-  copy.querySelectorAll("img.wg-buffer").forEach((buffer) => buffer.remove());
+  copy.querySelectorAll("img.wg-buffer, img.wg-blockBuffer").forEach((buffer) => buffer.remove());
   for (const element of [copy, ...copy.querySelectorAll("*")]) {
     element.removeAttribute("id");
     element.removeAttribute("contenteditable");

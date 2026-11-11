@@ -1,6 +1,7 @@
-// Typing at a gap cursor should insert a paragraph there. Chromium and WebKit don't reliably, on
-// plain Wordgard too (docs/wordgard-upstream-bugs.md, 12): too unsteady for `it.fails`, so asserted
-// in Firefox only.
+// Typing at a gap cursor should insert a paragraph there. Between editable blocks, Chromium and
+// WebKit don't reliably, on plain Wordgard too (docs/wordgard-upstream-bugs.md, 12): too unsteady
+// for `it.fails`, so asserted in Firefox only. Between uneditable ones, Wordgard 0.7.0's block
+// buffers keep the browsers editing.
 import { Wordgard } from "wordgard/editor";
 import { basicSchema, codeBlock, figure } from "wordgard/schema";
 import { server, userEvent } from "vitest/browser";
@@ -14,11 +15,13 @@ const cases = [
     name: "between two code blocks",
     doc: "<p>before</p><pre>one</pre><pre>two</pre><p>after</p>",
     typed: "before|one|h|two|after",
+    everywhere: false,
   },
   {
     name: "between two figures",
     doc: `<p>before</p><figure><img src="${src}"></figure><figure><img src="${src}"></figure><p>after</p>`,
     typed: "before|h|after",
+    everywhere: true,
   },
 ];
 
@@ -28,8 +31,8 @@ const works = server.browser == "firefox";
 
 describe("typing at a block-level cursor", () => {
   for (const [editor, Editor] of Object.entries(editors)) {
-    for (const { name, doc, typed } of cases) {
-      it.skipIf(!works)(`inserts a paragraph ${name}, on ${editor}`, async () => {
+    for (const { name, doc, typed, everywhere } of cases) {
+      it.skipIf(!works && !everywhere)(`inserts a paragraph ${name}, on ${editor}`, async () => {
         const wg = Editor.create({
           parent: document.body,
           doc,

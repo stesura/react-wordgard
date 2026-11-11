@@ -338,9 +338,7 @@ describe("React decoration hooks", () => {
 
   it("keep listening after the state is reconfigured", () => {
     const wg = create();
-    // With a plugin added: Wordgard redoes its handlers when its plugins change.
-    const plugin = Wordgard.Plugin.define(() => ({}));
-    wg.dispatch({ effects: GardState.reconfigure.of([config, plugin]) });
+    wg.dispatch({ effects: GardState.reconfigure.of(config) });
     wg.flush();
     // The handlers come back with a transaction of their own.
     wg.flush();

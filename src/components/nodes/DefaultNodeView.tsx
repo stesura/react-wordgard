@@ -55,7 +55,7 @@ const renderShape = (
       <WidgetView
         key={key}
         widget={widget}
-        attrs={shapeAttributes(shape)}
+        attrs={shapeAttributes(uneditable(shape, inEditable).shape)}
         selected={selected}
         outerRef={ref}
       />

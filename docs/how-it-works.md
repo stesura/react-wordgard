@@ -117,7 +117,10 @@ at once when something needs layout, `ensureFlushed`). Then:
 element-shaped mark, or the span carrying a text run's attribute-shaped marks; adjacent runs with
 equal attributes share one span, as in Wordgard). `TextNodeView` is a bare text node.
 `TrailingHackView` (`<br>`) and `SeparatorHackView` (`img.wg-buffer`) are Wordgard's `Widget.br` and
-`Widget.img`. Native widgets render nothing in React; the build puts their DOM in place.
+`Widget.img`. Native widgets render nothing in React; the build puts their DOM in place, and so
+its block buffers (`Widget.blockImg`, `img.wg-blockBuffer`): Wordgard puts one beside an uneditable
+block at either end of a block plot's content and between two (`ensureBlockSeparators`), which
+needs each tile's `Uneditable` flag, known only once the DOM exists.
 
 ## The browser's own edits and compositions
 
@@ -139,8 +142,10 @@ A **native widget** (`Widget.define`) is Wordgard's: its DOM comes from `render`
 (`widgetDOM`) and placed among React's nodes. A **React widget** (`createWidgetType`) is a real Wordgard
 `Widget.Type`, its `render` a placeholder (an empty span) only plain Wordgard draws; the React
 view draws its component instead, in the editor's tree, with the app's contexts. Its root element (the forwarded
-ref) is the widget's DOM. Widgets are uneditable, and Wordgard ignores mutations inside them, so a
-React widget re-renders freely; it must keep its root element. `useNodePos` reads its position
+ref) is the widget's DOM. Wordgard ignores mutations inside widgets, so a React widget
+re-renders freely; it must keep its root element. A non-`editable` widget's root is made
+uneditable as Wordgard's `setUneditable` does: since 0.7.0, only a void element (an upstream bug),
+which `WidgetView` sets before React inserts the root. `useNodePos` reads its position
 from its tile.
 
 A React widget drawing a node gets the node's attributes as props (the selected-node class, tag
@@ -314,7 +319,7 @@ React remounted the content, with its leftover widget DOM taken out first.
 | Keys from change sections, per parent plot. | No positions needed to render; kept plots keep keys for free. |
 | Lay out changed sections only; draw once at load. | Per-keystroke cost; Wordgard's first draw was wasted. |
 | Host the editor in the app's tree through a portal. | The app's contexts reach React widgets and shapes. |
-| Wordgard as a peer dependency, `~0.6.2`. | Two copies break Wordgard's `instanceof` checks; we use its internals. |
+| Wordgard as a peer dependency, exactly `0.7.0`. | Two copies break Wordgard's `instanceof` checks; we use its internals, which even a patch can change (react-prosemirror pins `prosemirror-view` exactly too). |
 | React shapes as `Elt`s registered by a reserved attribute on a real element. | Survives Wordgard's copies; keeps `target` selectors and the fallback valid. |
 | A React shape's root from its node type's own shape, per tag; `element` only for wrappers, marks and `Point.shape`. | Wordgard needs the tag before React draws, and the type already says it (a heading's per level); a mismatch logs in development. |
 | `DecorationRoot` draws a decoration's root from a context, a hand-written root still allowed. | The tag, the attributes and the ref can't be forgotten or wrong, and no `forwardRef` on React 18; a hand-written root keeps per-element typing and full control. |
@@ -328,7 +333,7 @@ React remounted the content, with its leftover widget DOM taken out first.
 All typed in `src/wordgardInternals.ts`, re-read after `npm run update-wordgard`: the tile classes
 (taken from a tree Wordgard builds), `TileFlag`, the decoration classes and facets, `DocTile.create`
 (swapped in the constructor), and, since React shapes, the `DOMObserver`'s `observer` and `queue`
-and `scheduleFlush`. A Wordgard release changing any of these can break us: the copied Wordgard
-tests (`test/wordgard/`, the `view` project runs them on `ReactWordgard`) and CI's newest-wordgard
-job are the alarm. The Wordgard changes that would remove some of this are the requests at the end of
+and `scheduleFlush`. A Wordgard release changing any of these can break us: the peer is pinned
+exactly, and the copied Wordgard tests (`test/wordgard/`, the `view` project runs them on
+`ReactWordgard`) are the alarm at `npm run update-wordgard`. The Wordgard changes that would remove some of this are the requests at the end of
 `docs/wordgard-upstream-bugs.md`.

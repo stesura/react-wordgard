@@ -8,7 +8,7 @@ import { isKept, pointMapper, samePlace, unchangedEnds } from "../changes.js";
 import type { CompositionView } from "../composition.js";
 import { type RenderStore, moveCell } from "../contexts/RenderStoreContext.js";
 import { childViewKeys, createNodeKey } from "../reactKeys.js";
-import type { DecoElt } from "../wordgardInternals.js";
+import { type DecoElt, TileFlag } from "../wordgardInternals.js";
 import {
   type DecoIterator,
   type DecoWalker,
@@ -99,21 +99,26 @@ const wrapperView = (elt: DecoElt, spanning: boolean, mark: Mark | undefined): W
 
 const sameMark = (a: Mark | undefined, b: Mark | undefined) => a == b || (!!a && !!b && a.eq(b));
 
+// The elements Wordgard doesn't give contenteditable="false" to an uneditable
+// element shape.
+export const VOID = /^(br|hr|img|input|wbr)$/i;
+
 // buildNodeShape's rule: in editable content, the outermost element without a
 // content hole becomes uneditable, unless it's a void element, and so does
-// what it holds.
+// what it holds. `flag` is the tile's Uneditable flag.
 export const uneditable = (shape: DecoElt, inEditable: boolean) => {
-  if (!inEditable || shape.hasContent) return { shape, inEditable };
-  if (
-    Attributes.get(shape.attrs, "contenteditable") == null &&
-    !/^(br|hr|img|input|wbr)$/i.test(shape.tagName)
-  )
+  if (!inEditable || shape.hasContent) return { shape, inEditable, flag: 0 };
+  const attr = Attributes.get(shape.attrs, "contenteditable");
+  let flag = attr == "false" ? TileFlag.Uneditable : 0;
+  if (attr == null && !VOID.test(shape.tagName)) {
     shape = Elt.create(
       shape.tagName,
       Attributes.merge(shape.attrs, ["contenteditable", "false"]),
       shape.children
     );
-  return { shape, inEditable: false };
+    flag = TileFlag.Uneditable;
+  }
+  return { shape, inEditable: false, flag };
 };
 
 // Whether React can skip a node view: it would draw the same thing.
@@ -294,6 +299,10 @@ export type LayoutContext = {
   changes: readonly number[] | null;
   // Each plot's content as last laid out, and where it started.
   layouts: WeakMap<Plot, Layout>;
+  // Plots last drawn as atoms (a point shape without a hole): their layouts
+  // and those inside them weren't kept up to date. Since 0.7.0, Wordgard's
+  // changes no longer redraw the whole plot when its atomicity changes.
+  atoms: WeakSet<Plot>;
   composition: CompositionView | null;
   // Plots down to the composition, now or in the last layout: laid out again.
   composing: ReadonlySet<Plot>;
@@ -369,18 +378,20 @@ const sources = (wrappers: readonly WrapperSource[]): WrapperView[] =>
   );
 
 // A plot's content, from position `start`, for plots whose shape has a hole.
+// `fresh` lays it out without its old layouts, and what it holds.
 export const iterDeco = (
   context: LayoutContext,
   plot: Plot,
   start: number,
-  parent: ParentStart = { start: 0, oldStart: 0 }
+  parent: ParentStart = { start: 0, oldStart: 0 },
+  fresh = false
 ): readonly ChildView[] => {
   const end = start + plot.contentLength;
   const oldStartOf = (layout: Layout | undefined) =>
     layout && parent.oldStart !== null ? parent.oldStart + layout.offset : null;
   // Kept only from the same place: a plot object can appear more than once.
   const fromLast = (layout: Layout | undefined) =>
-    layout?.pass == context.pass ? undefined : layout;
+    fresh || layout?.pass == context.pass ? undefined : layout;
   const previous = fromLast(context.layouts.get(plot));
   const previousStart = oldStartOf(previous);
   if (
@@ -420,7 +431,7 @@ export const iterDeco = (
   let to = end;
   for (let i = middle; i < content.length; i++) to -= content[i]?.length ?? 0;
   const views: ChildView[] = old && head ? old.views.slice(0, head) : [];
-  const plots: { view: NodeView; plot: Plot; pos: number }[] = [];
+  const plots: { view: NodeView; plot: Plot; pos: number; fresh: boolean }[] = [];
   // Where the walk is, for point widgets.
   let at = start;
   let keyAt: ReturnType<typeof pointKeys> | null = null;
@@ -447,7 +458,7 @@ export const iterDeco = (
     enter: (node, shape, wrappers, pos) => {
       const view = nodeView(node, shape, pos);
       wrapped(sources(wrappers)).push(view);
-      plots.push({ view, plot: node, pos });
+      plots.push({ view, plot: node, pos, fresh: fresh || context.atoms.delete(node) });
       at = pos + node.length;
       return false;
     },
@@ -456,8 +467,9 @@ export const iterDeco = (
       if (partial !== undefined)
         throw new Error(`react-wordgard can't render part of ${node.name}`);
       at = pos + node.length;
-      // Wordgard 0.6.2 can leave empty text leaves; React draws nothing for them
-      // (docs/wordgard-upstream-bugs.md).
+      if (node.isPlot) context.atoms.add(node);
+      // `Leaf.Text.of("")` still makes empty text leaves; React draws nothing for
+      // them (docs/wordgard-upstream-bugs.md).
       if (node.is(Leaf.Text) && !node.param) return;
       let target = wrapped(sources(wrappers));
       if (!node.is(Leaf.Text)) {
@@ -510,8 +522,8 @@ export const iterDeco = (
   } else {
     context.deco.walk(from, true, to, walker);
   }
-  for (const { view, plot, pos } of plots)
-    view.children = iterDeco(context, plot, pos + 1, { start, oldStart });
+  for (const { view, plot, pos, fresh } of plots)
+    view.children = iterDeco(context, plot, pos + 1, { start, oldStart }, fresh);
   if (old && tail) {
     views.push(...old.views.slice(old.views.length - tail));
     // The layouts inside moved with their plots.

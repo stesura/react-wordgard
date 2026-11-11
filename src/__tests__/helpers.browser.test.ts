@@ -1,8 +1,9 @@
 // The helpers reading what an editor drew: isTrailingBreak and staticCopy.
-import { Mark } from "wordgard/doc";
+import { Elt, Mark } from "wordgard/doc";
+import { Decoration } from "wordgard/editor";
 import { basicSchema, horizontalRule, lineBreak } from "wordgard/schema";
 import { GardSelection, GardState } from "wordgard/state";
-import { Paragraph } from "wordgard/types";
+import { HorizontalRule, Paragraph } from "wordgard/types";
 
 import { ReactWordgard } from "../ReactWordgard.js";
 import { staticCopy } from "../helpers/staticCopy.js";
@@ -48,6 +49,22 @@ describe("isTrailingBreak", () => {
 });
 
 describe("staticCopy", () => {
+  it("leaves out the block buffers beside uneditable blocks", () => {
+    const wg = ReactWordgard.create({
+      doc: "<hr><p>a</p>",
+      config: [
+        basicSchema(),
+        horizontalRule(),
+        Decoration.Tag.shape(HorizontalRule, Elt.mk("div", { class: "rule" })),
+      ],
+      parent: document.body,
+    });
+    editors.push(wg);
+    wg.flush();
+    expect(wg.contentDOM.querySelector("img.wg-blockBuffer")).not.toBeNull();
+    expect(staticCopy(wg.contentDOM).innerHTML).toBe('<div class="rule"></div><p>a</p>');
+  });
+
   it("copies what the editor drew, without ids or the editor's own attributes", () => {
     const wg = create('<p id="one">a<br></p><p></p><hr>');
     const hr = wg.state.doc.content[2];
@@ -60,7 +77,9 @@ describe("staticCopy", () => {
     expect(copy).not.toBe(wg.contentDOM);
     expect(copy.hasAttribute("contenteditable")).toBe(false);
     expect(
-      copy.querySelector("[id], [contenteditable], .wg-selected-node, img.wg-buffer")
+      copy.querySelector(
+        "[id], [contenteditable], .wg-selected-node, img.wg-buffer, img.wg-blockBuffer"
+      )
     ).toBeNull();
     expect(copy.querySelector("hr")?.hasAttribute("class")).toBe(false);
     expect(copy.innerHTML).toBe(

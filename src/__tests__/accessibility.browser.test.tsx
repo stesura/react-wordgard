@@ -42,13 +42,11 @@ const Picture = createWidgetType({
 
 const doc =
   '<h1>Title</h1><p>a <strong>b</strong> <a href="https://example.com">c</a> <img src="data:," alt="d"></p><blockquote><p>e</p></blockquote>';
-// The label on the content element, the textbox: `Wordgard.label` puts it on
-// the editor's outer element (docs/wordgard-upstream-bugs.md, 11).
 const plain: GardState.Extension = [
   basicSchema(),
   blockquote(),
   image(),
-  Wordgard.contentAttributes.of({ "aria-label": "Document" }),
+  Wordgard.label("Document"),
 ];
 const decorated: GardState.Extension = [
   plain,

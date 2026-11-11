@@ -40,7 +40,7 @@ npm run release:publish
 This step:
 
 1. starts the `check` workflow on the pushed commit and waits for it. That workflow runs on React 18
-   and 19 with the locked `wordgard`, and on React 18 with the newest `wordgard` in the peer range;
+   and 19 with the pinned `wordgard`;
 2. asks for confirmation, then runs `npm publish`. A published version can never be published
    again;
 3. tags `v<version>`, pushes the tag and creates the GitHub release from the changelog section;
@@ -53,9 +53,7 @@ Nothing is published or tagged. Fix the failure, commit and push, then run
 doesn't need to run again. If the fix changes what users see, edit that version's changelog
 section before pushing.
 
-To reproduce the React 19 job locally, run `npm run test:react19`. For the newest `wordgard` job,
-run `npm i --no-save "wordgard@<peer range>"` and `npm test`, then `npm i` to go back to the
-lockfile.
+To reproduce the React 19 job locally, run `npm run test:react19`.
 
 ## If something fails after `npm publish`
 

@@ -39,6 +39,7 @@ import {
 } from "wordgard/types";
 
 import { ReactWordgard } from "../ReactWordgard.js";
+import { type MarkComponentProps, createMarkShape } from "../decorations/ReactMarkType.js";
 import { createWidgetType, createWidgetTypeWithRender } from "../decorations/ReactWidgetType.js";
 import { isSilencedWarning } from "../helpers/props.js";
 import { useNodePos } from "../hooks/useNodePos.js";
@@ -106,8 +107,6 @@ const Nested = Plot.define("Nested", {
   parseRules: [{ selector: "span.nested", contentElement: "span.in", precedence: 10 }],
 });
 
-// Wordgard 0.6.2 draws a stray buffer after an inline atom, which React mirrors
-// (docs/wordgard-upstream-bugs.md).
 const InlineAtom = Plot.define("InlineAtom", {
   inline: true,
   inlineContent: true,
@@ -120,6 +119,20 @@ const Highlight = Mark.define("Highlight", {
   shape: { element: "mark" },
   target: DocNode.Group.Inline,
 });
+
+// Wordgard 0.7.0 disconnects the widgets in a node's shape kept through an
+// edit inside the node, and doesn't connect them again
+// (docs/wordgard-upstream-bugs.md). React's build leaves them connected.
+const withoutStrayDisconnect = (log: readonly string[]) => {
+  const stray = log.indexOf("disconnect quote");
+  return log.filter((_, i) => i != stray);
+};
+
+// A mark on rules, to put an element around blocks.
+const Boxed = Mark.define("Boxed", { shape: { element: "section" }, target: HorizontalRule });
+const BoxView = forwardRef<HTMLElement, MarkComponentProps<HTMLElement>>(({ children }, ref) =>
+  createElement("section", { ref }, children)
+);
 
 // Attributes React would get wrong through its own props handling.
 const Marker = Leaf.define("Marker", {
@@ -203,7 +216,7 @@ const decorated: Record<string, [string, GardState.Extension]> = {
       [Decoration.Point.shape(Elt.mk("span", { class: "shaped" })), 9]
     ),
   ],
-  // A set whose second layer holds overlapping ranges (docs/wordgard-upstream-bugs.md).
+  // Ranges over three layers, which a cursor seeks into.
   "overlapping ranges": [
     "<p>one</p><p>two</p><p>three</p><p>four</p>",
     rangeOver(
@@ -277,6 +290,16 @@ const decorated: Record<string, [string, GardState.Extension]> = {
     ],
   ],
   "SVG and MathML": [`<p>a<img src="${img}">b</p><hr>`, svgAndMath],
+  // Block buffers beside the uneditable rules, in the document and the quote.
+  "uneditable blocks": [
+    "<hr><hr><p>a</p><blockquote><hr></blockquote><hr>",
+    Decoration.Tag.shape(HorizontalRule, Elt.mk("div", { class: "rule" })),
+  ],
+  // A point shape without a hole draws the quote as an atom.
+  "atom point shapes": [
+    "<blockquote><p>ab</p></blockquote><p>c</p>",
+    pointAt([Decoration.Point.shape(Elt.mk("div", { class: "atom" })), 0]),
+  ],
   "React tag and point widgets": [
     "<p>abcd</p><h2>two</h2><p></p><p>ef</p>",
     [
@@ -353,6 +376,7 @@ const config = [
     Nested,
     InlineAtom,
     Highlight,
+    Boxed,
     Marker,
     Icon,
   ]),
@@ -529,8 +553,32 @@ describe("ReactDocTile", () => {
     const points = html("point decorations");
     for (const part of ['<p class="hl">', "<section><p>", 'class="shaped"'])
       expect(points).toContain(part);
+    expect(html("uneditable blocks")).toMatch(
+      /^<img class="wg-blockBuffer" alt=""><div class="rule" contenteditable="false"><\/div><img class="wg-blockBuffer" alt="">/
+    );
     const ranges = html("range decorations");
     for (const part of ['<mark class="r">', 'data-r="1"']) expect(ranges).toContain(part);
+  });
+
+  it("keeps a node's marks' wrappers and attributes on a point shape", () => {
+    const { wordgard, react } = both(
+      (schema) =>
+        schema.doc([
+          Paragraph.create([
+            Leaf.text("a"),
+            Image.of(img, [Strong, Color.of("red")]),
+            Leaf.text("b"),
+          ]),
+        ]),
+      pointAt([Decoration.Point.shape(Elt.mk("span", { class: "shaped" })), 2])
+    );
+    expect(react.contentDOM.innerHTML).toBe(
+      '<p>a<strong><span class="shaped" contenteditable="false" style="color: red"></span></strong>b</p>'
+    );
+    expect(react.contentDOM.innerHTML).toBe(wordgard.contentDOM.innerHTML);
+    expect(describeTile(docTileOf(react), react.contentDOM)).toEqual(
+      describeTile(docTileOf(wordgard), wordgard.contentDOM)
+    );
   });
 
   // A plot object can appear more than once; each copy is laid out where it is.
@@ -601,6 +649,91 @@ describe("ReactDocTile", () => {
       wg.dispatch({ changes });
       wg.flush();
     };
+
+    it("puts block buffers beside uneditable blocks as Wordgard does", () => {
+      const rule = Decoration.Tag.shape(HorizontalRule, Elt.mk("div", { class: "rule" }));
+      const { wordgard, react } = both("<hr><hr><p>a</p><blockquote><hr></blockquote><hr>", rule);
+      const steps: Transaction.Spec["changes"][] = [
+        { from: 4, insert: [Leaf.text("b")] },
+        { from: 2, to: 6 },
+        { from: 4, insert: [HorizontalRule] },
+        { from: 0, to: 1 },
+        { from: 0, insert: [Paragraph.create([Leaf.text("x")])] },
+        { from: 3, to: 4 },
+      ];
+      for (const changes of steps) {
+        for (const wg of [wordgard, react]) edit(wg, changes);
+        expect(react.contentDOM.innerHTML).toBe(wordgard.contentDOM.innerHTML);
+        expect(describeTile(docTileOf(react), react.contentDOM)).toEqual(
+          describeTile(docTileOf(wordgard), wordgard.contentDOM)
+        );
+      }
+    });
+
+    it("puts block buffers inside a React mark around uneditable blocks, as Wordgard does", () => {
+      const { wordgard, react } = both("<p>a</p><hr><hr><p>b</p>", [
+        Decoration.Tag.shape(HorizontalRule, Elt.mk("div", { class: "rule" })),
+        Decoration.Mark.shape(Boxed, createMarkShape(BoxView, { element: "section" })),
+      ]);
+      for (const wg of [wordgard, react]) edit(wg, { from: 3, to: 5, add: Boxed });
+      const rule = '<div class="rule" contenteditable="false"></div>';
+      const buffer = '<img class="wg-blockBuffer" alt="">';
+      expect(react.contentDOM.innerHTML).toContain(
+        `<section>${buffer}${rule}${buffer}${rule}${buffer}</section>`
+      );
+      // Plain Wordgard keeps the attribute marking a React mark's element.
+      const plain = wordgard.contentDOM.innerHTML.replace(/ data-wg-react="\w+"/g, "");
+      expect(react.contentDOM.innerHTML).toBe(plain);
+    });
+
+    it("redraws what changed in a plot while an atom point shape covered it", () => {
+      const set = Transaction.Effect.define<{ atom: boolean; range: boolean }>();
+      const field = GardState.Field.define({
+        create: () => ({ atom: false, range: false }),
+        update: (value: { atom: boolean; range: boolean }, tr: Transaction) =>
+          tr.effects.find((effect) => effect.is(set))?.value ?? value,
+      });
+      const atom = Decoration.Point.set([
+        [Decoration.Point.shape(Elt.mk("div", { class: "atom" })), 0],
+      ]);
+      const noPoints = Decoration.Point.set([]);
+      const range = Decoration.Range.set([[Decoration.Range.wrapper("mark", {}), 2, 4]]);
+      const noRanges = Decoration.Range.set([]);
+      const extra = [
+        field,
+        Decoration.Point.source.of((state) => (state.field(field).atom ? atom : noPoints)),
+        Decoration.Range.source.of((state) => (state.field(field).range ? range : noRanges)),
+      ];
+      const { wordgard, react } = both("<blockquote><p>ab</p></blockquote>", extra);
+      const steps = [
+        { atom: true, range: false },
+        { atom: true, range: true },
+        { atom: false, range: true },
+      ];
+      for (const value of steps) {
+        for (const wg of [wordgard, react]) {
+          wg.dispatch({ effects: set.of(value) });
+          wg.flush();
+        }
+        expect(react.contentDOM.innerHTML).toBe(wordgard.contentDOM.innerHTML);
+      }
+      expect(react.contentDOM.innerHTML).toContain("<mark>");
+    });
+
+    it("draws a plot an atom point shape covers as Wordgard does through edits inside it", () => {
+      const atom = pointAt([Decoration.Point.shape(Elt.mk("div", { class: "atom" })), 0]);
+      const { wordgard, react } = both("<blockquote><p>ab</p></blockquote><p>c</p>", atom);
+      for (const changes of [
+        { from: 3, insert: [Leaf.text("x")] },
+        { from: 2, to: 4 },
+      ]) {
+        for (const wg of [wordgard, react]) edit(wg, changes);
+        expect(react.contentDOM.innerHTML).toBe(wordgard.contentDOM.innerHTML);
+        expect(describeTile(docTileOf(react), react.contentDOM)).toEqual(
+          describeTile(docTileOf(wordgard), wordgard.contentDOM)
+        );
+      }
+    });
 
     it("keeps a paragraph's element and text node when typing in it", () => {
       const { react } = both("<p>abc</p><p>def</p>");
@@ -1038,7 +1171,7 @@ describe("ReactDocTile", () => {
 
   it("draws a textblock holding only an empty text leaf as an empty one", () => {
     const { react } = both("<p>ab</p>");
-    react.dispatch({ changes: { from: 1, to: 3, insert: [Leaf.text("")] } });
+    react.dispatch({ changes: { from: 1, to: 3, insert: [Leaf.Text.of("")] } });
     react.flush();
     const [p] = react.state.doc.content;
     expect(p?.isPlot && p.content.length).toBe(1);
@@ -1059,33 +1192,24 @@ describe("ReactDocTile", () => {
     expect(html(docs.figures)).toContain("<figcaption>a <em>caption</em></figcaption>");
     expect(html(docs["inline plots with nested content"])).toContain("</span></span><br></p>");
     expect(html(docs["inline atoms"])).toContain(
-      '<p>a<span class="atom" contenteditable="false"></span><img class="wg-buffer">b</p>'
+      '<p>a<span class="atom" contenteditable="false"></span>b</p>'
     );
     expect(html(docs["shape attributes"])).toContain('draggable="false" hidden=""');
     expect(html(docs["shape attributes"])).toContain('<td colspan="2" rowspan="2">');
     expect(html(docs["inline plots"])).toContain(
-      '<span class="chip"><img class="wg-buffer">chip <em>b</em><img class="wg-buffer"></span>'
+      '<span class="chip"><img class="wg-buffer" alt="">chip <em>b</em><img class="wg-buffer" alt=""></span>'
     );
   });
 
-  // Wordgard 0.6.2 leaves the point in the parent too, so its sync moves the
-  // buffer after the wrapper (docs/wordgard-upstream-bugs.md). React keeps it
-  // inside, as Wordgard intends.
-  it("moves the points a spanning wrapper continues over into it", () => {
-    const { react } = both('<p><mark>a<span class="atom">x</span>b</mark></p>');
-    expect(react.contentDOM.innerHTML).toBe(
-      '<p><mark>a<span class="atom" contenteditable="false"></span><img class="wg-buffer">b</mark></p>'
-    );
-    const buffer = react.contentDOM.querySelector("img.wg-buffer");
-    expect(buffer?.wgTile?.parent?.dom).toBe(react.contentDOM.querySelector("mark"));
-    const widget = both(
+  it("moves the points a spanning wrapper continues over into it, as Wordgard does", () => {
+    const { react, wordgard } = both(
       "<p><strong>ab</strong></p>",
       pointAt([Decoration.Point.widget(Label.of("w")), 2])
-    ).react.contentDOM;
-    expect(widget.innerHTML).toBe(
-      '<p><strong>a<span class="w" contenteditable="false">w</span>b</strong></p>'
     );
-    expect(widget.querySelector(".w")?.wgTile?.parent?.dom).toBe(widget.querySelector("strong"));
+    const dom = react.contentDOM;
+    expect(dom.innerHTML).toBe('<p><strong>a<span class="w">w</span>b</strong></p>');
+    expect(wordgard.contentDOM.innerHTML).toBe(dom.innerHTML);
+    expect(dom.querySelector(".w")?.wgTile?.parent?.dom).toBe(dom.querySelector("strong"));
   });
 
   describe("with widgets", () => {
@@ -1198,7 +1322,7 @@ describe("ReactDocTile", () => {
         wg.dom.parentElement?.remove();
         return log;
       };
-      expect(run(ReactWordgard.create)).toEqual(run(Wordgard.create));
+      expect(run(ReactWordgard.create)).toEqual(withoutStrayDisconnect(run(Wordgard.create)));
     });
   });
 
@@ -1458,7 +1582,7 @@ describe("ReactDocTile", () => {
         wg.dom.parentElement?.remove();
         return log;
       };
-      expect(run(ReactWordgard.create)).toEqual(run(Wordgard.create));
+      expect(run(ReactWordgard.create)).toEqual(withoutStrayDisconnect(run(Wordgard.create)));
     });
 
     it("leaves a React widget's events to its propagateEvent", () => {
@@ -1546,7 +1670,7 @@ describe("ReactDocTile", () => {
       const wg = mount(Wordgard.create, "<p>a</p>", [
         Decoration.Tag.widget(Paragraph, "start", Public.of("x")),
       ]);
-      expect(wg.contentDOM.innerHTML).toBe('<p><span contenteditable="false"></span>a</p>');
+      expect(wg.contentDOM.innerHTML).toBe("<p><span></span>a</p>");
     });
   });
 

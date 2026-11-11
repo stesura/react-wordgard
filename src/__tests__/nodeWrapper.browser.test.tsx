@@ -200,12 +200,12 @@ describe("Node wrappers", () => {
     const wrappers = GardState.Compartment.define();
     const wg = create({ config: config(wrappers.of(nodeWrapper(Blockquote, LeadWrapper))) });
     const quote = wg.contentDOM.querySelector("blockquote");
-    const before = wg.state.facet(nodeWrappers);
+    const before = wg.state.facet(nodeWrappers.reader);
     control(wg).setLead("2");
     wg.dispatch({ effects: wrappers.reconfigure(nodeWrapper(Blockquote, LeadWrapper)) });
     wg.flush();
     // The same value: no redraw of the whole document (ReactDocTile.updateRanges).
-    expect(wg.state.facet(nodeWrappers)).toBe(before);
+    expect(wg.state.facet(nodeWrappers.reader)).toBe(before);
     expect(wg.contentDOM.querySelector("blockquote")).toBe(quote);
     expect(quote?.getAttribute("data-lead")).toBe("2");
     expect(controls.get(wg)?.length).toBe(1);

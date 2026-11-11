@@ -10,6 +10,7 @@ import {
 } from "../contexts/DecorationContext.js";
 import { DecorationRootContext } from "../contexts/DecorationRootContext.js";
 import { drawWidget, widgetElement, widgetRoot } from "../decorations/ReactWidgetType.js";
+import { VOID } from "../decorations/iterDeco.js";
 import { componentProps, useAttrsRecord } from "../helpers/index.js";
 import { mergeRefs } from "../helpers/refs.js";
 
@@ -50,11 +51,13 @@ export const WidgetView = memo(
     const decoration = useMemo(() => ({ handlers, selected }), [handlers, selected]);
     const tagName = widgetElement(widget);
     const own = useAttrsRecord(attrs);
-    // A non-editable widget's root is drawn uneditable: React sets the attribute
-    // before it inserts the element. Set later (the tile's setUneditable), it costs
-    // a style invalidation over the document in Chromium when the page has
-    // `:has()` rules (Tailwind's `group-has-*`): quadratic over a document's widgets.
-    const uneditable = !widget.type.editable && !VOID.test(tagName);
+    // A non-editable widget's root is drawn as Wordgard's setUneditable leaves it
+    // (since 0.7.0, only a void element gets contenteditable="false":
+    // docs/wordgard-upstream-bugs.md), with React setting the attribute before
+    // it inserts the element. Set later, it costs a style invalidation over the
+    // document in Chromium when the page has `:has()` rules (Tailwind's
+    // `group-has-*`): quadratic over a document's widgets.
+    const uneditable = !widget.type.editable && VOID.test(tagName);
     const record = useMemo(
       () =>
         uneditable && !("contenteditable" in own) ? { ...own, contenteditable: "false" } : own,
@@ -80,9 +83,6 @@ export const WidgetView = memo(
 );
 
 const none: readonly string[] = [];
-
-// Elements Wordgard's setUneditable leaves editable.
-const VOID = /^(br|hr|img|input|wbr)$/i;
 
 const sameAttrs = (a: readonly string[], b: readonly string[]) =>
   a.length == b.length && a.every((value, i) => value == b[i]);

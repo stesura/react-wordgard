@@ -149,7 +149,7 @@ const config = [
   dropCursor(),
   calloutButton,
   insertImage,
-  Wordgard.contentAttributes.of({ "aria-label": "Demo document" }),
+  Wordgard.label("Demo document"),
   Decoration.Tag.shape(Callout, CalloutShape),
   Decoration.Tag.shape(Figure, (tag) =>
     ResizableFigure.of({ src: tag.param, alt: tag.mark(ImageAlt), width: tag.mark(ImageSize) })

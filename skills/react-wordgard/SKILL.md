@@ -27,11 +27,10 @@ editor, each against its ProseMirror counterpart, with the traps.
 npm install @stesura/react-wordgard wordgard react react-dom
 ```
 
-- Peers: `wordgard` `~0.6.2` (react-wordgard uses its internals: only its patches), React 18 or 19.
+- Peers: `wordgard` `0.7.0` exactly (react-wordgard uses its internals), React 18 or 19.
   The app must have **one copy** of `wordgard`, or Wordgard's `instanceof` checks fail.
 - TypeScript: Wordgard's typings need `skipLibCheck: true`.
-- Name the editor for screen readers with `Wordgard.contentAttributes.of({ "aria-label": "…" })`
-  in the config (`Wordgard.label` names the wrong element in 0.6.2).
+- Name the editor for screen readers with `Wordgard.label("…")` in the config.
 
 ## Hosting the editor
 
@@ -379,13 +378,15 @@ export const badges = [
 disconnect? })` returns a real `Widget.Type`: its widgets are `Type.of(value)`. The component
   gets `value`.
 - **Draw its root with `<DecorationRoot>`**: `element` (`span` by default), the ref,
-  `contentEditable={false}` unless the type is `editable`, and the node's attributes for a widget
-  drawing a node. Or by hand: any element, with the `ref` the component gets (`forwardRef` on
+  `contentEditable={false}` for a void root unless the type is `editable`, and the node's
+  attributes for a widget drawing a node. Or by hand: any element, with the `ref` the component gets (`forwardRef` on
   React 18), which it **must** put on its root, and its other props spread on it (without them,
   `contenteditable` is set after insertion: a style recalculation over the document in Chromium
   when the page has `:has()` rules).
-- Widgets are uneditable unless their spec sets `editable`, as in Wordgard. A React widget
-  re-renders freely while it keeps its root element.
+- Widgets can't be edited unless their spec sets `editable`, as in Wordgard. Wordgard 0.7.0 gives
+  the root `contenteditable="false"` only when it's a void element (`img`, `br`, `hr`, `input`,
+  `wbr`) or the widget draws a node with attributes: set it yourself where a style or a script
+  reads it. A React widget re-renders freely while it keeps its root element.
 - A widget drawing a node (`Decoration.Tag.shape(Type, (tag) => W.of(tag.param))`):
   `DecorationRoot` puts the node's attributes on its root; a root drawn by hand gets them as
   props, to spread. A React shape is the usual way to draw a node.

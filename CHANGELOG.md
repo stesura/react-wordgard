@@ -1,5 +1,11 @@
 ## Unreleased
 
+### Breaking changes
+
+react-wordgard now draws for `wordgard` 0.7.0, and its peer dependency is `0.7.0` exactly, where it allowed `~0.6.2`: react-wordgard uses Wordgard's internals, which any release can change.
+
+A non-editable widget's root, React's or not, gets `contenteditable="false"` only when it's a void element (`img`, `br`, `hr`, `input`, `wbr`), as Wordgard 0.7.0 draws widgets. A React widget drawing a node with attributes (a selected one, say) still gets it, as Wordgard makes the element it wraps such a widget in uneditable. Wordgard still keeps the others from being edited; set the attribute yourself where a style or a script reads it.
+
 ### New features
 
 `nodeWrapper(NodeType, component)` puts a component around every node of a type that renders no element of its own: its `children` is the node's drawing. It hands the node's shape data through a context and re-renders on its own without drawing the node again, where `createWrapper` draws an element. A reconfiguration that changes the wrappers draws the whole document again; one giving them again unchanged does nothing. Text can't be wrapped.
@@ -12,7 +18,13 @@
 
 ### Bug fixes
 
-A non-editable React widget's root is drawn with `contenteditable="false"` from the start, before React puts it in the page. It was set afterwards, and on a page with some `:has()` rules (Tailwind's `group-has-*` classes) Chromium then rechecked the whole document's style for each widget: a 350-page document with thousands of list labels took six minutes to load into a live editor, and now takes five seconds.
+An uneditable block at the start or end of a block's content, or next to another, gets an `<img class="wg-blockBuffer">` beside it, as in Wordgard 0.7.0, so Chrome and Safari keep editing when the cursor lands there.
+
+An inline atom no longer has a buffer image after it, and buffer images have an empty `alt`, as in Wordgard 0.7.0.
+
+A point decoration's shape keeps the attributes and wrappers of the node's marks and of tag and range decorations.
+
+A non-editable React widget's root that Wordgard makes uneditable is drawn with `contenteditable="false"` from the start, before React puts it in the page. It was set afterwards, and on a page with some `:has()` rules (Tailwind's `group-has-*` classes) Chromium then rechecked the whole document's style for each widget: a 350-page document with thousands of list labels took six minutes to load into a live editor, and now takes five seconds.
 
 A React shape, wrapper, mark or widget drawn again with the same attributes keeps its `DecorationRoot`'s context value. A node whose attributes come from a decoration got a new value each time something inside it changed, and React then rendered every `DecorationRoot` inside it: on React 19, a key typed in a section drawn by a React shape cost every paragraph in it.
 

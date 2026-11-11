@@ -105,12 +105,12 @@
     "typescript-eslint": "^8.72.1",
     "vite": "^8.3.5",
     "vitest": "^5.0.5",
-    "wordgard": "0.6.2"
+    "wordgard": "0.7.0"
   },
   "peerDependencies": {
     "react": ">=18 <20",
     "react-dom": ">=18 <20",
-    "wordgard": "~0.6.2"
+    "wordgard": "0.7.0"
   },
   "dependencies": {
     "use-sync-external-store": "^1.7.0"

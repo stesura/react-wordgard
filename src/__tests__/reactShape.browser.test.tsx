@@ -495,8 +495,7 @@ describe("React shapes", () => {
   it("moves the widgets of content React remounts, drawn and connected once", async () => {
     const wg = create({ doc: tableDoc, config: [tableConfig, cellWidgets] });
     const cell = () => wg.contentDOM.querySelector("td")?.innerHTML;
-    const widgets =
-      '<span class="native" contenteditable="false"></span><i class="react" contenteditable="false"></i>';
+    const widgets = '<span class="native"></span><i class="react"></i>';
     expect(cell()).toBe(`${widgets}a`);
     expect(connected.native).toBe(1);
     row(wg)(true);
@@ -1189,9 +1188,7 @@ describe("Chrome beside a textblock's text", () => {
 
   it("draws a tag widget from the shape's context, the text beside it", () => {
     const wg = create({ doc: "<p>ab</p>", config: lineConfig });
-    expect(wg.contentDOM.innerHTML).toBe(
-      '<p><span class="line" aria-hidden="true" contenteditable="false">1</span>ab</p>'
-    );
+    expect(wg.contentDOM.innerHTML).toBe('<p><span class="line" aria-hidden="true">1</span>ab</p>');
     expect(drawn(wg)).toEqual(fresh(wg));
   });
 
