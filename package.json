@@ -1,6 +1,6 @@
 {
   "name": "@stesura/react-wordgard",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "A React view for the Wordgard rich text editor",
   "keywords": [
     "react",
