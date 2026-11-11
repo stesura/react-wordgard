@@ -98,9 +98,11 @@ const roots = new WeakMap<
     atoms: WeakSet<Plot>;
     composition: CompositionView | null;
     // An error React threw rendering the document, and how many it threw: the
-    // next render mounts the document anew.
+    // next render mounts the document anew. `built` is the count the tiles
+    // were last built at: behind `failures`, React has unmounted their DOM.
     error: { thrown: unknown } | null;
     failures: number;
+    built: number;
   }
 >();
 
@@ -529,7 +531,10 @@ const addChildTiles = (
     }
     // In a kept element, a view laid out before, the same object, is one React
     // skipped (DefaultNodeView's memo): its DOM and tile are as they were.
-    const same = kept && cursor.canSkip && view.type == "node" ? viewTiles.get(view) : undefined;
+    // Not when React drew it anew, its old DOM gone: the document after an
+    // error, a node whose wrappers changed, content its shape moved.
+    const known = kept && cursor.canSkip && view.type == "node" ? viewTiles.get(view) : undefined;
+    const same = known?.dom.parentNode == parent.dom ? known : undefined;
     const dom = same ? same.dom : cursor.next();
     if (same) cursor.skip(same.dom);
     if (view.type == "text") {
@@ -1187,6 +1192,7 @@ const newEntry = (commit: Entry["commit"]): Entry => ({
   composition: null,
   error: null,
   failures: 0,
+  built: 0,
 });
 
 const docElement = (wg: Wordgard, entry: Entry, state: GardState, views: readonly ChildView[]) =>
@@ -1409,6 +1415,7 @@ export class ReactDocTile extends DocTile {
       if (old?.widgets) for (const child of old.children) child.disconnect(context.reused);
       for (const widget of context.toConnect) widget.connect();
     }
+    entry.built = entry.failures;
     return synced(tile);
   };
 
@@ -1432,9 +1439,25 @@ export class ReactDocTile extends DocTile {
     const entry = rootOf(this.dom);
     const editor = editorOf(wg);
     if (editor.measures.size) wg.scheduleDOMRead(editor.readMeasures);
+    // React unmounted the document on an error, which it reported: nothing of
+    // the last draw is left to restore or keep, so it's drawn as at first.
+    if (entry.built != entry.failures) {
+      entry.error = null;
+      checkRenderable(state.doc);
+      addFreshKeys(entry.store.keys, state.doc);
+      entry.store.pending.clear();
+      const views = layout(state, decoSet, null, entry, null, new WeakMap());
+      return ReactDocTile.render(state, this.dom, decoSet, views, {
+        wg,
+        old: this,
+        changes: null,
+        dirty: new Set(),
+      });
+    }
     const previous = entry.composition;
     if (keepsAll(changes) && !info && !previous) {
       flushSync(() => editor.publish(state));
+      throwRenderError(entry);
       // React decorations drawing from the state committed there, and no build
       // follows to take their changes.
       rebuildRoots(takeShapeChanges(wg), wg);

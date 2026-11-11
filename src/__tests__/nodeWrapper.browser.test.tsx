@@ -196,6 +196,23 @@ describe("Node wrappers", () => {
     expect(drawn(wg)).toEqual(fresh(wg));
   });
 
+  // An atom in the document keeps its view through the reconfiguration, while
+  // React draws it anew under its wrapper.
+  it("draw an atom again when a compartment gives it a wrapper or takes it away", () => {
+    const wrappers = GardState.Compartment.define();
+    const wg = create({
+      doc: "<p>a</p><hr><p>b</p>",
+      config: [basicSchema(), horizontalRule(), wrappers.of([])],
+    });
+    wg.dispatch({ effects: wrappers.reconfigure(nodeWrapper(HorizontalRule, LeadWrapper)) });
+    wg.flush();
+    expect(control(wg).getPos()).toBe(3);
+    expect(drawn(wg)).toEqual(fresh(wg));
+    wg.dispatch({ effects: wrappers.reconfigure([]) });
+    wg.flush();
+    expect(drawn(wg)).toEqual(fresh(wg));
+  });
+
   it("keep their value when a compartment is given the same wrappers, built again", () => {
     const wrappers = GardState.Compartment.define();
     const wg = create({ config: config(wrappers.of(nodeWrapper(Blockquote, LeadWrapper))) });

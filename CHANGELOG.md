@@ -28,6 +28,12 @@ A non-editable React widget's root that Wordgard makes uneditable is drawn with 
 
 A React shape, wrapper, mark or widget drawn again with the same attributes keeps its `DecorationRoot`'s context value. A node whose attributes come from a decoration got a new value each time something inside it changed, and React then rendered every `DecorationRoot` inside it: on React 19, a key typed in a section drawn by a React shape cost every paragraph in it.
 
+A React shape that moves its content to another element while the editor updates (from the editor's state, or its node's) gets its content's tiles over the new elements. They stayed over the ones React removed, so the selection and coordinates inside it were wrong.
+
+After a component threw while rendering, the next update draws the document again. It threw in turn ("must draw a DecorationRoot"), and the editor stayed broken. An error thrown when only the selection moved now comes out of the flush, as one thrown in any other update.
+
+A reconfiguration giving a node wrapper to an atom directly in the document (a horizontal rule), or taking it away, no longer throws "React's DOM is missing a node".
+
 ## 0.2.2 (2026-11-07)
 
 ### New features

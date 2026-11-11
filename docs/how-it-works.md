@@ -98,10 +98,14 @@ at once when something needs layout, `ensureFlushed`). Then:
    avoids: that's what chunking long lists would cut. If React couldn't commit (a flush from
    inside a React render or commit), the update is refused (`RefusedUpdate`): the cells, the
    store and the element go back, the cells' new views stay pending for the retry, and Wordgard
-   retries on its next frame.
+   retries on its next frame. If a component throws, the document's error boundary unmounts it and
+   the update throws that error; the next update lays out and builds the whole document as at
+   first, with nothing restored or kept (so does the one after a component threw on its own).
 9. **Build** (`ReactDocTile.build`): walk React's DOM alongside the views and build Wordgard's
    tiles over it (`addChildTiles`, `shapeTile`), the same tiles, flags and lengths Wordgard would
-   build. A node view that's the same object as before keeps its old tile without reading the DOM.
+   build. A node view that's the same object as before keeps its old tile, read no further than its
+   element's parent: React draws a kept view anew when a shape moves its content or the node's
+   wrappers change, and its old element is then out of the page.
    The build keys only lists holding text or wrappers (`childViewKeys`): a list of blocks needs
    none.
    Native widgets, which React doesn't draw, are rendered or reused here and put in place

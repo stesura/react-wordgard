@@ -27,6 +27,7 @@ import {
 } from "wordgard/types";
 
 import { ReactWordgard } from "../ReactWordgard.js";
+import { DecorationRoot } from "../components/DecorationRoot.js";
 import { type ShapeComponentProps, createShape } from "../decorations/ReactShapeType.js";
 import { type WidgetComponentProps, createWidgetType } from "../decorations/ReactWidgetType.js";
 import { type WrapperComponentProps, createWrapper } from "../decorations/ReactWrapperType.js";
@@ -489,6 +490,109 @@ describe("React shapes", () => {
     row(wg)(false);
     expect(flushKeeps(wg)).toBe(true);
     initial.exact = false;
+    expect(drawn(wg)).toEqual(fresh(wg));
+  });
+
+  // The content's nodes keep their views while React draws them anew: their
+  // old tiles are over elements it removed.
+  it("follows content React remounts in another element, from the editor state", () => {
+    const Boxed = ({ nodeProps, children }: ShapeComponentProps) => {
+      const boxed = useEditorStateSelector((state) => state.doc.content.length > 2);
+      return (
+        <DecorationRoot>
+          {boxed ? (
+            <div className="box" ref={nodeProps.contentDOMRef}>
+              {children}
+            </div>
+          ) : (
+            children
+          )}
+        </DecorationRoot>
+      );
+    };
+    const wg = create({
+      doc: "<blockquote><p>a</p><p>b</p></blockquote><p>c</p>",
+      config: [basicSchema(), blockquote(), Decoration.Tag.shape(Blockquote, createShape(Boxed))],
+    });
+    wg.dispatch({
+      changes: { from: wg.state.doc.length, insert: [Paragraph.create([Leaf.text("d")])] },
+    });
+    wg.flush();
+    expect(wg.contentDOM.querySelector(".box")?.textContent).toBe("ab");
+    expect(drawn(wg)).toEqual(fresh(wg));
+    typeInto(wg, textIn(wg, ".box p"), 1, "x");
+    wg.flush();
+    expect(String(wg.state.doc)).toContain("ax");
+    expect(drawn(wg)).toEqual(fresh(wg));
+  });
+
+  // React mounts the document anew after an error: the nodes that keep their
+  // views get tiles over the new elements.
+  it("draws the document again after a component threw in an update", () => {
+    const fail = { now: false };
+    const Fragile = ({ children }: ShapeComponentProps) => {
+      const length = useEditorStateSelector((state) => state.doc.length);
+      if (fail.now) throw new Error("boom");
+      return <DecorationRoot data-length={length}>{children}</DecorationRoot>;
+    };
+    const wg = create({
+      doc: "<p>a</p><blockquote><p>b</p></blockquote><p>c</p>",
+      config: [basicSchema(), blockquote(), Decoration.Tag.shape(Blockquote, createShape(Fragile))],
+    });
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    fail.now = true;
+    wg.dispatch({ changes: { from: 1, insert: [Leaf.text("x")] } });
+    expect(() => wg.flush()).toThrow("boom");
+    errors.mockRestore();
+    fail.now = false;
+    wg.dispatch({ changes: { from: 1, insert: [Leaf.text("y")] } });
+    wg.flush();
+    expect(wg.contentDOM.querySelector("p")?.textContent).toBe("yxa");
+    expect(drawn(wg)).toEqual(fresh(wg));
+  });
+
+  it("draws the document again after a component threw when only the selection moved", () => {
+    const fail = { now: false };
+    const Fragile = ({ children }: ShapeComponentProps) => {
+      const head = useEditorStateSelector((state) => state.selection.head);
+      if (fail.now) throw new Error("boom");
+      return <DecorationRoot data-head={head}>{children}</DecorationRoot>;
+    };
+    const wg = create({
+      doc: "<p>a</p><blockquote><p>b</p></blockquote>",
+      config: [basicSchema(), blockquote(), Decoration.Tag.shape(Blockquote, createShape(Fragile))],
+    });
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    fail.now = true;
+    wg.dispatch({ selection: { anchor: 2 } });
+    expect(() => wg.flush()).toThrow("boom");
+    errors.mockRestore();
+    fail.now = false;
+    wg.flush();
+    expect(wg.contentDOM.querySelector("blockquote")?.getAttribute("data-head")).toBe("2");
+    expect(drawn(wg)).toEqual(fresh(wg));
+  });
+
+  it("draws the document again after a component threw on its own", () => {
+    const control: { fail: (() => void) | null } = { fail: null };
+    const Fragile = ({ children }: ShapeComponentProps) => {
+      const [failed, setFailed] = useState(false);
+      useLayoutEffect(() => {
+        control.fail = () => flushSync(() => setFailed(true));
+      }, []);
+      if (failed) throw new Error("boom");
+      return <DecorationRoot>{children}</DecorationRoot>;
+    };
+    const wg = create({
+      doc: "<p>a</p><blockquote><p>b</p></blockquote>",
+      config: [basicSchema(), blockquote(), Decoration.Tag.shape(Blockquote, createShape(Fragile))],
+    });
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    control.fail?.();
+    errors.mockRestore();
+    expect(wg.contentDOM.querySelector("blockquote")).toBeNull();
+    wg.flush();
+    expect(wg.contentDOM.querySelector("blockquote")?.textContent).toBe("b");
     expect(drawn(wg)).toEqual(fresh(wg));
   });
 
