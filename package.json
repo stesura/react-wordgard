@@ -53,6 +53,7 @@
     "fix": "eslint --fix . && prettier --write .",
     "demo": "vite",
     "demo:preview": "vite build --outDir demo-dist && vite preview --outDir demo-dist",
+    "demo:vue": "vite --config vue/demo/vite.config.ts",
     "test": "vitest run",
     "test:unit": "vitest run --project unit",
     "test:browser": "vitest run --project browser",

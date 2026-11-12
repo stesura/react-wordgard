@@ -3,7 +3,7 @@ const published = "^src/(?!__tests__/|testing/)";
 
 // The view's core, which any framework's renderer draws for (tile.ts's Renderer): no React in it.
 const core = [
-  "^src/(tile|changes|composition|reactKeys|viewRoots|wordgardInternals|editorStore|renderStore|words)\\.ts$",
+  "^src/(RenderedWordgard|tile|changes|composition|reactKeys|viewRoots|wordgardInternals|editorStore|renderStore|words)\\.ts$",
   "^src/decorations/(iterDeco|DecoIterator|decorationHandlers|shapeType|widgetType|wrapperType|markType|nodeWrapperType)\\.ts$",
   "^src/contexts/editorEvents\\.ts$",
   "^src/helpers/elt\\.ts$",

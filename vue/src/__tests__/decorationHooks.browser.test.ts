@@ -1,6 +1,6 @@
 // Adapted from react-wordgard's decorationHooks.browser.test.tsx for Vue: the decoration
-// composables. useEditorEventListener's tests wait for it (Phase 4 of the Vue plan), and
-// useMergedDOMRefs has no Vue counterpart: Vue's roots take no forwarded ref.
+// composables, and useEditorEventListener in a decoration. useMergedDOMRefs has no Vue
+// counterpart: Vue's roots take no forwarded ref.
 import { defineComponent } from "vue";
 import { Elt, Leaf } from "wordgard/doc";
 import { Decoration, Wordgard } from "wordgard/editor";
@@ -17,6 +17,7 @@ import { createMarkShape } from "../decorations/VueMarkType.js";
 import { nodeWrapper } from "../decorations/VueNodeWrapper.js";
 import { createShape } from "../decorations/VueShapeType.js";
 import { createWidgetType } from "../decorations/VueWidgetType.js";
+import { useEditorEventListener } from "../hooks/useEditorEventListener.js";
 import { useIgnoreMutation } from "../hooks/useIgnoreMutation.js";
 import { useIsNodeSelected } from "../hooks/useIsNodeSelected.js";
 import { useNodePos } from "../hooks/useNodePos.js";
@@ -24,15 +25,16 @@ import { useSelectNode } from "../hooks/useSelectNode.js";
 import { useStopEvent } from "../hooks/useStopEvent.js";
 
 // What the components report and obey, reset after each test.
-const seen: { positions: Map<string, () => number>; selections: string[]; stopped: string[] } = {
-  positions: new Map(),
-  selections: [],
-  stopped: [],
-};
-const obey = { ignore: false, ignoreAll: false };
+const seen: {
+  positions: Map<string, () => number>;
+  selections: string[];
+  stopped: string[];
+  listened: string[];
+} = { positions: new Map(), selections: [], stopped: [], listened: [] };
+const obey = { ignore: false, handle: false, ignoreAll: false };
 
 // A quote: a tool button whose events Wordgard doesn't handle, a label it
-// does, the selection as an attribute.
+// does, the selection as an attribute, two keydown listeners.
 const QuoteView = defineComponent({
   props: ["nodeProps"],
   components: { NodeContent },
@@ -45,6 +47,13 @@ const QuoteView = defineComponent({
       () => seen.selections.push("select"),
       () => seen.selections.push("deselect")
     );
+    useEditorEventListener("keydown", (wg, event) => {
+      seen.listened.push(`first ${event.key} ${wg instanceof Wordgard}`);
+      return obey.handle;
+    });
+    useEditorEventListener("keydown", (_, event) => {
+      seen.listened.push(`second ${event.key}`);
+    });
     return { selected };
   },
   template: `
@@ -165,8 +174,9 @@ afterEach(() => {
   seen.positions.clear();
   seen.selections.length = 0;
   seen.stopped.length = 0;
+  seen.listened.length = 0;
   handled.length = 0;
-  Object.assign(obey, { ignore: false, ignoreAll: false });
+  Object.assign(obey, { ignore: false, handle: false, ignoreAll: false });
   mounts.picture = 0;
 });
 
@@ -309,6 +319,38 @@ describe("Vue decoration composables", () => {
     await Promise.resolve();
     inner.flush();
     expect(textIn(inner, "p").data).toBe("z");
+  });
+
+  it("keep listening after the state is reconfigured", () => {
+    const wg = create();
+    wg.dispatch({ effects: GardState.reconfigure.of(config) });
+    wg.flush();
+    // The handlers come back with a transaction of their own.
+    wg.flush();
+    fire(wg.contentDOM, keydown("q"));
+    expect(seen.listened).toEqual(["second q", "first q true"]);
+  });
+
+  it("run editor event listeners before Wordgard's handlers, the latest first", () => {
+    const wg = create();
+    const event = fire(wg.contentDOM, keydown("q"));
+    expect(seen.listened).toEqual(["second q", "first q true"]);
+    expect(handled).toEqual(["keydown q"]);
+    expect(event.defaultPrevented).toBe(false);
+    obey.handle = true;
+    const stopped = fire(wg.contentDOM, keydown("w"));
+    expect(handled).toEqual(["keydown q"]);
+    expect(stopped.defaultPrevented).toBe(true);
+  });
+
+  it("drop a component's listeners when it unmounts", () => {
+    const wg = create();
+    wg.dispatch({ changes: { from: 6, to: wg.state.doc.length } });
+    wg.flush();
+    expect(wg.contentDOM.querySelector("blockquote")).toBeNull();
+    fire(wg.contentDOM, keydown("q"));
+    expect(seen.listened).toEqual([]);
+    expect(handled).toEqual(["keydown q"]);
   });
 
   it("are refused outside a Vue decoration, a node wrapper's included", () => {

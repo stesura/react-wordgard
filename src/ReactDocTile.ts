@@ -23,7 +23,6 @@ import {
   type RendererContext,
   createDocTile,
   hostDocTile,
-  mountDocTile,
 } from "./tile.js";
 
 // The portal WordgardDoc draws a hosted editor's document through. Its layout
@@ -162,6 +161,4 @@ export class ReactDocTile extends RenderedDocTile {
   // WordgardDoc mounts its portal, which then calls `mount`.
   static host = (state: GardState, dom: Element, wg: Wordgard, mount: () => void) =>
     hostDocTile(ReactDocTile, reactPortal(mount), state, dom, wg);
-
-  static mount = mountDocTile;
 }

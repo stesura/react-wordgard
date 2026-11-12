@@ -19,7 +19,7 @@ the like) from `coordsAtPos`, in `useEditorEffect` or `useEditorLayoutEffect`.
 
 | File | Role |
 |---|---|
-| `src/ReactWordgard.ts` | The `Wordgard` subclass: React draws its first tree; its flush marks React's work and runs effects after it; it replaces Wordgard's `MutationObserver` (React shapes). |
+| `src/RenderedWordgard.ts`, `src/ReactWordgard.ts` | The `Wordgard` subclass, with no React: a framework draws its first tree; its flush marks the framework's work and runs effects after it; it replaces Wordgard's `MutationObserver` (React shapes). `ReactWordgard` extends it with React's doc tiles (vue-wordgard's `VueWordgard` with Vue's). |
 | `src/tile.ts` | `RenderedDocTile`, our `DocTile`, with no React: lays out, has a renderer commit, builds the tiles over the DOM it committed, restores what the browser edited, rebuilds React shapes. |
 | `src/ReactDocTile.ts` | React's renderer (`Renderer` in `tile.ts`): a root of its own or `WordgardDoc`'s portal, committing inside `flushSync`; `ReactDocTile`, the subclass `ReactWordgard` draws with. |
 | `src/decorations/iterDeco.ts` | The layout: what to draw for each plot's content, from Wordgard's decorations, keeping what didn't change. |
@@ -33,11 +33,11 @@ the like) from `coordsAtPos`, in `useEditorEffect` or `useEditorLayoutEffect`.
 | `src/editorStore.ts`, `src/contexts/EditorContext.ts`, `src/hooks/` | The state store, effects and measures the hooks use (no React), the context providing them. |
 | `src/renderStore.ts` | Each content element's React keys and node cells. |
 | `src/decorations/decorationHandlers.ts`, `src/contexts/DecorationContext.ts`, `src/contexts/editorEvents.ts` | What the node view hooks use: each React decoration's handlers and position (no React), the context giving them with its selection; the editor event listeners. |
-| `src/wordgardInternals.ts` | The only file typing Wordgard's internals (with two `@ts-expect-error` in `ReactWordgard.ts`). |
+| `src/wordgardInternals.ts` | The only file typing Wordgard's internals (with two `@ts-expect-error` in `RenderedWordgard.ts`). |
 
 ## Creating an editor
 
-Wordgard's constructor draws the document by calling `DocTile.create`. `ReactWordgard` swaps that
+Wordgard's constructor draws the document by calling `DocTile.create`. `ReactWordgard` (its base, `RenderedWordgard`) swaps that
 function for the length of `super()`, so the first draw is React's (`ReactDocTile.create`, or
 `ReactDocTile.host` for a hosted editor), then puts it back. It also withholds `parent` from the
 base constructor: connecting the editor makes Wordgard measure, which React's draw needed again.
@@ -60,7 +60,7 @@ Two ways to host it:
 A transaction is dispatched; Wordgard schedules a flush on the next animation frame (or runs one
 at once when something needs layout, `ensureFlushed`). Then:
 
-1. **`ReactWordgard.flush`** takes the DOM mutations still pending, sorts out React shapes'
+1. **`ReactWordgard.flush`** (`RenderedWordgard`'s) takes the DOM mutations still pending, sorts out React shapes'
    (below), rebuilds those shapes' tiles, sets `editor.flushing`, and calls Wordgard's flush.
 2. **Wordgard's flush** reads the selection, takes the DOM mutations its observer saw
    (`takeDirty`: the browser's own edits), and runs `runUpdate` inside `observer.ignore`, so the

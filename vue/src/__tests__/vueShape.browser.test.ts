@@ -637,7 +637,7 @@ describe("Vue shapes", () => {
 
   // React refuses an update from inside its render; Vue would patch the tree
   // it is patching.
-  it("refuses a flush from inside the document's components, and draws on the next one", async () => {
+  it("refuses a flush from inside a component, and draws on the next one", async () => {
     const probe = ref(false);
     const refused: string[] = [];
     const Probing = createShape(
@@ -665,7 +665,7 @@ describe("Vue shapes", () => {
     wg.dispatch({ changes: { from: 5, insert: [Leaf.text("x")] } });
     probe.value = true;
     await nextTick();
-    expect(refused).toEqual([expect.stringContaining("can't update from inside the document")]);
+    expect(refused).toEqual([expect.stringContaining("can't update from inside a Vue component")]);
     expect(quote?.getAttribute("data-probe")).toBe("true");
     probe.value = false;
     wg.flush();

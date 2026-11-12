@@ -29,12 +29,17 @@ const components = new WeakMap<Widget.Type<unknown>, { component: Component; ele
 const placeholder = () => document.createElement("span");
 
 /** A widget type whose widgets, `type.of(value)`, the component draws. */
-export const createWidgetType = <Param>({
+export const createWidgetType = <Param>(spec: WidgetTypeSpec<Param>): Widget.Type<Param> =>
+  createWidgetTypeWithRender({ ...spec, render: placeholder });
+
+// For the tests comparing VueWordgard with plain Wordgard, which draws
+// `render`.
+export const createWidgetTypeWithRender = <Param>({
   component,
   element = "span",
   ...spec
-}: WidgetTypeSpec<Param>): Widget.Type<Param> => {
-  const type = defineWidgetType<Param>({ ...spec, render: placeholder });
+}: WidgetTypeSpec<Param> & Pick<Widget.Spec<Param>, "render">): Widget.Type<Param> => {
+  const type = defineWidgetType<Param>(spec);
   components.set(type, { component, element });
   return type;
 };

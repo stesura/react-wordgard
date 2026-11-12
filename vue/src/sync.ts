@@ -2,8 +2,8 @@
 // component whose reactive state changed in a later job; the document's components that a flush
 // changes (a NodeContent given new content, a component reading the editor's state or what a
 // shape provides) must commit inside it, where Wordgard's DOM observer ignores mutations and the
-// tiles are built. A tracked component's scheduler also records it as pending, per editor (its app
-// context), and `flushUpdates` renders the pending ones at once, parents first, as Vue's own queue
+// tiles are built. A tracked component's scheduler also records it as pending, per document (its
+// app context), and `flushUpdates` renders the pending ones at once, parents first, as Vue's own queue
 // would; Vue's job then finds nothing to do. `effect.scheduler` and `instance.update` are
 // internal, though typed: Vue has no public way to render now.
 import {
@@ -12,16 +12,40 @@ import {
   type ComponentOptions,
   getCurrentInstance,
   onBeforeMount,
+  onUnmounted,
 } from "vue";
+
+import type { EditorValue } from "../../src/editorStore.js";
 
 const pending = new WeakMap<AppContext, Set<ComponentInternalInstance>>();
 const tracked = new WeakSet<ComponentInternalInstance>();
+// The documents' app contexts. A component outside them (a toolbar reading the
+// editor's state) renders when Vue schedules it, in the same tick.
+const documents = new WeakSet<AppContext>();
+
+export const syncContext = (context: AppContext) => {
+  documents.add(context);
+};
+
+/**
+ * What the calling component runs when the editor publishes a state: `update` at once in the
+ * document, where it commits inside the flush; elsewhere once the flush is done. The commit's
+ * render() runs Vue's pending callbacks: a watcher outside the document would run mid-flush, where
+ * a dispatch throws.
+ */
+export const onPublish = ({ afterFlush, cancel }: EditorValue, update: () => void) => {
+  const instance = getCurrentInstance();
+  if (instance && documents.has(instance.appContext)) return update;
+  onUnmounted(() => cancel(update));
+  return () => afterFlush(update);
+};
 
 // Once its render effect exists, which is after setup.
 const track = (instance: ComponentInternalInstance) => {
   if (tracked.has(instance)) return;
   tracked.add(instance);
   const { effect, appContext } = instance;
+  if (!documents.has(appContext)) return;
   const queue = effect.scheduler;
   effect.scheduler = () => {
     let set = pending.get(appContext);
