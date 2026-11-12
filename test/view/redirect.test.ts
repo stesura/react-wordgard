@@ -2,8 +2,8 @@
 // ReactWordgard editors, which would make `view` a second `browser`. Their
 // `Wordgard.DocTile` is then ReactWordgard's, i.e. ReactDocTile.
 // Not type-checked, since it imports the copies (.ts imports, upstream style).
-import { ReactWordgard } from "../../src/ReactWordgard.js";
-import { ReactDocTile } from "../../src/ReactDocTile.js";
+import { ReactWordgard } from "../../packages/react/src/ReactWordgard.js";
+import { ReactDocTile } from "../../packages/react/src/ReactDocTile.js";
 import { basicBuilders } from "../wordgard/schema.ts";
 import { tempEditor } from "../wordgard/tempview.ts";
 

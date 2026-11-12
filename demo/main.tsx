@@ -49,7 +49,7 @@ import {
   createWidgetType,
   useEditorEffect,
   useEditorStateSelector,
-} from "../src/index.js";
+} from "@stesura/react-wordgard";
 import { InsertImage, insertImage } from "./InsertImage.js";
 import { MentionMenu } from "./MentionMenu.js";
 import { TextMenu } from "./TextMenu.js";

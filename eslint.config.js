@@ -8,7 +8,7 @@ const { rules: reactHooksRules } = reactHooks.configs.flat.recommended;
 
 export default tseslint.config(
   // test/wordgard/ holds unchanged copies of Wordgard's tests.
-  { ignores: ["dist/", "demo-dist/", "test/wordgard/"] },
+  { ignores: ["**/dist/", "demo-dist/", "test/wordgard/"] },
   js.configs.recommended,
   tseslint.configs.recommended,
   {
@@ -40,7 +40,7 @@ export default tseslint.config(
   },
   // Vue's composables run once, in `setup`: React's rules don't apply.
   {
-    files: ["vue/**/*.ts"],
+    files: ["packages/vue/**/*.ts", "demo/vue/**/*.ts"],
     rules: Object.fromEntries(Object.keys(reactHooksRules).map((rule) => [rule, "off"])),
   },
   prettier

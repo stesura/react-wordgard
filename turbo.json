@@ -1,0 +1,24 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  // Every package's tsconfig extends the base; the views' tests import test/'s helpers.
+  "globalDependencies": ["tsconfig.base.json", "test/*.ts"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "!src/**/__tests__/**", "!src/testing/**"],
+      "outputs": ["dist/**"]
+    },
+    // No script anywhere: typecheck reads the packages it depends on from src (the
+    // "@stesura/source" condition), so it waits for no build, but its hash must change with them.
+    "transit": {
+      "dependsOn": ["^transit"]
+    },
+    "typecheck": {
+      "dependsOn": ["^transit"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    }
+  }
+}

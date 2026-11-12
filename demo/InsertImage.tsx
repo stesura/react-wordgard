@@ -8,7 +8,11 @@ import { ChangeSet, type Mark } from "wordgard/doc";
 import { GardSelection, GardState, Transaction } from "wordgard/state";
 import { Figure, ImageAlt } from "wordgard/types";
 
-import { useEditorEffect, useEditorEventCallback, useEditorStateSelector } from "../src/index.js";
+import {
+  useEditorEffect,
+  useEditorEventCallback,
+  useEditorStateSelector,
+} from "@stesura/react-wordgard";
 
 const setOpen = Transaction.Effect.define<boolean>();
 

@@ -1,7 +1,8 @@
-# How react-wordgard works (2026-11-03)
+# How react-wordgard and vue-wordgard work (2026-11-12)
 
-How the library draws Wordgard with React, end to end, and the decisions behind it. Keep this file
-in step when the design changes.
+How the libraries draw Wordgard with React and Vue, end to end, and the decisions behind it. Most of
+it is told for React, the first view; [Vue](#vue) says where Vue differs. Keep this file in step
+when the design changes.
 
 ## The idea in one paragraph
 
@@ -15,25 +16,47 @@ decoration taking a shape, a wrapper or a widget, plus marks, can be a React com
 app's React tree. Tooltips and panels aren't: an app positions its own popovers (Floating UI and
 the like) from `coordsAtPos`, in `useEditorEffect` or `useEditorLayoutEffect`.
 
+## The packages
+
+Three npm workspaces under `packages/`, released together at one version:
+
+- `core` (`@stesura/wordgard-view`): everything that doesn't depend on a framework: the
+  `Wordgard` subclass, the doc tile, the layout, the tile build, the decoration registrations,
+  the stores. A framework plugs in through a renderer (`Renderer` in `tile.ts`). Not for apps:
+  its API is what the views need, and changes with them.
+- `react` (`@stesura/react-wordgard`) and `vue` (`@stesura/vue-wordgard`): a renderer each, the
+  components it renders, the factories, the hooks or composables. Each depends on the core at its
+  exact version.
+
+The views reach the core through its entry (`core/src/index.ts`), as they will from npm. In the
+workspace, every package's `exports` lead with an `@stesura/source` condition pointing at its
+`src`, which TypeScript, Vite, Vitest and dependency-cruiser are given: types, tests, the demos and
+the benchmark run on the working tree, never on a build. tsup builds each package's `dist`
+(turbo orders the builds), at `npm pack`.
+
 ## The pieces
+
+Paths are under `packages/`.
 
 | File | Role |
 |---|---|
-| `src/RenderedWordgard.ts`, `src/ReactWordgard.ts` | The `Wordgard` subclass, with no React: a framework draws its first tree; its flush marks the framework's work and runs effects after it; it replaces Wordgard's `MutationObserver` (React shapes). `ReactWordgard` extends it with React's doc tiles (vue-wordgard's `VueWordgard` with Vue's). |
-| `src/tile.ts` | `RenderedDocTile`, our `DocTile`, with no React: lays out, has a renderer commit, builds the tiles over the DOM it committed, restores what the browser edited, rebuilds React shapes. |
-| `src/ReactDocTile.ts` | React's renderer (`Renderer` in `tile.ts`): a root of its own or `WordgardDoc`'s portal, committing inside `flushSync`; `ReactDocTile`, the subclass `ReactWordgard` draws with. |
-| `src/decorations/iterDeco.ts` | The layout: what to draw for each plot's content, from Wordgard's decorations, keeping what didn't change. |
-| `src/decorations/DecoIterator.ts` | A copy of Wordgard's decoration walker, which the layout drives. |
-| `src/changes.ts` | Helpers over Wordgard's change sections (kept, redrawn, replaced), indexed once per update. |
-| `src/reactKeys.ts` | React keys per plot's children, mapped through changes. |
-| `src/composition.ts` | Keeping an IME composition's text node alive through the flush. |
-| `src/components/` | What React renders: `DocNodeView`, `ChildNodeViews`, `DefaultNodeView`, `MarkView`, `TextNodeView`, `WidgetView`, `ShapeView`, `WrapperView`, `ReactMarkView`, the hack nodes; `WordgardEditor` and `WordgardDoc` host the editor. |
-| `src/decorations/widgetType.ts`, `shapeType.ts`, `wrapperType.ts`, `markType.ts` | What Wordgard sees of widgets, shapes, wrappers and marks a component draws: Wordgard widgets, `Elt`s and mark shapes registered by id, the handles of drawn shapes, `sortRecords`. No React. |
-| `src/decorations/ReactWidgetType.ts`, `ReactShapeType.ts`, `ReactWrapperType.ts`, `ReactMarkType.ts` | The factories (`createWidgetType`, `createShape`, …): React components registered under those ids. |
-| `src/editorStore.ts`, `src/contexts/EditorContext.ts`, `src/hooks/` | The state store, effects and measures the hooks use (no React), the context providing them. |
-| `src/renderStore.ts` | Each content element's React keys and node cells. |
-| `src/decorations/decorationHandlers.ts`, `src/contexts/DecorationContext.ts`, `src/contexts/editorEvents.ts` | What the node view hooks use: each React decoration's handlers and position (no React), the context giving them with its selection; the editor event listeners. |
-| `src/wordgardInternals.ts` | The only file typing Wordgard's internals (with two `@ts-expect-error` in `RenderedWordgard.ts`). |
+| `core/src/RenderedWordgard.ts`, `react/src/ReactWordgard.ts` | The `Wordgard` subclass, with no framework: a framework draws its first tree; its flush marks the framework's work and runs effects after it; it replaces Wordgard's `MutationObserver` (component shapes). `ReactWordgard` extends it with React's doc tiles, `VueWordgard` with Vue's. |
+| `core/src/tile.ts` | `RenderedDocTile`, our `DocTile`, with no framework: lays out, has a renderer commit, builds the tiles over the DOM it committed, restores what the browser edited, rebuilds component shapes. |
+| `react/src/ReactDocTile.ts` | React's renderer (`Renderer` in `tile.ts`): a root of its own or `WordgardDoc`'s portal, committing inside `flushSync`; `ReactDocTile`, the subclass `ReactWordgard` draws with. |
+| `core/src/decorations/iterDeco.ts` | The layout: what to draw for each plot's content, from Wordgard's decorations, keeping what didn't change. |
+| `core/src/decorations/DecoIterator.ts` | A copy of Wordgard's decoration walker, which the layout drives. |
+| `core/src/changes.ts` | Helpers over Wordgard's change sections (kept, redrawn, replaced), indexed once per update. |
+| `core/src/reactKeys.ts` | Keys per plot's children, mapped through changes (React's and Vue's). |
+| `core/src/composition.ts` | Keeping an IME composition's text node alive through the flush. |
+| `react/src/components/` | What React renders: `DocNodeView`, `ChildNodeViews`, `DefaultNodeView`, `MarkView`, `TextNodeView`, `WidgetView`, `ShapeView`, `WrapperView`, `ReactMarkView`, the hack nodes; `WordgardEditor` and `WordgardDoc` host the editor. |
+| `core/src/decorations/widgetType.ts`, `shapeType.ts`, `wrapperType.ts`, `markType.ts`, `nodeWrapperType.ts` | What Wordgard sees of widgets, shapes, wrappers and marks a component draws: Wordgard widgets, `Elt`s and mark shapes registered by id, the handles of drawn shapes, `sortRecords`; the node wrappers' facet. No framework. |
+| `react/src/decorations/ReactWidgetType.ts`, `ReactShapeType.ts`, `ReactWrapperType.ts`, `ReactMarkType.ts`, `ReactNodeWrapper.ts` | The factories (`createWidgetType`, `createShape`, …): React components registered under those ids. |
+| `core/src/editorStore.ts`, `react/src/contexts/EditorContext.ts`, `react/src/hooks/` | The state store, effects and measures the hooks use (no framework), the context providing them. |
+| `core/src/renderStore.ts` | Each content element's keys and node cells. |
+| `core/src/decorations/decorationHandlers.ts`, `react/src/contexts/DecorationContext.ts`, `core/src/contexts/editorEvents.ts` | What the node view hooks use: each component decoration's handlers and position (no framework), the context giving them with its selection; the editor event listeners. |
+| `core/src/words.ts`, `react/src/words.ts` | How the core's errors name the framework and what they advise, given by its renderer. |
+| `core/src/wordgardInternals.ts` | The only file typing Wordgard's internals (with two `@ts-expect-error` in `RenderedWordgard.ts`). |
+| `vue/src/` | vue-wordgard, the same pieces for Vue: [Vue](#vue). |
 
 ## Creating an editor
 
@@ -172,7 +195,7 @@ phase, on the same paint; `useEditorEventCallback` gives a stable callback.
 
 `useEditorEventListener` registers with the editor: `ReactWordgard` adds, at creation, a
 `Wordgard.domEventHandler` at the highest precedence for each of a fixed list of event types
-(`src/contexts/editorEvents.ts`; Wordgard has a handler per type, and handlers make its listeners
+(`core/src/contexts/editorEvents.ts`; Wordgard has a handler per type, and handlers make its listeners
 non-passive, so scroll-blocking events are left out), which runs the registered listeners, the
 latest first. A state taken from another ReactWordgard already has them: Wordgard keeps one copy
 of an extension. A `GardState.reconfigure` drops them; the next flush puts them back. The
@@ -197,7 +220,7 @@ whether its node is selected (`useIsNodeSelected`, `useSelectNode`), and the set
 ## React shapes
 
 A **React shape** (`createShape(component)`) is a real Wordgard `Elt`
-(`<blockquote data-wg-react="1">[0]`), registered as drawn by a component. Wordgard reasons about
+(`<blockquote data-wg-component="1">[0]`), registered as drawn by a component. Wordgard reasons about
 the `Elt` (whether the node is an atom, where its content goes, `target` selectors, merging
 attributes); React draws the component. The registration is a reserved attribute because Wordgard
 copies `Elt`s when it adds attributes or wraps them, and every copy keeps their attributes.
@@ -315,6 +338,59 @@ registers the same handle); when a mark's structure changes outside the flush, i
 rebuilt (`rebuildMark`), keeping the content's tiles or building them again from the views where
 React remounted the content, with its leftover widget DOM taken out first.
 
+## Vue
+
+vue-wordgard (`packages/vue/src/`) is the same design over the same core: `VueWordgard` extends
+`RenderedWordgard`, `VueDocTile` is Vue's renderer, and the components mirror React's
+(`DocNodeView`, `DefaultNodeView`, `ChildNodeViews`, `MarkView`, `ShapeView`, …). The tile build,
+the record sorting, the layout and the keys are the core's, unchanged. What differs comes from
+three things Vue does that React doesn't:
+
+- **Anchors.** Vue marks the ends of a fragment (several roots, a `<slot/>`, a list) with empty
+  text nodes, and a `v-if` with a comment. Wordgard reads positions by DOM child index and its
+  `sync()` removes nodes without a tile, so no anchor may sit among a content tile's children. So
+  child lists are functions returning vnodes, an element's own children, not components; every
+  component has one root; the document is drawn with `render()` into the content element, whose
+  `_vnode` (Vue's record of what it last drew there) is seeded with a vnode for the element itself,
+  so Vue patches its children as an element's, without a fragment's anchors. Users' components meet
+  the same rule: the content is a component, `NodeContent` (or `DecorationRoot content`), never a
+  `<slot/>`; `DecorationRoot`'s and `NodeContent`'s slots drop `v-if`'s comments and flatten
+  fragments; a content element or a mark's elements holding an anchor throws. In a shape's own
+  structure, a comment gets a chrome tile, as text and elements do.
+- **Commits come later.** Vue renders a component whose state changed in a later job, which would
+  commit outside the flush. `sync.ts` replaces the scheduler of each component in the document
+  (ours explicitly, the app's through a mixin on the document's app context) to record it, and the
+  renderer renders the recorded ones inside the flush, parents first (`instance.update()`), a child
+  its parent drew skipped. Per-node updates use the core's cells as React does: `DefaultNodeView`
+  holds its cell's view in a `shallowRef`, and `VueDocTile` calls `render()` only when the
+  document's list changed shape. A list isn't a component, so `drawList` gives Vue the same vnodes
+  again while a node's shape `Elt` and its list's shape are unchanged, and Vue's `patch` returns at
+  once on the same vnode (`vnode.memo` keeps Vue from cloning it), where React's memo skips.
+- **No error boundary, no render phase.** A flush forced from inside any Vue component (setup,
+  render, a hook) is refused with `RefusedUpdate` and drawn on the next frame, as React's from
+  inside a render or commit. An error a document component throws is logged and reported; the next
+  commit draws the content element empty, then the whole document.
+
+**Hosting.** `WordgardEditor` creates the editor (`VueWordgard.host`) and provides it.
+`WordgardDoc` draws a `div` and, in its `onMounted` (inside Vue's post-flush pass, where
+`render()` runs no other component's pending callbacks), renders the document into the content
+element, builds the tiles and appends the editor. The document's top components get an app context
+of their own (`documentContext`), inheriting the host app's and its provides chained under
+`WordgardDoc`'s, so `inject` reaches the app's. Components outside the document get a published
+state after the flush (`onPublish`), and render in Vue's next tick: same paint, not inside the
+editor's update.
+
+**Decorations.** The factories register the same `Elt`s, widget types and mark shapes as React's,
+with a Vue component. Wordgard's attributes fall through to the component's root (classes joined,
+styles merged, Wordgard's winning for the rest), so `DecorationRoot` only spares the tag. A wrapper
+draws what it wraps as `WrappedNode`, a node wrapper too (its root, so its attributes fall through
+to the node's root element: no `NodeRootProps`). Refs are set from directive hooks inside the
+patch: Vue sets template refs in a post-flush job, too late for the build.
+
+**Vue internals it relies on**, to re-check at every Vue update (the peer is `~3.5.45`):
+`container._vnode`, `instance.update()` and a component's `effect.scheduler`, `vnode.memo`, a
+component's `provides`, and the app context's `optionsCache`, `propsCache` and `emitsCache`.
+
 ## Decisions
 
 | Decision | Why |
@@ -334,14 +410,17 @@ React remounted the content, with its leftover widget DOM taken out first.
 | Chrome as uneditable widget tiles. | Wordgard's own model for a shape's elements around its hole. |
 | Replace Wordgard's `MutationObserver`; rebuild changed shapes from the records, no layout effect. | A component's own commits must never reach Wordgard as edits; a component re-rendering alone doesn't run its parent's effects. |
 | Hook event listeners run before keymaps (highest precedence). | As react-prosemirror's `handleDOMEvents`; Stesura needs keydown first. |
+| One repository, three packages: the core published on its own, the views pinning it exactly, all released at one version. | The core reaches Wordgard's internals for both views: one change runs both views' tests, and an app gets one copy of it. |
+| Vue's document drawn with `render()` into a content element whose `_vnode` is seeded, committed with `instance.update()` inside the flush. | No anchors among Wordgard's tiles; Vue would otherwise commit after the flush, read by Wordgard as edits. Both are Vue internals. |
+| Vue's content is a component (`NodeContent`), not a slot. | A slot puts anchors in the content element, beside the text. |
 
 ## What we depend on in Wordgard
 
-All typed in `src/wordgardInternals.ts`, re-read after `npm run update-wordgard`: the tile classes
+All typed in `packages/core/src/wordgardInternals.ts`, re-read after `npm run update-wordgard`: the tile classes
 (taken from a tree Wordgard builds), `TileFlag`, the decoration classes and facets, `DocTile.create`
 (swapped in the constructor), and, since React shapes, the `DOMObserver`'s `observer` and `queue`
 and `scheduleFlush`. A Wordgard release changing any of these can break us: the peer is pinned
 exactly, and the copied Wordgard tests (`test/wordgard/`, the `view` project runs them on
-`ReactWordgard`) are the alarm at `npm run update-wordgard`. Some of this would go if Wordgard
+`ReactWordgard`, and `view-vue` on `VueWordgard`) are the alarm at `npm run update-wordgard`. Some of this would go if Wordgard
 took the renderer from the subclass before its first draw, mapped positions over bare change
 sections publicly, or offered a renderer interface.

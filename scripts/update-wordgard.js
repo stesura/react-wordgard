@@ -1,5 +1,6 @@
-// Pins wordgard's development dependency and peer to its latest npm release,
-// exactly (we use its internals), then syncs test/wordgard/ to the matching tag.
+// Pins wordgard's development dependency and the packages' peers to its latest
+// npm release, exactly (we use its internals), then syncs test/wordgard/ to the
+// matching tag.
 import { execFileSync } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,8 +30,9 @@ if (!/^\d+\.\d+\.\d+$/.test(latest)) {
 }
 
 console.log(`Pinning wordgard ${latest}.`);
+// The peers first: npm refuses to install a wordgard a workspace's peer excludes.
+npm("pkg", "set", `peerDependencies.wordgard=${latest}`, "--workspaces");
 npm("install", "--save-dev", "--save-exact", `wordgard@${latest}`);
-npm("pkg", "set", `peerDependencies.wordgard=${latest}`);
 
 execFileSync(process.execPath, [join(root, "scripts", "sync-wordgard-tests.js")], {
   stdio: "inherit",

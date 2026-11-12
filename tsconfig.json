@@ -1,30 +1,6 @@
-/* Copyright (c) The New York Times Company */
 {
   "$schema": "https://json.schemastore.org/tsconfig",
-  "include": ["src", "vue", "demo", "test/*.ts", "*.ts"],
-  "compilerOptions": {
-    "lib": ["DOM", "ES2023", "DOM.Iterable"],
-    "target": "ES2022",
-    "noEmit": true,
-    /* Module Resolution Options */
-    "moduleResolution": "nodenext",
-    "module": "nodenext",
-    "resolveJsonModule": true,
-    "esModuleInterop": true,
-    /* Advanced Options */
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    /* Strict Type-Checking Options */
-    "strict": true,
-    "isolatedModules": true,
-    /* Additional Checks */
-    "noFallthroughCasesInSwitch": true,
-    "noImplicitReturns": true,
-    "noUncheckedIndexedAccess": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    /* "Classic" React JSX pragma */
-    "jsx": "react",
-    "types": ["node", "vite/client", "vitest/globals"]
-  }
+  "extends": "./tsconfig.base.json",
+  // The packages type-check themselves (turbo run typecheck); this is the rest.
+  "include": ["demo", "test/*.ts", "*.ts"]
 }

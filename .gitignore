@@ -1,8 +1,14 @@
 # Copyright (c) The New York Times Company
 
 # Compiled code
-/dist/
+dist/
 /demo-dist/
+
+# Turborepo's cache
+.turbo/
+
+# Copied in at pack time (scripts/copy-skill-reference.js)
+/packages/vue/skills/vue-wordgard/references/wordgard.md
 
 node_modules
 

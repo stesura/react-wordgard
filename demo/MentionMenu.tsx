@@ -9,7 +9,7 @@ import {
   useEditorEventCallback,
   useEditorEventListener,
   useEditorStateSelector,
-} from "../src/index.js";
+} from "@stesura/react-wordgard";
 import { Mention, people } from "./schema.js";
 import { useFloatingAt } from "./useFloatingAt.js";
 

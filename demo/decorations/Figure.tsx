@@ -12,7 +12,7 @@ import {
   useMergedDOMRefs,
   useNodePos,
   useStopEvent,
-} from "../../src/index.js";
+} from "@stesura/react-wordgard";
 
 export type FigureValue = { src: string; alt: string | undefined; width: number | undefined };
 

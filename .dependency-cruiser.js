@@ -1,30 +1,50 @@
-// The published code: `src/` without its tests and test helpers (tsconfig.build.json).
-const published = "^src/(?!__tests__/|testing/)";
+// The published code: each package's `src/` without its tests and test helpers (tsup's entry
+// reaches nothing else).
+const published = "^packages/[^/]+/src/(?!__tests__/|testing/)";
 
-// The view's core, which any framework's renderer draws for (tile.ts's Renderer): no React in it.
-const core = [
-  "^src/(RenderedWordgard|tile|changes|composition|reactKeys|viewRoots|wordgardInternals|editorStore|renderStore|words)\\.ts$",
-  "^src/decorations/(iterDeco|DecoIterator|decorationHandlers|shapeType|widgetType|wrapperType|markType|nodeWrapperType)\\.ts$",
-  "^src/contexts/editorEvents\\.ts$",
-  "^src/helpers/elt\\.ts$",
-];
+// The core, which any framework's renderer draws for (tile.ts's Renderer).
+const core = "^packages/core/src/";
+const frameworks = "^node_modules/(react|react-dom|use-sync-external-store|vue|@vue)/";
 
 /** @type {import('dependency-cruiser').IConfiguration} */
 export default {
   forbidden: [
     {
-      name: "core-not-to-react",
-      comment: "The core reaches React only through a renderer, which React's side gives it.",
+      name: "core-not-to-frameworks",
+      comment: "The core reaches a framework only through a renderer, which the view gives it.",
       severity: "error",
       from: { path: core },
-      to: { path: "^node_modules/(react|react-dom|use-sync-external-store)/", reachable: true },
+      to: { path: frameworks, reachable: true },
+    },
+    {
+      name: "core-not-to-views",
+      comment: "The views depend on the core, not the reverse.",
+      severity: "error",
+      from: { path: core },
+      to: { path: "^packages/(react|vue)/" },
     },
     {
       name: "vue-not-to-react",
       comment: "vue-wordgard uses the core, not React's side.",
       severity: "error",
-      from: { path: "^vue/" },
-      to: { path: "^node_modules/(react|react-dom|use-sync-external-store)/", reachable: true },
+      from: { path: "^packages/vue/" },
+      to: {
+        path: ["^node_modules/(react|react-dom|use-sync-external-store)/", "^packages/react/"],
+      },
+    },
+    {
+      name: "react-not-to-vue",
+      severity: "error",
+      from: { path: "^packages/react/" },
+      to: { path: ["^node_modules/(vue|@vue)/", "^packages/vue/"] },
+    },
+    {
+      name: "views-through-the-core-entry",
+      comment:
+        "A view reaches the core through its package entry, as it will from npm: the core is published apart.",
+      severity: "error",
+      from: { path: "^packages/(react|vue)/src/" },
+      to: { path: "^packages/core/src/", pathNot: "^packages/core/src/index\\.ts$" },
     },
     {
       name: "no-circular",
@@ -35,7 +55,7 @@ export default {
       to: {
         circular: true,
         viaOnly: { dependencyTypesNot: ["type-only"] },
-        viaNot: "^(src|vue/src)/components/ChildNodeViews\\.tsx?$",
+        viaNot: "^packages/(react|vue)/src/components/ChildNodeViews\\.tsx?$",
       },
     },
     {
@@ -80,18 +100,20 @@ export default {
       comment: "The published code can't import tests, test helpers, the demo or the benchmark.",
       severity: "error",
       from: { path: published },
-      to: { path: ["^src/(__tests__|testing)/", "^(test|demo|bench)/"] },
+      to: { path: ["^packages/[^/]+/src/(__tests__|testing)/", "^(test|demo|bench)/"] },
     },
   ],
   options: {
     doNotFollow: { path: "node_modules" },
     // Unchanged copies of Wordgard's tests, run by vite.config.ts.
-    exclude: { path: "^test/wordgard/" },
+    exclude: { path: ["^test/wordgard/", "^packages/[^/]+/dist/"] },
     tsConfig: { fileName: "tsconfig.json" },
     tsPreCompilationDeps: true,
+    // A package's imports may be listed in its package.json or the root's (the tools).
+    combinedDependencies: true,
     enhancedResolveOptions: {
       exportsFields: ["exports"],
-      conditionNames: ["import", "require", "node", "default", "types"],
+      conditionNames: ["@stesura/source", "import", "require", "node", "default", "types"],
       extensions: [".ts", ".tsx", ".js", ".cjs", ".mjs"],
     },
   },

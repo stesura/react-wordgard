@@ -2,7 +2,11 @@
 // the person while it's selected (click it, or move onto it).
 import React, { forwardRef } from "react";
 
-import { type WidgetComponentProps, createWidgetType, useIsNodeSelected } from "../../src/index.js";
+import {
+  type WidgetComponentProps,
+  createWidgetType,
+  useIsNodeSelected,
+} from "@stesura/react-wordgard";
 import { people } from "../schema.js";
 
 const MentionView = forwardRef<HTMLSpanElement, WidgetComponentProps<string, HTMLSpanElement>>(

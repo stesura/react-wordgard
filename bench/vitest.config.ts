@@ -6,6 +6,7 @@
 import react from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
 import { fileURLToPath } from "node:url";
+import { defaultClientConditions } from "vite";
 import { defineConfig } from "vitest/config";
 
 import { allocationsStart, allocationsStop } from "./allocations.js";
@@ -23,6 +24,8 @@ export default defineConfig(({ mode }) => {
     // Apart from the tests' cache, which holds React's development build.
     cacheDir: `node_modules/.vite-bench-${nodeEnv}`,
     plugins: [react()],
+    // The views from their src, as the tests.
+    resolve: { conditions: ["@stesura/source", ...defaultClientConditions] },
     define: {
       "process.env.NODE_ENV": JSON.stringify(nodeEnv),
       // Vue's bundler build asks for its feature flags.

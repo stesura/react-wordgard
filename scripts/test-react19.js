@@ -19,7 +19,9 @@ const npm = (...args) =>
 let failed = false;
 try {
   npm("install", "--no-save", "react@19", "react-dom@19", "@types/react@19", "@types/react-dom@19");
-  npm("run", "check:types");
+  // Not through turbo: its cache doesn't know React changed.
+  npm("run", "typecheck", "--workspaces");
+  npm("exec", "--", "tsc");
   npm("test");
 } catch {
   failed = true;

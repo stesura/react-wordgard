@@ -1,59 +1,31 @@
 {
-  "name": "@stesura/react-wordgard",
-  "version": "0.3.0",
-  "description": "A React view for the Wordgard rich text editor",
-  "keywords": [
-    "react",
-    "wordgard",
-    "rich-text",
-    "editor",
-    "contenteditable"
-  ],
-  "homepage": "https://github.com/stesura/react-wordgard#readme",
-  "bugs": {
-    "url": "https://github.com/stesura/react-wordgard/issues"
-  },
+  "name": "react-wordgard-monorepo",
+  "private": true,
+  "description": "react-wordgard and vue-wordgard, React and Vue views for the Wordgard rich text editor",
   "author": "Edoardo Caratti",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/stesura/react-wordgard.git"
   },
   "license": "MIT",
-  "publishConfig": {
-    "access": "public"
-  },
   "type": "module",
-  "sideEffects": false,
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    }
-  },
-  "files": [
-    "README.md",
-    "CHANGELOG.md",
-    "LICENSE.txt",
-    "THIRD_PARTY_LICENSES.txt",
-    "dist",
-    "skills"
+  "workspaces": [
+    "packages/*"
   ],
+  "packageManager": "npm@12.2.1",
   "scripts": {
-    "prebuild": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
-    "build": "tsc -p tsconfig.build.json",
-    "dev": "tsc -p tsconfig.build.json --watch",
+    "build": "turbo run build",
+    "dev": "turbo run dev",
     "check": "npm run check:types && npm run check:lint && npm run check:deps && npm run check:format",
-    "check:types": "tsc",
+    "check:types": "turbo run typecheck && tsc",
     "check:lint": "eslint .",
-    "check:deps": "depcruise src vue demo bench test scripts",
+    "check:deps": "depcruise packages demo bench test scripts",
     "check:format": "prettier --check .",
     "check:bench": "tsc -p bench",
     "fix": "eslint --fix . && prettier --write .",
     "demo": "vite",
     "demo:preview": "vite build --outDir demo-dist && vite preview --outDir demo-dist",
-    "demo:vue": "vite --config vue/demo/vite.config.ts",
+    "demo:vue": "vite --config demo/vue/vite.config.ts",
     "test": "vitest run",
     "test:unit": "vitest run --project unit",
     "test:browser": "vitest run --project browser",
@@ -68,12 +40,13 @@
     "sync-wordgard-tests": "node scripts/sync-wordgard-tests.js",
     "update-wordgard": "node scripts/update-wordgard.js",
     "release:prepare": "node scripts/release.js prepare",
-    "release:publish": "node scripts/release.js publish",
-    "prepack": "npm run build"
+    "release:publish": "node scripts/release.js publish"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@handlewithcare/react-prosemirror": "^3.2.11",
+    "@stesura/react-wordgard": "*",
+    "@stesura/vue-wordgard": "*",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.3.0",
     "@types/node": "^22.0.0",
@@ -102,20 +75,14 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-reconciler": "^0.29.2",
+    "tsup": "^8.5.1",
+    "turbo": "^2.11.7",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.72.1",
     "vite": "^8.3.5",
     "vitest": "^5.0.5",
-    "vue": "^3.5.45",
+    "vue": "~3.5.45",
     "wordgard": "0.7.0"
-  },
-  "peerDependencies": {
-    "react": ">=18 <20",
-    "react-dom": ">=18 <20",
-    "wordgard": "0.7.0"
-  },
-  "dependencies": {
-    "use-sync-external-store": "^1.7.0"
   },
   "devEngines": {
     "runtime": {

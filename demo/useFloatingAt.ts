@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { useEditorEffect } from "../src/index.js";
+import { useEditorEffect } from "@stesura/react-wordgard";
 
 export type Coords = { left: number; top: number; bottom: number };
 

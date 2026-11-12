@@ -1,5 +1,6 @@
-react-wordgard includes code from the projects below. Their copyright and
-license notices are reproduced here, as their licenses require.
+This repository (react-wordgard, vue-wordgard and their core) includes code from
+the projects below. Their copyright and license notices are reproduced here,
+as their licenses require.
 
 
 ================================================================================
@@ -8,9 +9,10 @@ https://github.com/handlewithcarecollective/react-prosemirror
 ================================================================================
 
 react-wordgard is derived from react-prosemirror, maintained by Handle with
-Care Collective and originally created at The New York Times Company. Files
-that came from it keep their "Copyright (c) The New York Times Company"
-headers.
+Care Collective and originally created at The New York Times Company, and so
+are the core (packages/core) and vue-wordgard (packages/vue), adapted from
+react-wordgard. Files that came from it keep their "Copyright (c) The New York
+Times Company" headers.
 
 react-prosemirror was released under the Apache License 2.0 until 2026-10-02
 (commit 1827d3a) and under the MIT License since then. Both notices follow.
@@ -62,11 +64,13 @@ https://wordgard.net
 ================================================================================
 
 test/wordgard/ holds copies of Wordgard's browser tests and their helpers;
-demo/main.tsx is adapted from Wordgard's demo (demo/demo.ts), and the
-IME emulation in src/__tests__/tile.browser.test.ts from its `compose` test
-helper (test/webtest-composition.ts). src/decorations/DecoIterator.ts copies
-Wordgard's decoration walker (src/editor/decoration.ts), with changes noted in
-the file. src/tile.ts copies `setUneditable` from Wordgard's tile tree
+demo/main.tsx is adapted from Wordgard's demo (demo/demo.ts), and so is
+demo/vue/main.ts, from demo/main.tsx. The IME emulation in
+packages/react/src/__tests__/tile.browser.test.ts is adapted from its
+`compose` test helper (test/webtest-composition.ts).
+packages/core/src/decorations/DecoIterator.ts copies Wordgard's decoration
+walker (src/editor/decoration.ts), with changes noted in the file.
+packages/core/src/tile.ts copies `setUneditable` from Wordgard's tile tree
 (src/editor/tile.ts) and follows its tile builder there.
 
 MIT License

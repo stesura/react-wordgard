@@ -34,9 +34,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Pages serves the site under /react-wordgard/.
-      - name: Build the demo
-        run: npx vite build --base /react-wordgard/ --outDir demo-dist
+      # Pages serves the site under /react-wordgard/, the Vue demo under /react-wordgard/vue/.
+      - name: Build the demos
+        run: |
+          npx vite build --base /react-wordgard/ --outDir demo-dist
+          npx vite build --config demo/vue/vite.config.ts --base /react-wordgard/vue/ --outDir ../../demo-dist/vue
 
       - uses: actions/upload-pages-artifact@v3
         with:

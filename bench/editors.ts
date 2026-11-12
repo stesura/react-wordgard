@@ -30,12 +30,16 @@ import { undo as wgUndo } from "wordgard/history";
 import { GardState } from "wordgard/state";
 import { Strong } from "wordgard/types";
 
-import { WordgardDoc, WordgardEditor, useEditorEffect as useWordgardEffect } from "../src/index.js";
+import {
+  WordgardDoc,
+  WordgardEditor,
+  useEditorEffect as useWordgardEffect,
+} from "@stesura/react-wordgard";
 import {
   WordgardDoc as VueWordgardDoc,
   WordgardEditor as VueWordgardEditor,
   useEditorEffect as useVueWordgardEffect,
-} from "../vue/src/index.js";
+} from "@stesura/vue-wordgard";
 import { replacement, searchTerm } from "./documents.js";
 import { pmPlugins, wgPlugins } from "./plugins.js";
 import { FontSize, Indent, pmSchema, wgSchema } from "./schemas.js";

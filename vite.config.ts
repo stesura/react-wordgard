@@ -3,7 +3,7 @@
 import react from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
 import { fileURLToPath } from "node:url";
-import type { Plugin } from "vite";
+import { type Plugin, defaultClientConditions, defaultServerConditions } from "vite";
 import { defineConfig } from "vitest/config";
 import type { BrowserConfigOptions } from "vitest/node";
 
@@ -18,10 +18,10 @@ const browser = (): BrowserConfigOptions => ({
 const wordgardTests = "test/wordgard/webtest-*.ts";
 
 const reactWordgardEditor = fileURLToPath(
-  new URL("src/testing/wordgardEditor.ts", import.meta.url)
+  new URL("packages/react/src/testing/wordgardEditor.ts", import.meta.url)
 );
 const vueWordgardEditor = fileURLToPath(
-  new URL("vue/src/testing/wordgardEditor.ts", import.meta.url)
+  new URL("packages/vue/src/testing/wordgardEditor.ts", import.meta.url)
 );
 
 // Has the copied tests import `editor` in place of wordgard/editor.
@@ -37,6 +37,10 @@ const redirectWordgardTests = (name: string, editor: string): Plugin => ({
 // Serves the demo (`npm run demo`) and configures the tests (`npm test`).
 export default defineConfig({
   plugins: [react()],
+  // The workspace packages from their src, not their dist (their exports' first condition): the
+  // tests run on the working tree. Vitest runs the jsdom tests through the server's resolution.
+  resolve: { conditions: ["@stesura/source", ...defaultClientConditions] },
+  ssr: { resolve: { conditions: ["@stesura/source", ...defaultServerConditions] } },
   build: {
     target: "esnext",
   },
@@ -61,15 +65,15 @@ export default defineConfig({
         test: {
           name: "unit",
           environment: "jsdom",
-          include: ["src/**/*.test.{ts,tsx}"],
-          exclude: ["src/**/*.browser.test.{ts,tsx}"],
+          include: ["packages/*/src/**/*.test.{ts,tsx}"],
+          exclude: ["packages/*/src/**/*.browser.test.{ts,tsx}"],
         },
       },
       {
         extends: true,
         test: {
           name: "browser",
-          include: ["src/**/*.browser.test.{ts,tsx}", wordgardTests],
+          include: ["packages/{core,react}/src/**/*.browser.test.{ts,tsx}", wordgardTests],
           setupFiles: ["test/wordgard-workspace.ts", "test/skipInBrowser.ts"],
           browser: browser(),
         },
@@ -108,7 +112,11 @@ export default defineConfig({
         },
         test: {
           name: "view-vue",
-          include: [wordgardTests, "test/view-vue/*.test.ts", "vue/src/**/*.browser.test.ts"],
+          include: [
+            wordgardTests,
+            "test/view-vue/*.test.ts",
+            "packages/vue/src/**/*.browser.test.ts",
+          ],
           testTimeout: 60_000,
           // The pending list is React's: Vue fails the same two "reparent" tests.
           setupFiles: [

@@ -1,0 +1,60 @@
+{
+  "name": "@stesura/react-wordgard",
+  "version": "0.3.0",
+  "description": "A React view for the Wordgard rich text editor",
+  "keywords": [
+    "react",
+    "wordgard",
+    "rich-text",
+    "editor",
+    "contenteditable"
+  ],
+  "homepage": "https://github.com/stesura/react-wordgard/tree/master/packages/react#readme",
+  "bugs": {
+    "url": "https://github.com/stesura/react-wordgard/issues"
+  },
+  "author": "Edoardo Caratti",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stesura/react-wordgard.git",
+    "directory": "packages/react"
+  },
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "@stesura/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE.txt",
+    "THIRD_PARTY_LICENSES.txt",
+    "dist",
+    "skills"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch --no-dts",
+    "typecheck": "tsc --noEmit",
+    "prepack": "tsup"
+  },
+  "dependencies": {
+    "@stesura/wordgard-view": "0.3.0",
+    "use-sync-external-store": "^1.7.0"
+  },
+  "peerDependencies": {
+    "react": ">=18 <20",
+    "react-dom": ">=18 <20",
+    "wordgard": "0.7.0"
+  }
+}

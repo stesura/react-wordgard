@@ -1,8 +1,9 @@
 # Copyright (c) The New York Times Company
-/dist/
+dist/
 /demo-dist/
 
 /docs/
 package-lock.json
 /.claude/
 /test/wordgard/
+.turbo/

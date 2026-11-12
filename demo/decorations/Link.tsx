@@ -2,7 +2,7 @@
 // beside the marked text.
 import React, { forwardRef, useState } from "react";
 
-import { type MarkComponentProps, createMarkShape, useStopEvent } from "../../src/index.js";
+import { type MarkComponentProps, createMarkShape, useStopEvent } from "@stesura/react-wordgard";
 
 const LinkView = forwardRef<HTMLAnchorElement, MarkComponentProps<HTMLAnchorElement>>(
   ({ markProps: { mark, contentDOMRef }, children, ...props }, ref) => {

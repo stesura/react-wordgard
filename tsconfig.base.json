@@ -1,0 +1,33 @@
+/* Copyright (c) The New York Times Company */
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "lib": ["DOM", "ES2023", "DOM.Iterable"],
+    "target": "ES2022",
+    "noEmit": true,
+    /* Module Resolution Options */
+    "moduleResolution": "nodenext",
+    "module": "nodenext",
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    /* Reads the workspace packages' src, not their dist (their exports' first condition) */
+    "customConditions": ["@stesura/source"],
+    /* Advanced Options */
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    /* Strict Type-Checking Options */
+    "strict": true,
+    "isolatedModules": true,
+    /* Additional Checks */
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    /* "Classic" React JSX pragma */
+    "jsx": "react",
+    "types": ["node", "vite/client", "vitest/globals"],
+    /* tsup's declaration build sets baseUrl, deprecated in TypeScript 6 (as in stesura) */
+    "ignoreDeprecations": "6.0"
+  }
+}

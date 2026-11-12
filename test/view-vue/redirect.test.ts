@@ -2,8 +2,8 @@
 // which would make `view-vue` a second `browser`. Their `Wordgard.DocTile` is then VueWordgard's,
 // i.e. VueDocTile.
 // Not type-checked, since it imports the copies (.ts imports, upstream style).
-import { VueDocTile } from "../../vue/src/VueDocTile.js";
-import { VueWordgard } from "../../vue/src/VueWordgard.js";
+import { VueDocTile } from "../../packages/vue/src/VueDocTile.js";
+import { VueWordgard } from "../../packages/vue/src/VueWordgard.js";
 import { basicBuilders } from "../wordgard/schema.ts";
 import { tempEditor } from "../wordgard/tempview.ts";
 

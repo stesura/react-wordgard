@@ -9,7 +9,7 @@ import {
   useEditorEventCallback,
   useNodePos,
   useStopEvent,
-} from "../../src/index.js";
+} from "@stesura/react-wordgard";
 import {
   CalloutKind,
   type CalloutKindName,

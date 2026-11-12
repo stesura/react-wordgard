@@ -20,7 +20,7 @@ import {
   useEditorEventCallback,
   useEditorEventListener,
   useEditorStateSelector,
-} from "../src/index.js";
+} from "@stesura/react-wordgard";
 import { useFloatingAt } from "./useFloatingAt.js";
 
 const buttons: { label: string; title: string; mark: Mark }[] = [

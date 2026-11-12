@@ -1,0 +1,215 @@
+// Split from ReactShapeType.ts, without React: what Wordgard sees of a shape a component draws. It
+// is a real Wordgard `Elt`, registered through a reserved attribute, which every copy Wordgard makes
+// of it keeps and the view never renders. Its tag is fixed before the component renders (`target`
+// selectors match it), so the shape is a function of the tag. Also the handles of drawn shapes and
+// wrappers, and the sorting of the DOM records their components' own commits make.
+import { Attributes, type Node as DocNode, Elt } from "wordgard/doc";
+
+import { isDrawnRoot } from "../viewRoots.js";
+import { ignoresMutation } from "./decorationHandlers.js";
+
+// A shape a component draws: for `Decoration.Tag.shape`, a node's shape, its
+// root the node type's own outer element, an atom where the type's shape is.
+// `of` gives the shape with `element` for its root.
+export type ComponentShape = ((tag: DocNode.Tag) => Elt) & {
+  of: (element: string, options?: { atom?: boolean }) => Elt;
+};
+
+export const reserved = "data-wg-component";
+
+const shapeIds = new Set<string>();
+
+// A new shape: its id, which its component is registered under, and the
+// shape Wordgard's configuration takes.
+export const defineShape = () => {
+  const id = String(shapeIds.size + 1);
+  shapeIds.add(id);
+  const shapeElt = (element: string, attrs: Attributes, atom: boolean) =>
+    Elt.create(element, Attributes.merge(attrs, [reserved, id]), atom ? [] : [0]);
+  const forTag = (tag: DocNode.Tag) => {
+    const { shape } = tag.type;
+    const outer = shape.create(tag.param);
+    return shapeElt(outer.tagName, outer.attrs, shape.atom);
+  };
+  const shape: ComponentShape = Object.assign(forTag, {
+    of: (element: string, { atom = false } = {}) => shapeElt(element, [], atom),
+  });
+  return { id, shape };
+};
+
+export const idOf = (elt: Elt<unknown>) => Attributes.get(elt.attrs, reserved);
+
+export const isComponentShape = (elt: Elt<unknown>) => {
+  const id = idOf(elt);
+  return id != null && shapeIds.has(id);
+};
+
+// The attributes Wordgard merged onto the shape, without the reserved one.
+export const shapeAttributes = (elt: Elt<unknown>) => {
+  const attrs: string[] = [];
+  for (let i = 0; i + 1 < elt.attrs.length; i += 2) {
+    const name = elt.attrs[i];
+    const value = elt.attrs[i + 1];
+    if (name !== undefined && value !== undefined && name != reserved) attrs.push(name, value);
+  }
+  return attrs;
+};
+
+// A drawn React shape or wrapper: its root element, and the element its
+// content is in (a shape's root without a `contentDOMRef`) or, for a wrapper,
+// the element it wraps.
+export type ShapeHandle = {
+  root: Element | null;
+  content: Element | null;
+  wrapper: boolean;
+  // A shape without a hole: everything under its root is chrome.
+  atom: boolean;
+};
+
+const roots = new WeakMap<Element, ShapeHandle>();
+const contents = new WeakMap<Element, ShapeHandle>();
+const wrapped = new WeakSet<Element>();
+// Every element that was a shape's content element: typing never adds or
+// removes one, React moving a shape's content does.
+const everContent = new WeakSet<Element>();
+
+export const shapeOfRoot = (dom: Element) => roots.get(dom);
+
+export const contentOf = (handle: ShapeHandle) =>
+  handle.content ?? (handle.wrapper || handle.atom ? null : handle.root);
+
+const rootRef = (handle: ShapeHandle) => (dom: Element | null) => {
+  if (handle.root) roots.delete(handle.root);
+  handle.root = dom;
+  if (dom) roots.set(dom, handle);
+};
+
+// Whether the shape a root draws is an atom, recorded when React commits it.
+export const atomRef = (handle: ShapeHandle, atom: boolean) => () => {
+  handle.atom = atom;
+};
+
+export const createShapeHandle = () => {
+  const handle: ShapeHandle = { root: null, content: null, wrapper: false, atom: false };
+  const contentDOMRef = (dom: Element | null) => {
+    if (handle.content) contents.delete(handle.content);
+    handle.content = dom;
+    if (dom) {
+      contents.set(dom, handle);
+      everContent.add(dom);
+    }
+  };
+  return { handle, ref: rootRef(handle), contentDOMRef };
+};
+
+export const createWrapperHandle = () => {
+  const handle: ShapeHandle = { root: null, content: null, wrapper: true, atom: false };
+  const wrappedRef = (dom: Element | null) => {
+    if (handle.content) wrapped.delete(handle.content);
+    handle.content = dom;
+    if (dom) wrapped.add(dom);
+  };
+  return { handle, ref: rootRef(handle), wrappedRef };
+};
+
+// The position of the node a React shape or wrapper draws, from its tile: the
+// root's, or the one around it when wrapped. Also a node wrapper's, from the
+// node's root. `name` is the framework's, for the error.
+export const nodePos = (handle: { readonly root: Element | null }, name: string) => () => {
+  let tile = handle.root?.isConnected ? handle.root.wgTile : undefined;
+  while (tile && !tile.tag) tile = tile.parent ?? undefined;
+  if (!tile) throw new Error(`This ${name} shape or wrapper isn't drawn`);
+  return tile.posBefore;
+};
+
+// The React shape or wrapper whose chrome or structure `node` is in: the
+// first root found going up, unless a shape's content element or a wrapped
+// element comes first.
+const shapeAround = (node: Node | null): ShapeHandle | null => {
+  for (let cur = node; cur; cur = cur.parentNode) {
+    if (!(cur instanceof Element)) continue;
+    if (contents.has(cur)) return null;
+    const root = roots.get(cur);
+    // A shape's root without a content element holds the content itself,
+    // unless it's an atom's.
+    if (root) return root.content || root.atom ? root : null;
+    if (wrapped.has(cur)) return null;
+  }
+  return null;
+};
+
+// The React shape whose content element `dom` is.
+const contentShape = (dom: Element) => {
+  const handle = contents.get(dom) ?? roots.get(dom);
+  return handle && contentOf(handle) == dom ? handle : null;
+};
+
+// The React shape or wrapper whose root, or an element inside it, `node` is.
+const shapeOf = (node: Node | null) => {
+  for (let cur = node; cur; cur = cur.parentNode) {
+    const handle = cur instanceof Element ? roots.get(cur) : undefined;
+    if (handle) return handle;
+  }
+  return null;
+};
+
+const movesContent = (record: MutationRecord) =>
+  [...record.addedNodes, ...record.removedNodes].some(
+    (node) => node instanceof Element && everContent.has(node)
+  );
+
+// Sorts DOM mutation records: the ones a React shape's own commit made outside
+// its content go (Wordgard would take them for edits), and the shapes whose
+// structure changed (an element added or removed between the root and the
+// content, or beside the content in a container's content element) are
+// collected, for their tiles to be rebuilt. The same for a React wrapper, what
+// it wraps standing for the content. In a container (blocks, no text),
+// the browser's typing never adds or removes children of the content element
+// itself, so those records are React's too; `inline` says whether a shape's
+// content is text. Typing in an empty textblock in the same task as a commit
+// moving its content would be taken for React's (a limit).
+export const sortRecords = (
+  records: readonly MutationRecord[],
+  changed: Set<Element>,
+  inline: (root: Element) => boolean
+) => {
+  // Shapes whose content React moved to another element in these records (one
+  // commit's: typing comes in a task of its own): what else changed in their
+  // content element is React's too.
+  const moved = new Set<ShapeHandle>();
+  for (const record of records)
+    if (record.type == "childList" && movesContent(record)) {
+      const handle = shapeOf(record.target);
+      if (handle) moved.add(handle);
+    }
+  const keeps = (record: MutationRecord) => {
+    const { target } = record;
+    if (record.type == "attributes") {
+      if (!(target instanceof Element)) return true;
+      return (
+        !contents.has(target) && !roots.has(target) && !isDrawnRoot(target) && !shapeAround(target)
+      );
+    }
+    const own = record.type == "childList" && target instanceof Element && contentShape(target);
+    if (own) {
+      if (own.root && inline(own.root) && !moved.has(own)) return true;
+      if (own.root) changed.add(own.root);
+      return false;
+    }
+    const handle = shapeAround(target);
+    if (!handle) return true;
+    // An atom's structure is its root's children: its tiles are chrome over them.
+    const content = contentOf(handle) ?? (handle.atom ? handle.root : null);
+    if (
+      record.type == "childList" &&
+      handle.root &&
+      content &&
+      target instanceof Element &&
+      target.contains(content)
+    )
+      changed.add(handle.root);
+    return false;
+  };
+  // What's left is Wordgard's, unless a decoration around it claims it.
+  return records.filter((record) => keeps(record) && !ignoresMutation(record));
+};
