@@ -90,6 +90,58 @@ it).
 **Drawn wrong:** Wordgard's font size with the highlights plugin, at every size, from issue 2
 below; react-wordgard draws it right. Everything else was drawn as its document.
 
+## Re-run after the package split (2026-11-12)
+
+The repository was split into three packages (`@stesura/wordgard-view`, `@stesura/react-wordgard`,
+`@stesura/vue-wordgard`), and vue-wordgard joined the benchmark. Wordgard 0.7.0, React 18.3.1 and
+Vue 3.5.45, production builds; same machine, browser and method as above. The question was whether
+the split slowed the views; ratios to Wordgard from the same run are compared, since absolute
+times drift between sessions.
+
+### At 1,500 paragraphs, without plugins
+
+`npm run bench`, the second of two runs (the first's plugin pass was noisy).
+
+| | react-wordgard | vue-wordgard | Wordgard | react-prosemirror | ProseMirror |
+|---|---|---|---|---|---|
+| To first interaction | 101 | 113 | 71.2 | 742 | 61.1 |
+| Keystroke | 1.0 | 0.8 | 0.6 | 29.5 | 0.4 |
+| Allocated per keystroke (KB) | 302 | 266 | 189 | 2,840 | 47.0 |
+| Enter | 1.8 | 2.0 | 1.0 | 30.7 | 0.5 |
+| Bold all | 153 | 154 | 92.0 | 478 | 92.4 |
+| Indent every paragraph | 60.2 / 32.2 | 81.9 / 40.4 | 37.0 / 7.9 | 394 / 586 | 106 / 37.6 |
+| Replace All | 95.5 / 52.6 | 99.0 / 41.2 | 66.9 / 10.0 | 459 / 570 | 61.4 / 14.9 |
+| Font size of all the text | 129 / 51.8 | 119 / 48.7 | 79.6 / 19.8 | 780 / 2,335 | 174 / 85.1 |
+
+react-wordgard against Wordgard, before the split (the renderer seam's run) → the two runs: load
+1.59× → 1.36× / 1.41×, Bold all 1.60× → 1.80× / 1.66×, indent 1.74× → 1.56× / 1.63×, Replace All
+1.59× → 1.51× / 1.43×, font size 1.82× → 1.51× / 1.62×.
+
+### At 5,000 paragraphs
+
+`VITE_BENCH_SIZES=5000 VITE_BENCH_EDITORS=react-wordgard,vue-wordgard,Wordgard npm run bench`,
+medians of 6 runs, without plugins / with them; times in ms.
+
+| | react-wordgard | vue-wordgard | Wordgard |
+|---|---|---|---|
+| To first interaction | 430 / 462 | 418 / 437 | 262 / 278 |
+| Keystroke | 6.1 / 5.4 | 3.9 / 4.3 | 3.1 / 3.5 |
+| Allocated per keystroke (KB) | 871 / 976 | 775 / 892 | 618 / 720 |
+| Enter | 8.9 / 9.4 | 8.9 / 9.3 | 5.3 / 5.8 |
+| Bold all | 569 / 668 | 569 / 686 | 392 / 479 |
+| Indent every paragraph | 287 / 373 | 311 / 409 | 167 / 227 |
+| Replace All | 384 / 699 | 415 / 673 | 277 / 532 |
+| Font size of all the text | 464 / 692 | 441 / 619 | 298 / 388 |
+
+Allocations per keystroke and per Enter match the run before the split within 3%. Time ratios more
+than 10% above that run's were checked: for Enter and the font size it was Wordgard's own time that
+moved. First interaction was then run alternately on the commit before the split and on the split,
+three times each: react-wordgard/Wordgard 1.55× before and 1.65× after (with plugins 1.85×, then 1.73×),
+vue-wordgard/Wordgard 1.45×, then 1.66× (1.64×, then 1.59×). The differences go both ways and are
+smaller than the spread between runs.
+
+**Verdict:** no regression from the split.
+
 ## What is compared
 
 | Editor | What it is |

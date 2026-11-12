@@ -4,7 +4,7 @@ const published = "^packages/[^/]+/src/(?!__tests__/|testing/)";
 
 // The core, which any framework's renderer draws for (tile.ts's Renderer).
 const core = "^packages/core/src/";
-const frameworks = "^node_modules/(react|react-dom|use-sync-external-store|vue|@vue)/";
+const frameworks = "^node_modules/(react|react-dom|use-sync-external-store|vue|@vue|svelte)/";
 
 /** @type {import('dependency-cruiser').IConfiguration} */
 export default {
@@ -21,7 +21,7 @@ export default {
       comment: "The views depend on the core, not the reverse.",
       severity: "error",
       from: { path: core },
-      to: { path: "^packages/(react|vue)/" },
+      to: { path: "^packages/(react|vue|svelte)/" },
     },
     {
       name: "vue-not-to-react",
@@ -39,23 +39,44 @@ export default {
       to: { path: ["^node_modules/(vue|@vue)/", "^packages/vue/"] },
     },
     {
+      name: "svelte-not-to-react",
+      comment: "svelte-wordgard uses the core, not React's side.",
+      severity: "error",
+      from: { path: "^packages/svelte/" },
+      to: {
+        path: ["^node_modules/(react|react-dom|use-sync-external-store)/", "^packages/react/"],
+      },
+    },
+    {
+      name: "svelte-not-to-vue",
+      severity: "error",
+      from: { path: "^packages/svelte/" },
+      to: { path: ["^node_modules/(vue|@vue)/", "^packages/vue/"] },
+    },
+    {
+      name: "views-not-to-svelte",
+      severity: "error",
+      from: { path: "^packages/(react|vue)/" },
+      to: { path: ["^node_modules/svelte/", "^packages/svelte/"] },
+    },
+    {
       name: "views-through-the-core-entry",
       comment:
         "A view reaches the core through its package entry, as it will from npm: the core is published apart.",
       severity: "error",
-      from: { path: "^packages/(react|vue)/src/" },
+      from: { path: "^packages/(react|vue|svelte)/src/" },
       to: { path: "^packages/core/src/", pathNot: "^packages/core/src/index\\.ts$" },
     },
     {
       name: "no-circular",
       comment:
-        "Type-only imports don't run, and ChildNodeViews (React's and Vue's) renders the node and mark views that render it.",
+        "Type-only imports don't run, and each view's ChildNodeViews renders the node and mark views that render it.",
       severity: "error",
       from: {},
       to: {
         circular: true,
         viaOnly: { dependencyTypesNot: ["type-only"] },
-        viaNot: "^packages/(react|vue)/src/components/ChildNodeViews\\.tsx?$",
+        viaNot: "^packages/(react|vue|svelte)/src/components/ChildNodeViews\\.tsx?$",
       },
     },
     {
@@ -106,7 +127,7 @@ export default {
   options: {
     doNotFollow: { path: "node_modules" },
     // Unchanged copies of Wordgard's tests, run by vite.config.ts.
-    exclude: { path: ["^test/wordgard/", "^packages/[^/]+/dist/"] },
+    exclude: { path: ["^test/wordgard/", "^packages/[^/]+/(dist|\\.svelte-kit)/"] },
     tsConfig: { fileName: "tsconfig.json" },
     tsPreCompilationDeps: true,
     // A package's imports may be listed in its package.json or the root's (the tools).
@@ -114,7 +135,7 @@ export default {
     enhancedResolveOptions: {
       exportsFields: ["exports"],
       conditionNames: ["@stesura/source", "import", "require", "node", "default", "types"],
-      extensions: [".ts", ".tsx", ".js", ".cjs", ".mjs"],
+      extensions: [".ts", ".tsx", ".js", ".cjs", ".mjs", ".svelte"],
     },
   },
 };

@@ -1,5 +1,6 @@
 /* Copyright (c) The New York Times Company */
 
+import { svelte } from "@sveltejs/vite-plugin-svelte";
 import react from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
 import { fileURLToPath } from "node:url";
@@ -22,6 +23,9 @@ const reactWordgardEditor = fileURLToPath(
 );
 const vueWordgardEditor = fileURLToPath(
   new URL("packages/vue/src/testing/wordgardEditor.ts", import.meta.url)
+);
+const svelteWordgardEditor = fileURLToPath(
+  new URL("packages/svelte/src/testing/wordgardEditor.ts", import.meta.url)
 );
 
 // Has the copied tests import `editor` in place of wordgard/editor.
@@ -123,6 +127,31 @@ export default defineConfig({
             "test/wordgard-workspace.ts",
             "test/skipInBrowser.ts",
             "test/view/skipPending.ts",
+          ],
+          browser: browser(),
+        },
+      },
+      {
+        // Wordgard's tests again, with their editors created as SvelteWordgard,
+        // and the Svelte view's own.
+        extends: true,
+        plugins: [
+          svelte(),
+          redirectWordgardTests("wordgard-tests-on-svelte-wordgard", svelteWordgardEditor),
+        ],
+        test: {
+          name: "view-svelte",
+          include: [
+            wordgardTests,
+            "test/view-svelte/*.test.ts",
+            "packages/svelte/src/**/*.browser.test.ts",
+          ],
+          testTimeout: 60_000,
+          // React's pending list, less what the Svelte view passes.
+          setupFiles: [
+            "test/wordgard-workspace.ts",
+            "test/skipInBrowser.ts",
+            "test/view-svelte/skipPending.ts",
           ],
           browser: browser(),
         },

@@ -46,7 +46,7 @@
     "build": "tsup",
     "dev": "tsup --watch --no-dts",
     "typecheck": "tsc --noEmit",
-    "prepack": "tsup && node ../../scripts/copy-skill-reference.js"
+    "prepack": "tsup && node ../../scripts/copy-skill-reference.js vue"
   },
   "dependencies": {
     "@stesura/wordgard-view": "0.3.0"
