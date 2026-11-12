@@ -12,20 +12,17 @@ import { childViewKeys } from "../../../src/reactKeys.js";
 import { SeparatorHackView } from "./SeparatorHackView.js";
 import { TextNodeView } from "./TextNodeView.js";
 import { TrailingHackView } from "./TrailingHackView.js";
+import { WidgetView } from "./WidgetView.js";
 import { MarkView } from "./marks/MarkView.js";
 import { DefaultNodeView } from "./nodes/DefaultNodeView.js";
-
-// No component decorations yet.
-export const unsupported = (what: string) =>
-  new Error(`vue-wordgard can't draw ${what} yet: component decorations aren't supported`);
 
 export const renderChildViews = (views: readonly ChildView[]): VNode[] =>
   childViewKeys(views).flatMap(({ view, key }) => {
     switch (view.type) {
       case "node":
-        if (view.shape instanceof Elt) return [h(DefaultNodeView, { key, view })];
-        if (isReactWidget(view.shape)) throw unsupported(view.node.name);
-        return [];
+        return view.shape instanceof Elt || isReactWidget(view.shape)
+          ? [h(DefaultNodeView, { key, view })]
+          : [];
       case "text":
         return [TextNodeView(key, view.text)];
       case "wrapper":
@@ -39,7 +36,6 @@ export const renderChildViews = (views: readonly ChildView[]): VNode[] =>
       case "trailingHack":
         return [TrailingHackView(key)];
       case "widget":
-        if (isReactWidget(view.widget)) throw unsupported("a component widget");
-        return [];
+        return isReactWidget(view.widget) ? [h(WidgetView, { key, widget: view.widget })] : [];
     }
   });

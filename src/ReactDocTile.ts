@@ -14,6 +14,7 @@ import { NodeWrapperContext } from "./contexts/NodeWrapperContext.js";
 import { nodeWrappers } from "./decorations/ReactNodeWrapper.js";
 import type { ChildView } from "./decorations/iterDeco.js";
 import { editorOf } from "./editorStore.js";
+import { reactWords } from "./words.js";
 import {
   type HostedRenderer,
   RefusedUpdate,
@@ -88,6 +89,7 @@ const reactRoot = (dom: Element, context: RendererContext): Renderer => {
     },
     batch,
     redrawsAll,
+    words: reactWords,
   };
 };
 
@@ -148,6 +150,7 @@ const reactPortal =
       },
       batch,
       redrawsAll,
+      words: reactWords,
     };
   };
 

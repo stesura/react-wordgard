@@ -202,7 +202,7 @@ export class DefaultNodeView extends Component<Props> {
     viewRoot(dom);
     this.widgetRef(dom);
   };
-  private readonly getPos = nodePos(this.root);
+  private readonly getPos = nodePos(this.root, "React");
 
   shouldComponentUpdate(next: Props) {
     return next.cell != this.props.cell;

@@ -19,6 +19,7 @@ import { stopsEvent } from "./decorations/decorationHandlers.js";
 import { editorOf } from "./editorStore.js";
 import { type RenderStore, publishCells } from "./renderStore.js";
 import { viewRoots } from "./viewRoots.js";
+import type { Words } from "./words.js";
 import { contentOf, isReactShape, shapeOfRoot, sortRecords } from "./decorations/shapeType.js";
 import { attributedWidget, isReactWidget, widgetRoots } from "./decorations/widgetType.js";
 import { isReactWrapper } from "./decorations/wrapperType.js";
@@ -65,6 +66,8 @@ export type Renderer = {
   // Whether going from `before`'s configuration to `after`'s draws the whole
   // document again (React's node wrappers).
   readonly redrawsAll: (before: GardState, after: GardState) => boolean;
+  // How errors name the framework, and their advice.
+  readonly words: Words;
 };
 
 // A renderer drawing in the app's tree: `prepare` hands it the first layout,
@@ -136,8 +139,8 @@ export const nodeViewOf = (tile: Tile) => tileViews.get(tile);
 // Plots already checked: they never change.
 const renderable = new WeakSet<Plot>();
 
-// Throws for what React can't render yet, rather than drawing it wrong.
-const checkRenderable = (plot: Plot) => {
+// Throws for what the renderer can't draw yet, rather than drawing it wrong.
+const checkRenderable = (plot: Plot, words: Words) => {
   if (renderable.has(plot)) return;
   for (const node of plot.content) {
     // A checked plot's shape was checked with it.
@@ -145,21 +148,21 @@ const checkRenderable = (plot: Plot) => {
     const shape = node.isPlot
       ? node.type.shape.create(node.tag.param)
       : node.type.shape.create(node.param);
-    checkShape(node.name, shape);
-    if (node.isPlot && shape.hasContent) checkRenderable(node);
+    checkShape(node.name, shape, words);
+    if (node.isPlot && shape.hasContent) checkRenderable(node, words);
   }
   renderable.add(plot);
 };
 
 // React can't draw an empty text node, nor an SVG or MathML element outside
 // <svg> or <math>: it takes the namespace from the parent.
-const checkShape = (name: string, shape: Elt, foreign = false) => {
+const checkShape = (name: string, shape: Elt, words: Words, foreign = false) => {
   const ns = /^(svg|math):(.*)$/.exec(shape.tagName);
-  if (ns && !foreign && ns[1] != ns[2])
-    throw new Error(`react-wordgard can't render the shape of ${name} yet`);
+  const unsupported = `${words.library} can't render the shape of ${name} yet`;
+  if (ns && !foreign && ns[1] != ns[2]) throw new Error(unsupported);
   for (const child of shape.children) {
-    if (child === "") throw new Error(`react-wordgard can't render the shape of ${name} yet`);
-    if (child instanceof Elt) checkShape(name, child, foreign || !!ns);
+    if (child === "") throw new Error(unsupported);
+    if (child instanceof Elt) checkShape(name, child, words, foreign || !!ns);
   }
 };
 
@@ -190,7 +193,7 @@ const noChrome: ReadonlySet<Node> = new Set();
 // Hands out the children React drew in an element, in order, past widget DOM
 // and a React shape's `chrome` beside its content, and collects the order all
 // its children must have.
-const childCursor = (dom: Element, chrome: ReadonlySet<Node> = noChrome) => {
+const childCursor = (dom: Element, words: Words, chrome: ReadonlySet<Node> = noChrome) => {
   let last: ChildNode | null = null;
   let widgets = false;
   const order: ChildNode[] = [];
@@ -215,7 +218,7 @@ const childCursor = (dom: Element, chrome: ReadonlySet<Node> = noChrome) => {
           order.push(child);
         }
       }
-      if (!child) throw new Error("React's DOM is missing a node");
+      if (!child) throw new Error(`${words.name}'s DOM is missing a node`);
       last = child;
       order.push(child);
       return child;
@@ -244,7 +247,7 @@ const childCursor = (dom: Element, chrome: ReadonlySet<Node> = noChrome) => {
           order.push(child);
           continue;
         }
-        if (!widgetDOM.has(child)) throw new Error("React's DOM has extra nodes");
+        if (!widgetDOM.has(child)) throw new Error(`${words.name}'s DOM has extra nodes`);
         widgets = true;
       }
       order.push(...trailing);
@@ -266,6 +269,7 @@ const elementOf = (dom: ChildNode, what: string) => {
 };
 
 type BuildContext = {
+  words: Words;
   keys: ReactKeys;
   rendered: Rendered;
   composition: CompositionView | null;
@@ -366,9 +370,19 @@ const uneditableFlag = (widget: Widget, dom: Element | Text) =>
 
 // What React draws besides Wordgard's structure: uneditable, as 0.6.2's
 // setUneditable made a widget.
+const madeUneditable = new WeakSet<Element>();
+
 const makeUneditable = (dom: Element) => {
-  if (dom instanceof HTMLElement && dom.contentEditable == "inherit" && !VOID.test(dom.nodeName))
-    dom.contentEditable = "false";
+  if (!(dom instanceof HTMLElement) || dom.contentEditable != "inherit" || VOID.test(dom.nodeName))
+    return;
+  dom.contentEditable = "false";
+  madeUneditable.add(dom);
+};
+
+// A chrome element that became structure (a component moving its content into
+// it) is editable again.
+const makeEditable = (dom: Element) => {
+  if (madeUneditable.delete(dom)) dom.removeAttribute("contenteditable");
 };
 
 // Wordgard's ensureBlockSeparators: an `<img class="wg-blockBuffer">` beside an
@@ -422,8 +436,10 @@ const reactWidgetTile = (
   keep: (old: WidgetTile) => boolean,
   create: (dom: Element) => WidgetTile
 ): Tile => {
-  if (!(dom instanceof Element) || !widgetRoots.has(dom))
-    throw new Error("A React widget's component must forward its ref to its root element");
+  if (!(dom instanceof Element) || !widgetRoots.has(dom)) {
+    const { name, widgetRoot } = context.words;
+    throw new Error(`A ${name} widget's component must ${widgetRoot}`);
+  }
   const { WidgetTile } = getTileClasses();
   const old = dom.wgTile;
   context.taken.add(dom);
@@ -617,7 +633,7 @@ const addChildTiles = (
         continue;
       }
       const tile = EltTile.of(view.elt, null, flags, 0, element);
-      const content = childCursor(element);
+      const content = childCursor(element, context.words);
       addChildTiles(tile, plot, view.children, content, context, pool, pos, wrapperKept);
       if (holdsBlocks(plot)) addBlockSeparators(tile, content, context);
       finish(content, context);
@@ -705,7 +721,7 @@ const shapeTile = (
       : TileFlag.Atom
     : TileFlag.NodeInner | (elt.hasContent ? 0 : TileFlag.Point);
   const tile = EltTile.of(elt, tag, flags | flag | afterContent, tag ? length : 0, dom);
-  const cursor = childCursor(dom);
+  const cursor = childCursor(dom, context.words);
   let after = 0;
   for (const child of elt.children) {
     if (child === 0) {
@@ -788,7 +804,7 @@ const attributedWidgetTile = (
 // shape is: Wordgard ignores mutations in them, and positions skip them.
 const chrome = Widget.define<null>({
   render: () => {
-    throw new Error("React draws a shape's chrome");
+    throw new Error("The renderer draws a shape's chrome");
   },
   propagateEvent: (event) => !stopsEvent(event),
 }).of(null);
@@ -824,11 +840,29 @@ const ownTile = (
   return new ownTileClass(elt, tag, flags, length, dom);
 };
 
+// A comment too: one Vue leaves for a `v-if` in a root drawn by hand. Wordgard's
+// `sync()` would remove it without a tile, and Vue then patches around a node
+// that's gone.
 const addChromeTile = (tile: CompositeTile, child: ChildNode, flags: number) => {
-  if (!(child instanceof Element || child instanceof Text)) return;
+  if (!(child instanceof Element || child instanceof Text || child instanceof Comment)) return;
   if (child instanceof Element) makeUneditable(child);
   const { WidgetTile } = getTileClasses();
   tile.addChild(synced(new WidgetTile(chrome, null, flags, child)));
+};
+
+// What Vue leaves around a fragment (empty text nodes) or for a `v-if` (a
+// comment). Never among a content tile's children, nor a mark's elements, in
+// the content's flow: Wordgard writes positions there by child index, and its
+// `sync()` removes nodes without a tile.
+const isAnchor = (node: ChildNode) =>
+  node instanceof Comment || (node instanceof Text && !node.length);
+
+const checkAnchors = (nodes: Iterable<ChildNode>, what: string, words: Words) => {
+  for (const node of nodes)
+    if (isAnchor(node))
+      throw new Error(
+        `A ${words.name} ${what} holds an empty text node or a comment beside its content: ${words.anchor}`
+      );
 };
 
 type MarkChildView = Extract<ChildView, { type: "wrapper" }>;
@@ -855,14 +889,14 @@ const reactMarkTile = (
 ): Tile => {
   const { EltTile } = getTileClasses();
   const handle = shapeOfRoot(dom);
+  const { words } = context;
   if (!handle || handle.wrapper)
-    throw new Error(
-      "A React mark's component must draw a DecorationRoot, or forward its ref to its root element"
-    );
+    throw new Error(`A ${words.name} mark's component must ${words.root}`);
   if (dom.localName != localTagName(view.elt.tagName))
-    warnElement("mark", view.elt.tagName, dom.localName);
+    warnElement(words, "mark", view.elt.tagName, dom.localName);
   const content = contentOf(handle) ?? dom;
-  if (!dom.contains(content)) throw new Error("A React mark's content element is outside it");
+  if (!dom.contains(content))
+    throw new Error(`A ${words.name} mark's content element is outside it`);
   // Content React remounted in another element: its widget DOM, which React
   // doesn't remove, comes out, to be reused from the pool or dropped.
   const old = dom.wgTile && markContents.get(dom.wgTile);
@@ -877,15 +911,19 @@ const reactMarkTile = (
     shapeTiles.add(tile);
     markTiles.add(tile);
     if (element == content) {
-      const cursor = childCursor(element);
+      const cursor = childCursor(element, words);
       fill(tile, cursor, kept && !moved);
       finish(cursor, context);
       contentTile = tile;
     } else {
+      checkAnchors(element.childNodes, "mark", words);
       for (const child of [...element.childNodes]) {
-        if (child instanceof Element && child.contains(content))
+        if (child instanceof Element && child.contains(content)) {
+          makeEditable(child);
           tile.addChild(build(child, Elt.mk(child.localName, [0]), TileFlag.Wrapper));
-        else addChromeTile(tile, child, TileFlag.Point);
+        } else {
+          addChromeTile(tile, child, TileFlag.Point);
+        }
       }
     }
     tile.length = tile.children.reduce((sum, ch) => sum + ch.length, 0);
@@ -910,22 +948,24 @@ const reactShapeTile = (
 ): Tile => {
   const { afterContent, container, blocks, fill, context } = shapeContext;
   const { EltTile, WidgetTile } = getTileClasses();
+  const { words } = context;
   const handle = shapeOfRoot(dom);
   const what = isReactWrapper(elt) ? "wrapper" : "shape";
   if (!handle || handle.wrapper != (what == "wrapper"))
-    throw new Error(
-      `A React ${what}'s component must draw a DecorationRoot, or forward its ref to its root element`
-    );
-  if (dom.localName != localTagName(elt.tagName)) warnElement(what, elt.tagName, dom.localName);
+    throw new Error(`A ${words.name} ${what}'s component must ${words.root}`);
+  if (dom.localName != localTagName(elt.tagName))
+    warnElement(words, what, elt.tagName, dom.localName);
   if (handle.wrapper && !handle.content)
-    throw new Error("A React wrapper's component must draw its children");
+    throw new Error(`A ${words.name} wrapper's component must draw ${words.wrapped}`);
   const atom = !handle.wrapper && !elt.hasContent;
   if (atom && handle.content)
-    throw new Error("A React shape drawing an atom has no content: drop its contentDOMRef");
+    throw new Error(
+      `A ${words.name} shape drawing an atom has no content: drop its ${words.content}`
+    );
   const content = atom ? null : (contentOf(handle) ?? dom);
   if ((content && !dom.contains(content)) || (handle.wrapper && content == dom))
     throw new Error(
-      `A React ${what}'s ${handle.wrapper ? "children are" : "content element is"} outside it`
+      `A ${words.name} ${what}'s ${handle.wrapper ? "children are" : "content element is"} outside it`
     );
   // A wrapper around an atom: uneditable, as Wordgard makes a shape without a
   // hole.
@@ -947,7 +987,7 @@ const reactShapeTile = (
     const inside = { ...shapeContext, inEditable, afterContent: after };
     if (child instanceof Elt) return shapeTile(child, null, 0, element, inside);
     if (child === undefined || child === 0 || typeof child == "string" || !isReactWidget(child))
-      throw new Error("A React wrapper wraps an element or a React widget");
+      throw new Error(`A ${words.name} wrapper wraps an element or a ${words.name} widget`);
     const flags = TileFlag.Point | TileFlag.NodeInner | after;
     const keep = (old: WidgetTile) =>
       shapeContext.keepShape && old.isNodeInner && old.widget.eq(child);
@@ -973,15 +1013,16 @@ const reactShapeTile = (
       // In a container, what isn't a node's or a widget's DOM is chrome, before
       // or after the content, which React draws as one run.
       const children = [...element.childNodes];
+      checkAnchors(children, "shape's content element", words);
       const isChrome = (child: ChildNode) => container && !isContentDOM(child);
       const first = children.findIndex((child) => !isChrome(child));
       const last = children.findLastIndex((child) => !isChrome(child));
       if (children.slice(first, last + 1).some(isChrome))
-        throw new Error("A React shape's chrome is between its content's nodes");
+        throw new Error(`A ${words.name} shape's chrome is between its content's nodes`);
       const before = first < 0 ? children : children.slice(0, first);
       const after = first < 0 ? [] : children.slice(last + 1);
       for (const child of before) addChrome(tile, child, 0);
-      const cursor = childCursor(element, new Set([...before, ...after]));
+      const cursor = childCursor(element, words, new Set([...before, ...after]));
       fill(tile, cursor, widgetPool(moved ?? previous));
       for (const child of after) addChrome(tile, child, TileFlag.AfterContent);
       if (blocks) addBlockSeparators(tile, cursor, context);
@@ -994,6 +1035,7 @@ const reactShapeTile = (
           after = TileFlag.AfterContent;
         } else if (child instanceof Element && child.contains(content)) {
           const structure = Elt.mk(child.localName, hole ? [0] : []);
+          makeEditable(child);
           tile.addChild(build(child, structure, null, innerFlags | after));
           after = TileFlag.AfterContent;
         } else {
@@ -1057,8 +1099,13 @@ const warned = new Set<string>();
 
 // A React shape, wrapper or mark whose component's root isn't the element its Elt
 // names: `target` selectors match the Elt, and plain Wordgard draws it.
-const warnElement = (what: "shape" | "wrapper" | "mark", expected: string, found: string) => {
-  const key = `${what}:${expected}>${found}`;
+const warnElement = (
+  words: Words,
+  what: "shape" | "wrapper" | "mark",
+  expected: string,
+  found: string
+) => {
+  const key = `${words.name}:${what}:${expected}>${found}`;
   if (warned.has(key)) return;
   warned.add(key);
   const fix = {
@@ -1067,7 +1114,7 @@ const warnElement = (what: "shape" | "wrapper" | "mark", expected: string, found
     mark: "give createMarkShape the element its component draws",
   }[what];
   console.error(
-    `A React ${what}'s component drew <${found}> where its ${what} says <${expected}>: ${fix}`
+    `A ${words.name} ${what}'s component drew <${found}> where its ${what} says <${expected}>: ${fix}`
   );
 };
 
@@ -1184,6 +1231,7 @@ const layout = (
       composition,
       composing,
       replaced,
+      words: entry.renderer.words,
     },
     state.doc,
     0
@@ -1233,7 +1281,7 @@ const throwRenderError = (entry: Entry) => {
 
 // The first layout, keys included.
 const firstLayout = (state: GardState, entry: Entry): Laid => {
-  checkRenderable(state.doc);
+  checkRenderable(state.doc, entry.renderer.words);
   addFreshKeys(entry.store.keys, state.doc);
   const decoSet = getDecoSet(state);
   return { state, decoSet, views: layout(state, decoSet, null, entry, null, new WeakMap()) };
@@ -1348,8 +1396,10 @@ const build = (
   const entry = rootOf(dom);
   entry.composition = composition;
   const tile = new entry.Tile(state, dom, composition?.wrapCursor ?? null, decoSet);
-  const cursor = childCursor(dom);
+  const { words } = entry.renderer;
+  const cursor = childCursor(dom, words);
   const context: BuildContext = {
+    words,
     keys: entry.store.keys,
     rendered: entry.rendered,
     composition,
@@ -1412,7 +1462,7 @@ export class RenderedDocTile extends DocTile {
     // first.
     if (entry.failures.built != entry.failures.count) {
       entry.failures.error = null;
-      checkRenderable(state.doc);
+      checkRenderable(state.doc, entry.renderer.words);
       addFreshKeys(entry.store.keys, state.doc);
       entry.store.pending.clear();
       const views = layout(state, decoSet, null, entry, null, new WeakMap());
@@ -1432,7 +1482,7 @@ export class RenderedDocTile extends DocTile {
       rebuildRoots(takeShapeChanges(wg), wg);
       return this;
     }
-    checkRenderable(state.doc);
+    checkRenderable(state.doc, entry.renderer.words);
     const composition = info ? compositionView(state.doc, info, changes, entry.rendered) : null;
     const replaced = mapKeys(entry.store.keys, this.state.doc, state.doc, changes);
     const views = layout(state, decoSet, changes, entry, composition, replaced);
@@ -1469,6 +1519,7 @@ const rebuildContext = (wg: Wordgard): BuildContext => {
   const entry = rootOf(wg.contentDOM);
   const length = entry.last?.state.doc.length;
   return {
+    words: entry.renderer.words,
     keys: entry.store.keys,
     rendered: entry.rendered,
     composition: entry.composition,
@@ -1496,7 +1547,8 @@ const keepContent = (
   for (const child of old.children) {
     if (isChromeTile(child)) continue;
     if (widgetDOM.has(child.dom)) cursor.place(child.dom);
-    else if (cursor.next() != child.dom) throw new Error("A React decoration's content moved");
+    else if (cursor.next() != child.dom)
+      throw new Error(`A ${context.words.name} decoration's content moved`);
     context.reused.set(child, Reused.Full);
     tile.addChild(child);
   }

@@ -3,6 +3,7 @@
 // (ReactDocTile.updateRanges).
 import { createContext } from "react";
 
-import { type NodeWrappers, createNodeWrappers } from "../decorations/ReactNodeWrapper.js";
+import type { NodeWrappers } from "../decorations/ReactNodeWrapper.js";
+import { createNodeWrappers } from "../decorations/nodeWrapperType.js";
 
 export const NodeWrapperContext = createContext<NodeWrappers>(createNodeWrappers([]));

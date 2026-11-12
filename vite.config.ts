@@ -42,7 +42,16 @@ export default defineConfig({
   },
   // Found mid-run otherwise, which reloads the browser tests.
   optimizeDeps: {
-    include: ["wordgard/schema", "wordgard/history", "use-sync-external-store/with-selector"],
+    include: [
+      "wordgard/schema",
+      "wordgard/history",
+      "wordgard/table",
+      "use-sync-external-store/with-selector",
+      "react-dom/client",
+      "axe-core",
+      // `vue` in the `view-vue` project.
+      "vue/dist/vue.esm-bundler.js",
+    ],
   },
   test: {
     globals: true,
@@ -84,9 +93,13 @@ export default defineConfig({
         },
       },
       {
-        // Wordgard's tests again, with their editors created as VueWordgard.
+        // Wordgard's tests again, with their editors created as VueWordgard, and
+        // the Vue view's own.
         extends: true,
         plugins: [redirectWordgardTests("wordgard-tests-on-vue-wordgard", vueWordgardEditor)],
+        // The build with Vue's template compiler: the tests' components are
+        // templates, as users' are.
+        resolve: { alias: [{ find: /^vue$/, replacement: "vue/dist/vue.esm-bundler.js" }] },
         // Vue's bundler build asks for its feature flags.
         define: {
           __VUE_OPTIONS_API__: "true",
@@ -95,9 +108,14 @@ export default defineConfig({
         },
         test: {
           name: "view-vue",
-          include: [wordgardTests, "test/view-vue/*.test.ts"],
+          include: [wordgardTests, "test/view-vue/*.test.ts", "vue/src/**/*.browser.test.ts"],
           testTimeout: 60_000,
-          setupFiles: ["test/wordgard-workspace.ts", "test/skipInBrowser.ts"],
+          // The pending list is React's: Vue fails the same two "reparent" tests.
+          setupFiles: [
+            "test/wordgard-workspace.ts",
+            "test/skipInBrowser.ts",
+            "test/view/skipPending.ts",
+          ],
           browser: browser(),
         },
       },

@@ -9,6 +9,7 @@ import type { CompositionView } from "../composition.js";
 import { type RenderStore, moveCell } from "../renderStore.js";
 import { childViewKeys, createNodeKey } from "../reactKeys.js";
 import { type DecoElt, TileFlag } from "../wordgardInternals.js";
+import type { Words } from "../words.js";
 import {
   type DecoIterator,
   type DecoWalker,
@@ -310,6 +311,7 @@ export type LayoutContext = {
   // This pass: a layout it already wrote is another occurrence's of the same
   // plot object, not this one's from the last update.
   pass: object;
+  words: Words;
 };
 
 // `offset` is where the plot's content starts in its parent's content (the
@@ -464,7 +466,7 @@ export const iterDeco = (
     leave: () => {},
     node: (node, shape, wrappers, partial, pos) => {
       if (partial !== undefined)
-        throw new Error(`react-wordgard can't render part of ${node.name}`);
+        throw new Error(`${context.words.library} can't render part of ${node.name}`);
       at = pos + node.length;
       if (node.isPlot) context.atoms.add(node);
       // `Leaf.Text.of("")` still makes empty text leaves; React draws nothing for
@@ -477,7 +479,8 @@ export const iterDeco = (
       }
       // A text node's attributes and wrappers become spanning wrappers.
       while (shape instanceof Elt) {
-        if (isReactWrapper(shape)) throw new Error("A React wrapper can't wrap text");
+        if (isReactWrapper(shape))
+          throw new Error(`A ${context.words.name} wrapper can't wrap text`);
         const elt = Elt.create(shape.tagName, shape.attrs, [0]);
         target = openWrapper(target, { elt, spanning: true }).children;
         const [inner] = shape.children;
@@ -488,7 +491,7 @@ export const iterDeco = (
       addText(target, node.param);
     },
     nodePart: (node) => {
-      throw new Error(`react-wordgard can't render part of ${node.name}`);
+      throw new Error(`${context.words.library} can't render part of ${node.name}`);
     },
     widget: (widget, side, point) => {
       if (widget == Widget.img) views.push({ type: "buffer", side: side < 0 ? -1 : 1 });

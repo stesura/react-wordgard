@@ -993,6 +993,39 @@ describe("React wrappers", () => {
     expect(ours).toEqual(drawn(theirs));
   });
 
+  // An empty element beside what it wraps is chrome, which the build makes
+  // uneditable, until what it wraps moves into it.
+  it("makes a chrome element editable again once what it wraps moves into it", () => {
+    const move: { first: ((on: boolean) => void) | null } = { first: null };
+    const Moving = createWrapper(
+      function Moving({ children }) {
+        const [first, setFirst] = useState(false);
+        useLayoutEffect(() => {
+          move.first = (on) => flushSync(() => setFirst(on));
+        }, []);
+        return (
+          <DecorationRoot>
+            <div className="a">{first && children}</div>
+            <div className="b">{!first && children}</div>
+          </DecorationRoot>
+        );
+      },
+      { element: "section" }
+    );
+    const wg = create({
+      doc: "<p>a</p><blockquote><p>b</p></blockquote>",
+      config: [basicSchema(), blockquote(), Decoration.Tag.wrapper(Blockquote, Moving)],
+    });
+    expect(wg.contentDOM.querySelector(".a")?.getAttribute("contenteditable")).toBe("false");
+    move.first?.(true);
+    wg.flush();
+    expect(wg.contentDOM.querySelector(".a > blockquote > p")?.textContent).toBe("b");
+    expect(wg.contentDOM.querySelector(".a")?.hasAttribute("contenteditable")).toBe(false);
+    typeInto(wg, textIn(wg, ".a p"), 1, "y");
+    wg.flush();
+    expect(wg.state.doc.textContent({ blockSeparator: "|" })).toBe("a|by");
+  });
+
   it("refuses a React shape as a wrapper and a React wrapper as a shape", () => {
     expect(() =>
       create(framedParagraphs(Decoration.Tag.wrapper(Paragraph, CalloutShape.of("div"))))

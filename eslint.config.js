@@ -38,5 +38,10 @@ export default tseslint.config(
     files: ["scripts/**/*.js"],
     rules: { "no-console": "off" },
   },
+  // Vue's composables run once, in `setup`: React's rules don't apply.
+  {
+    files: ["vue/**/*.ts"],
+    rules: { "react-hooks/rules-of-hooks": "off", "react-hooks/exhaustive-deps": "off" },
+  },
   prettier
 );

@@ -4,9 +4,12 @@
 import { Wordgard } from "wordgard/editor";
 
 import { editorOf } from "../../src/editorStore.js";
-import { observeShapes } from "../../src/tile.js";
+import { RefusedUpdate, observeShapes } from "../../src/tile.js";
 import { type DOMObserver, DocTile } from "../../src/wordgardInternals.js";
 import { VueDocTile } from "./VueDocTile.js";
+
+// Asks Wordgard for a frame: a no-op read schedules a flush.
+const retry = () => {};
 
 export class VueWordgard
   // @ts-expect-error Wordgard's constructor is private in its typings.
@@ -41,7 +44,7 @@ export class VueWordgard
       DocTile.create = create;
     }
     // The records of decorations' own commits are sorted out of what
-    // Wordgard's DOM observer reads (none yet: no Vue decorations).
+    // Wordgard's DOM observer reads.
     this.observer.observer = observeShapes(this, (records) => {
       this.observer.queue.push(...records);
       this.scheduleFlush();
@@ -55,6 +58,10 @@ export class VueWordgard
     editor.flushing = true;
     try {
       super.flush();
+    } catch (error) {
+      // The update is still pending: drawn on the next frame.
+      if (error instanceof RefusedUpdate) this.scheduleDOMRead(retry);
+      throw error;
     } finally {
       editor.flushing = false;
     }

@@ -22,7 +22,7 @@ type Props = {
 
 export const WrapperView = ({ elt, node, wrapped, selected, outerRef }: Props) => {
   const [{ handle, ref, wrappedRef }] = useState(createWrapperHandle);
-  const [handlers] = useState(() => createDecorationHandlers(nodePos(handle)));
+  const [handlers] = useState(() => createDecorationHandlers(nodePos(handle, "React")));
   const rootRef = useMemo(
     () => mergeRefs(ref, outerRef, decorationRoot(handlers)),
     [ref, outerRef, handlers]

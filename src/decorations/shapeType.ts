@@ -114,11 +114,11 @@ export const createWrapperHandle = () => {
 
 // The position of the node a React shape or wrapper draws, from its tile: the
 // root's, or the one around it when wrapped. Also a node wrapper's, from the
-// node's root.
-export const nodePos = (handle: { readonly root: Element | null }) => () => {
+// node's root. `name` is the framework's, for the error.
+export const nodePos = (handle: { readonly root: Element | null }, name: string) => () => {
   let tile = handle.root?.isConnected ? handle.root.wgTile : undefined;
   while (tile && !tile.tag) tile = tile.parent ?? undefined;
-  if (!tile) throw new Error("This React shape or wrapper isn't drawn");
+  if (!tile) throw new Error(`This ${name} shape or wrapper isn't drawn`);
   return tile.posBefore;
 };
 

@@ -1,3 +1,9 @@
+## Unreleased
+
+### Bug fixes
+
+An element a React shape or wrapper draws beside its content, made uneditable as chrome, is editable again once the component moves its content, or what it wraps, into it.
+
 ## 0.3.0 (2026-11-11)
 
 ### Breaking changes

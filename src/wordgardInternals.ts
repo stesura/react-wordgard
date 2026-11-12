@@ -98,7 +98,8 @@ interface WidgetTileClass {
     widget: Widget,
     tag: DocNode.Tag | null,
     flags: number,
-    dom: Element | Text,
+    // A comment only for Vue's anchors in a shape's chrome (tile.ts).
+    dom: Element | Text | Comment,
     length?: number
   ): WidgetTile;
 }
