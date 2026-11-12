@@ -6,6 +6,8 @@
 
 import { type CSSProperties, HTMLProps } from "react";
 
+import { localTagName, namespaced } from "./elt.js";
+
 let patched = false;
 
 // The attribute names passed as they are on SVG or MathML elements, `tabindex`
@@ -277,11 +279,9 @@ export const htmlAttrsToReactProps = (
   return props;
 };
 
-const namespaced = /^(svg|math):/;
-
 // An Elt's tag as React takes it: Wordgard's `svg:path` is React's `path`. React
 // gives <svg> and <math> their namespace, and what's inside them inherits it.
-export const reactTagName = (tagName: string) => tagName.replace(namespaced, "");
+export const reactTagName = localTagName;
 
 // An Elt's attributes as React props.
 export const eltProps = (tagName: string, attrs: Record<string, string>) =>

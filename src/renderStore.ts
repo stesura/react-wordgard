@@ -1,10 +1,8 @@
 // Named after our react-prosemirror fork's RenderStoreContext, rewritten for Wordgard: one object
-// per content element, which ReactDocTile writes inside the flush. Its value never changes, so
-// memoised node views aren't scanned for it.
-import { createContext, useContext } from "react";
-
-import type { NodeView } from "../decorations/iterDeco.js";
-import type { ReactKeys } from "../reactKeys.js";
+// per content element, which the doc tile writes inside the flush. No longer a React context:
+// nothing read it from one, and the cells are the renderer's to use.
+import type { NodeView } from "./decorations/iterDeco.js";
+import type { ReactKeys } from "./reactKeys.js";
 
 // A node view's place in its list, kept while the node keeps its key there
 // (iterDeco's keepSame). Its component (DefaultNodeView) reads its view from
@@ -38,8 +36,8 @@ export const moveCell = (store: RenderStore, old: NodeView, view: NodeView) => {
   else store.pending.set(cell, view);
 };
 
-// Gives the cells their views, inside the commit's flushSync. Returns what
-// takes them back, for an update React refused.
+// Gives the cells their views, inside the commit. Returns what takes them
+// back, for an update the renderer refused.
 export const publishCells = (store: RenderStore) => {
   const before: [NodeCell, NodeView][] = [];
   for (const [cell, view] of store.pending) {
@@ -50,12 +48,4 @@ export const publishCells = (store: RenderStore) => {
   return () => {
     for (const [cell, view] of before) cell.view = view;
   };
-};
-
-export const RenderStoreContext = createContext<RenderStore | null>(null);
-
-export const useRenderStore = () => {
-  const store = useContext(RenderStoreContext);
-  if (!store) throw new Error("Rendered outside a ReactDocTile");
-  return store;
 };

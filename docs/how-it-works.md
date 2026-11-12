@@ -20,16 +20,19 @@ the like) from `coordsAtPos`, in `useEditorEffect` or `useEditorLayoutEffect`.
 | File | Role |
 |---|---|
 | `src/ReactWordgard.ts` | The `Wordgard` subclass: React draws its first tree; its flush marks React's work and runs effects after it; it replaces Wordgard's `MutationObserver` (React shapes). |
-| `src/tile.ts` | `ReactDocTile`, our `DocTile`: lays out, renders, builds the tiles over React's DOM, restores what the browser edited, rebuilds React shapes. |
+| `src/tile.ts` | `RenderedDocTile`, our `DocTile`, with no React: lays out, has a renderer commit, builds the tiles over the DOM it committed, restores what the browser edited, rebuilds React shapes. |
+| `src/ReactDocTile.ts` | React's renderer (`Renderer` in `tile.ts`): a root of its own or `WordgardDoc`'s portal, committing inside `flushSync`; `ReactDocTile`, the subclass `ReactWordgard` draws with. |
 | `src/decorations/iterDeco.ts` | The layout: what to draw for each plot's content, from Wordgard's decorations, keeping what didn't change. |
 | `src/decorations/DecoIterator.ts` | A copy of Wordgard's decoration walker, which the layout drives. |
 | `src/changes.ts` | Helpers over Wordgard's change sections (kept, redrawn, replaced), indexed once per update. |
 | `src/reactKeys.ts` | React keys per plot's children, mapped through changes. |
 | `src/composition.ts` | Keeping an IME composition's text node alive through the flush. |
 | `src/components/` | What React renders: `DocNodeView`, `ChildNodeViews`, `DefaultNodeView`, `MarkView`, `TextNodeView`, `WidgetView`, `ShapeView`, `WrapperView`, `ReactMarkView`, the hack nodes; `WordgardEditor` and `WordgardDoc` host the editor. |
-| `src/decorations/ReactWidgetType.ts`, `ReactShapeType.ts`, `ReactWrapperType.ts`, `ReactMarkType.ts` | React widgets, shapes, wrappers and marks: Wordgard widgets, `Elt`s and mark shapes registered as drawn by a component. |
-| `src/contexts/EditorContext.ts`, `src/hooks/` | The state store, effects and measures the hooks use. |
-| `src/contexts/DecorationContext.ts`, `src/contexts/editorEvents.ts` | What the node view hooks use: each React decoration's position, selection and handlers; the editor event listeners. |
+| `src/decorations/widgetType.ts`, `shapeType.ts`, `wrapperType.ts`, `markType.ts` | What Wordgard sees of widgets, shapes, wrappers and marks a component draws: Wordgard widgets, `Elt`s and mark shapes registered by id, the handles of drawn shapes, `sortRecords`. No React. |
+| `src/decorations/ReactWidgetType.ts`, `ReactShapeType.ts`, `ReactWrapperType.ts`, `ReactMarkType.ts` | The factories (`createWidgetType`, `createShape`, …): React components registered under those ids. |
+| `src/editorStore.ts`, `src/contexts/EditorContext.ts`, `src/hooks/` | The state store, effects and measures the hooks use (no React), the context providing them. |
+| `src/renderStore.ts` | Each content element's React keys and node cells. |
+| `src/decorations/decorationHandlers.ts`, `src/contexts/DecorationContext.ts`, `src/contexts/editorEvents.ts` | What the node view hooks use: each React decoration's handlers and position (no React), the context giving them with its selection; the editor event listeners. |
 | `src/wordgardInternals.ts` | The only file typing Wordgard's internals (with two `@ts-expect-error` in `ReactWordgard.ts`). |
 
 ## Creating an editor
@@ -87,7 +90,7 @@ at once when something needs layout, `ensureFlushed`). Then:
      in the middle only). A node that keeps its key keeps its *cell*, the place its component
      reads its view from; a node view that changed is handed to its cell, and a list whose keys
      each still hold the same view or the same cell keeps its *shape* (`shapeOf`).
-8. **Render** (`ReactDocTile.render`): inside `flushSync`, give the cells their new views
+8. **Render** (`render`, through the renderer's `commit`): inside `flushSync`, give the cells their new views
    (`publishCells`, which notifies their components), publish the state to the hooks' store and
    commit the document element. React renders only what changed: `ChildNodeViews` and `MarkView`
    are memoised on their list's shape, so typing in one of 5,000 paragraphs renders that
@@ -101,7 +104,7 @@ at once when something needs layout, `ensureFlushed`). Then:
    retries on its next frame. If a component throws, the document's error boundary unmounts it and
    the update throws that error; the next update lays out and builds the whole document as at
    first, with nothing restored or kept (so does the one after a component threw on its own).
-9. **Build** (`ReactDocTile.build`): walk React's DOM alongside the views and build Wordgard's
+9. **Build** (`build`): walk React's DOM alongside the views and build Wordgard's
    tiles over it (`addChildTiles`, `shapeTile`), the same tiles, flags and lengths Wordgard would
    build. A node view that's the same object as before keeps its old tile, read no further than its
    element's parent: React draws a kept view anew when a shape moves its content or the node's
@@ -159,7 +162,7 @@ element (`attributeWidget`), and the view draws the widget alone in its place.
 
 ## Hooks and the store
 
-`EditorContext` holds one value per editor, which never changes (memoised components are never
+`EditorContext` holds one value per editor (`editorStore.ts`), which never changes (memoised components are never
 re-rendered by it): the editor, a store with the state *as of the last flush* (published inside
 the flush, in the same commit as the document: hooks never see a state the DOM doesn't show), the
 effects to run after the flush, and the measures. `useEditorState` and `useEditorStateSelector`
@@ -317,7 +320,7 @@ React remounted the content, with its leftover widget DOM taken out first.
 | Decision | Why |
 |---|---|
 | Follow Wordgard's API, not react-prosemirror's `nodeViews`; React decorations keep react-prosemirror's prop names. | The library makes Wordgard's concepts drawable by React; Stesura's node views port with few changes. |
-| React draws inside Wordgard's flush (`flushSync` in `updateRanges`). | Wordgard ignores mutations only inside its flush, and reads layout right after. |
+| React draws inside Wordgard's flush (`flushSync` in the renderer's `commit`, from `updateRanges`). | Wordgard ignores mutations only inside its flush, and reads layout right after. |
 | Tiles built over React's DOM, real tile objects. | Wordgard's input, selection and coordinates code walk tiles and check their classes and flags. |
 | Let the browser's edits through, `restore` before rendering. | Wordgard types through native DOM edits on purpose. |
 | Keys from change sections, per parent plot. | No positions needed to render; kept plots keep keys for free. |

@@ -2,12 +2,9 @@
 import React, { type ReactNode, useMemo, useState } from "react";
 import type { Node } from "wordgard/doc";
 
-import {
-  DecorationContext,
-  createDecorationHandlers,
-  decorationRoot,
-} from "../contexts/DecorationContext.js";
-import { createWrapperHandle, nodePos, shapeAttributes } from "../decorations/ReactShapeType.js";
+import { DecorationContext } from "../contexts/DecorationContext.js";
+import { createDecorationHandlers, decorationRoot } from "../decorations/decorationHandlers.js";
+import { createWrapperHandle, nodePos, shapeAttributes } from "../decorations/shapeType.js";
 import { drawWrapper } from "../decorations/ReactWrapperType.js";
 import { DecorationRootContext } from "../contexts/DecorationRootContext.js";
 import { componentProps, useAttrsRecord } from "../helpers/index.js";

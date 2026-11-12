@@ -3,7 +3,8 @@
 import React, { type ReactNode } from "react";
 import type { Wordgard } from "wordgard/editor";
 
-import { EditorContext, findEditor } from "../contexts/EditorContext.js";
+import { EditorContext } from "../contexts/EditorContext.js";
+import { findEditor } from "../editorStore.js";
 
 type Props = {
   wg: Wordgard;

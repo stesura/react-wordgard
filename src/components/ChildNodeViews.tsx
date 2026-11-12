@@ -2,10 +2,10 @@
 // out. Native widgets aren't React's: ReactDocTile puts their DOM in place after the commit.
 import React, { memo } from "react";
 
-import { cellOf } from "../contexts/RenderStoreContext.js";
-import { isReactWidget } from "../decorations/ReactWidgetType.js";
+import { isReactWidget } from "../decorations/widgetType.js";
 import { type ChildView, shapeOf } from "../decorations/iterDeco.js";
 import { childViewKeys } from "../reactKeys.js";
+import { cellOf } from "../renderStore.js";
 import { SeparatorHackView } from "./SeparatorHackView.js";
 import { TextNodeView } from "./TextNodeView.js";
 import { TrailingHackView } from "./TrailingHackView.js";

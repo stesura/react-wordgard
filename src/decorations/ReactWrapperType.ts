@@ -1,5 +1,5 @@
-// Named after ReactWidgetType. A React wrapper is a real Wordgard `Elt` with a hole, registered as
-// React shapes are (the reserved attribute).
+// Named after ReactWidgetType. A React wrapper is a real Wordgard `Elt` with a hole
+// (wrapperType.ts), registered as drawn by a component.
 import {
   type AllHTMLAttributes,
   type ComponentType,
@@ -10,10 +10,11 @@ import {
   type RefCallback,
   createElement,
 } from "react";
-import { type Node as DocNode, Elt } from "wordgard/doc";
+import type { Node as DocNode, Elt } from "wordgard/doc";
 
 import { takesRef } from "../helpers/refs.js";
-import { idOf, reserved } from "./ReactShapeType.js";
+import { idOf } from "./shapeType.js";
+import { defineWrapper } from "./wrapperType.js";
 
 /**
  * A React wrapper's props: as a shape's, without `contentDOMRef`. `children` is what it wraps.
@@ -43,11 +44,10 @@ type DrawProps = {
   ref: RefCallback<Element>;
 };
 
-// Keyed apart from React shapes' ids, which share the attribute.
 const draws = new Map<string, (props: DrawProps) => ReactElement>();
 
 // By component, then root element, as React shapes are.
-const wrappers = new WeakMap<object, { id: string; elts: Map<string, Elt> }>();
+const wrappers = new WeakMap<object, ReturnType<typeof defineWrapper>>();
 
 /** A wrapper, for `Decoration.Tag.wrapper` and `Decoration.Point.wrapper`. */
 export const createWrapper = <E extends Element = HTMLElement>(
@@ -56,8 +56,8 @@ export const createWrapper = <E extends Element = HTMLElement>(
 ): Elt => {
   let registered = wrappers.get(component);
   if (!registered) {
-    const id = `w${draws.size + 1}`;
-    draws.set(id, ({ attrs, nodeProps, children, ref }) =>
+    registered = defineWrapper();
+    draws.set(registered.id, ({ attrs, nodeProps, children, ref }) =>
       createElement(component, {
         ...attrs,
         ref: takesRef(component) ? ref : undefined,
@@ -65,20 +65,9 @@ export const createWrapper = <E extends Element = HTMLElement>(
         children,
       })
     );
-    registered = { id, elts: new Map() };
     wrappers.set(component, registered);
   }
-  let elt = registered.elts.get(element);
-  if (!elt) {
-    elt = Elt.mk(element, { [reserved]: registered.id }, [0]);
-    registered.elts.set(element, elt);
-  }
-  return elt;
-};
-
-export const isReactWrapper = (elt: Elt<unknown>) => {
-  const id = idOf(elt);
-  return id != null && draws.has(id);
+  return registered.elt(element);
 };
 
 export const drawWrapper = (elt: Elt<unknown>, props: DrawProps) => {

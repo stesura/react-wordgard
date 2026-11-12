@@ -2,16 +2,7 @@
 import { useMemo, useState } from "react";
 import type { Attributes } from "wordgard/doc";
 
-// Wordgard's attributes are a flat [name, value, ...] array.
-export const attrsToRecord = (attrs: Attributes) => {
-  const record: Record<string, string> = {};
-  for (let i = 0; i + 1 < attrs.length; i += 2) {
-    const name = attrs[i];
-    const value = attrs[i + 1];
-    if (name !== undefined && value !== undefined) record[name] = value;
-  }
-  return record;
-};
+import { attrsToRecord } from "./elt.js";
 
 // Kept while its values are: a node's shape is a new Elt whenever anything in the node changed, and
 // a new record makes its DecorationRootContext a new value, whose readers React looks for through

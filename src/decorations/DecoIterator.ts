@@ -27,7 +27,7 @@ import {
   type WrapperRangeDecoration,
   getDecorationInternals,
 } from "../wordgardInternals.js";
-import { attributeWidget } from "./ReactWidgetType.js";
+import { attributeWidget } from "./widgetType.js";
 
 const enum DecorationScope {
   Atom = 1,

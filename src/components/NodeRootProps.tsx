@@ -14,6 +14,7 @@ import type { Node } from "wordgard/doc";
 
 import { useStyleObject } from "../helpers/attributes.js";
 import { cssToStyle, eltProps, reactTagName } from "../helpers/props.js";
+import { drawnRoot } from "../viewRoots.js";
 
 /** What node wrappers give the element of a node Wordgard draws. */
 export type NodeRootPropsValue = {
@@ -64,14 +65,8 @@ export const NodeRootProps = ({
   return createElement(NodeRootPropsContext.Provider, { value }, children);
 };
 
-// Elements drawn with their wrappers' props: their attributes are React's, as a React shape's
-// root's are (sortRecords drops those records).
-const drawnRoots = new WeakSet<Element>();
-
-export const isDrawnRoot = (dom: EventTarget) => dom instanceof Element && drawnRoots.has(dom);
-
 const rootRef = (ref: ((dom: Element | null) => void) | undefined) => (dom: Element | null) => {
-  if (dom) drawnRoots.add(dom);
+  drawnRoot(dom);
   ref?.(dom);
 };
 

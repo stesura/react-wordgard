@@ -3,13 +3,10 @@
 import React, { type ReactNode, useMemo, useState } from "react";
 import type { Mark } from "wordgard/doc";
 
-import {
-  DecorationContext,
-  createDecorationHandlers,
-  decorationRoot,
-} from "../../contexts/DecorationContext.js";
+import { DecorationContext } from "../../contexts/DecorationContext.js";
+import { createDecorationHandlers, decorationRoot } from "../../decorations/decorationHandlers.js";
 import { drawMark } from "../../decorations/ReactMarkType.js";
-import { createShapeHandle, shapeAttributes } from "../../decorations/ReactShapeType.js";
+import { createShapeHandle, shapeAttributes } from "../../decorations/shapeType.js";
 import { DecorationRootContext } from "../../contexts/DecorationRootContext.js";
 import { componentProps, useAttrsRecord } from "../../helpers/index.js";
 import { mergeRefs } from "../../helpers/refs.js";

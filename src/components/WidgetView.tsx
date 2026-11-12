@@ -3,13 +3,11 @@
 import React, { memo, useMemo, useRef, useState } from "react";
 import type { Widget } from "wordgard/editor";
 
-import {
-  DecorationContext,
-  createDecorationHandlers,
-  decorationRoot,
-} from "../contexts/DecorationContext.js";
+import { DecorationContext } from "../contexts/DecorationContext.js";
+import { createDecorationHandlers, decorationRoot } from "../decorations/decorationHandlers.js";
 import { DecorationRootContext } from "../contexts/DecorationRootContext.js";
-import { drawWidget, widgetElement, widgetRoot } from "../decorations/ReactWidgetType.js";
+import { drawWidget, widgetElement } from "../decorations/ReactWidgetType.js";
+import { widgetRoot } from "../decorations/widgetType.js";
 import { VOID } from "../decorations/iterDeco.js";
 import { componentProps, useAttrsRecord } from "../helpers/index.js";
 import { mergeRefs } from "../helpers/refs.js";

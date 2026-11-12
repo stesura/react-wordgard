@@ -2,7 +2,7 @@ import { Leaf } from "wordgard/doc";
 import { basicSchema } from "wordgard/schema";
 
 import { ReactWordgard } from "../ReactWordgard.js";
-import { ReactDocTile } from "../tile.js";
+import { ReactDocTile } from "../ReactDocTile.js";
 
 describe("ReactWordgard", () => {
   it("keeps its own tile tree through the first render and updates", () => {

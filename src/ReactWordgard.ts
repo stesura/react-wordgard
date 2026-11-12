@@ -3,9 +3,10 @@
 import { Wordgard } from "wordgard/editor";
 import { GardState } from "wordgard/state";
 
-import { editorOf } from "./contexts/EditorContext.js";
+import { ReactDocTile } from "./ReactDocTile.js";
 import { editorEventHandlers, hasEditorEventHandlers } from "./contexts/editorEvents.js";
-import { ReactDocTile, RefusedUpdate, observeShapes } from "./tile.js";
+import { editorOf } from "./editorStore.js";
+import { RefusedUpdate, observeShapes } from "./tile.js";
 import { type DOMObserver, DocTile } from "./wordgardInternals.js";
 
 // Asks Wordgard for a frame: a no-op read schedules a flush.

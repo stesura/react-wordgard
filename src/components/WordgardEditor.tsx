@@ -4,7 +4,8 @@ import React, { type ReactNode, useState } from "react";
 import type { Wordgard } from "wordgard/editor";
 
 import { ReactWordgard } from "../ReactWordgard.js";
-import { EditorContext, editorOf } from "../contexts/EditorContext.js";
+import { EditorContext } from "../contexts/EditorContext.js";
+import { editorOf } from "../editorStore.js";
 
 type Props = Omit<Wordgard.Spec, "parent"> & {
   children?: ReactNode;

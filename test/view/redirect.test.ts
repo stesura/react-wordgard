@@ -3,7 +3,7 @@
 // `Wordgard.DocTile` is then ReactWordgard's, i.e. ReactDocTile.
 // Not type-checked, since it imports the copies (.ts imports, upstream style).
 import { ReactWordgard } from "../../src/ReactWordgard.js";
-import { ReactDocTile } from "../../src/tile.js";
+import { ReactDocTile } from "../../src/ReactDocTile.js";
 import { basicBuilders } from "../wordgard/schema.ts";
 import { tempEditor } from "../wordgard/tempview.ts";
 

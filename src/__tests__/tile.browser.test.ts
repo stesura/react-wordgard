@@ -44,7 +44,8 @@ import { createWidgetType, createWidgetTypeWithRender } from "../decorations/Rea
 import { isSilencedWarning } from "../helpers/props.js";
 import { useNodePos } from "../hooks/useNodePos.js";
 import { useWordgard } from "../hooks/useWordgard.js";
-import { ReactDocTile, nodeViewOf } from "../tile.js";
+import { ReactDocTile } from "../ReactDocTile.js";
+import { nodeViewOf } from "../tile.js";
 import { describeTile, docTileOf, pathOf } from "../testing/tiles.js";
 import { type Tile, TileFlag } from "../wordgardInternals.js";
 

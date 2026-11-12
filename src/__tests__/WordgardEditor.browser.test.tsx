@@ -30,7 +30,7 @@ import { useEditorStateSelector } from "../hooks/useEditorStateSelector.js";
 import { useWordgard } from "../hooks/useWordgard.js";
 import { renderedLists, renderedNodes } from "../testing/renders.js";
 import { docTileOf, drawing } from "../testing/tiles.js";
-import { ReactDocTile } from "../tile.js";
+import { ReactDocTile } from "../ReactDocTile.js";
 
 const img = "data:image/gif;base64,R0lGODlhAQABAAAAACw=";
 

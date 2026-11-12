@@ -9,7 +9,7 @@ import {
   type WrapperView,
   cursorWrappers,
 } from "./decorations/iterDeco.js";
-import { markOfTile, markTiles } from "./decorations/ReactMarkType.js";
+import { markOfTile, markTiles } from "./decorations/markType.js";
 import { type CompositionInfo, TileFlag, getTileClasses } from "./wordgardInternals.js";
 
 // What React last rendered into a text node, under which key.

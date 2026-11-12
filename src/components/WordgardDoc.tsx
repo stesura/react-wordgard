@@ -11,8 +11,9 @@ import React, {
 import { createPortal } from "react-dom";
 import type { Wordgard } from "wordgard/editor";
 
-import { editorOf, useEditorContext } from "../contexts/EditorContext.js";
-import { docPortal } from "../tile.js";
+import { docPortal } from "../ReactDocTile.js";
+import { useEditorContext } from "../contexts/EditorContext.js";
+import { editorOf } from "../editorStore.js";
 
 const DocPortal = ({ wg }: { wg: Wordgard }) => {
   const portal = docPortal(wg.contentDOM);

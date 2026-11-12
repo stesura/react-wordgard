@@ -6,7 +6,7 @@ import { type Decoration, Widget } from "wordgard/editor";
 
 import { isKept, pointMapper, samePlace, unchangedEnds } from "../changes.js";
 import type { CompositionView } from "../composition.js";
-import { type RenderStore, moveCell } from "../contexts/RenderStoreContext.js";
+import { type RenderStore, moveCell } from "../renderStore.js";
 import { childViewKeys, createNodeKey } from "../reactKeys.js";
 import { type DecoElt, TileFlag } from "../wordgardInternals.js";
 import {
@@ -18,9 +18,9 @@ import {
   renderWrapper,
   spanningOf,
 } from "./DecoIterator.js";
-import { isReactMark } from "./ReactMarkType.js";
-import { isReactWidget } from "./ReactWidgetType.js";
-import { isReactWrapper } from "./ReactWrapperType.js";
+import { isReactMark } from "./markType.js";
+import { isReactWidget } from "./widgetType.js";
+import { isReactWrapper } from "./wrapperType.js";
 
 export type NodeView = {
   type: "node";

@@ -3,7 +3,8 @@
 import { useCallback } from "react";
 import { useSyncExternalStoreWithSelector } from "use-sync-external-store/with-selector";
 
-import { type StateField, useEditorContext } from "../contexts/EditorContext.js";
+import { useEditorContext } from "../contexts/EditorContext.js";
+import type { StateField } from "../editorStore.js";
 
 const identity = <T>(value: T) => value;
 
