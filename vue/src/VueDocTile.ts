@@ -1,7 +1,7 @@
 // Adapted from react-wordgard's ReactDocTile.ts for Vue: Vue's renderer for our DocTile. Vue has
 // no flushSync, but `render()` patches at once when the change comes from the root, as here: the
-// whole document is drawn from its views on every update (no per-node updates yet), then the
-// components whose own state the update changed commit (sync.ts).
+// document's list is drawn when its shape changed, then the components whose state the update
+// changed commit (sync.ts), the nodes given new views by their cells among them.
 import {
   type AppContext,
   type Component,
@@ -16,7 +16,7 @@ import {
 import type { Wordgard } from "wordgard/editor";
 import type { GardState } from "wordgard/state";
 
-import type { ChildView } from "../../src/decorations/iterDeco.js";
+import { type ChildView, shapeOf } from "../../src/decorations/iterDeco.js";
 import { createNodeWrappers } from "../../src/decorations/nodeWrapperType.js";
 import { editorOf } from "../../src/editorStore.js";
 import {
@@ -134,14 +134,27 @@ const vueRenderer = (
   let views: readonly ChildView[] = [];
   // What was last drawn, null before the first draw and after a detach.
   let last: VNode | null = null;
+  const clear = () => {
+    render(empty(), dom);
+    last = null;
+  };
   const draw = (next: readonly ChildView[]) => {
     if (failures != cleared) {
-      render(empty(), dom);
+      clear();
       cleared = failures;
     }
+    // The same shape: the nodes that changed render from their cells.
+    const keep = last && shapeOf(next) == shapeOf(views);
     views = next;
+    if (keep) return;
     last = DocNodeView(dom, views, context);
-    render(last, dom);
+    try {
+      render(last, dom);
+    } catch (error) {
+      // Not what Vue last drew: the next draw renders.
+      last = null;
+      throw error;
+    }
   };
   const refuse = () => {
     if (last && getCurrentInstance())
@@ -150,12 +163,14 @@ const vueRenderer = (
       );
   };
   // The components a change set state for commit now. `render` runs Vue's
-  // post-flush callbacks as it returns, but not those of updates made after
-  // it: drawing the same vnode again patches nothing and runs them.
-  const batch = (change: () => void) => {
+  // pending callbacks as it returns, but not those of updates made after it,
+  // nor any when the document's list kept its shape: drawing the same vnode
+  // again patches nothing and runs them. Every commit does, so the document's
+  // watchers run inside the flush.
+  const batch = (change: () => void, commit = false) => {
     refuse();
     change();
-    if (flushUpdates(context) && last) render(last, dom);
+    if ((flushUpdates(context) || commit) && last) render(last, dom);
   };
   if (mount) {
     let claims = 0;
@@ -175,22 +190,20 @@ const vueRenderer = (
         const attachment = ++attachments;
         // The components another WordgardDoc drew keep their app context:
         // unmounted, before its detach (a WordgardDoc moved mounts first).
-        if (last) render(empty(), dom);
+        if (last) clear();
         context = documentContext(host.appContext, providesOf(host), wg, wrappers, errorHandler);
         try {
           draw(views);
           mount();
         } catch (error) {
-          render(empty(), dom);
-          last = null;
+          clear();
           throw error;
         }
         // Unmounts the document's components, leaving the content element,
         // unless another WordgardDoc has attached since.
         return () => {
           if (attachment != attachments || !last) return;
-          render(empty(), dom);
-          last = null;
+          clear();
         };
       },
     });
@@ -206,7 +219,7 @@ const vueRenderer = (
         publish();
         wrappers.value = state.facet(vueNodeWrappers.reader);
         draw(next);
-      }),
+      }, true),
     batch,
     redrawsAll,
     words: vueWords,

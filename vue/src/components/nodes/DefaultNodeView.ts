@@ -1,10 +1,20 @@
 // Adapted from react-wordgard's DefaultNodeView for Vue: a node renders as its decorated shape
 // (buildNodeShape), its content in the hole as the hole element's own children, Vue shapes,
 // wrappers and widgets as their components, inside the node's wrappers (NodeWrapperView). A
-// component with one root: Vue renders it again only when its view is another object, as iterDeco
-// keeps the views of what didn't change. Native widgets draw nothing: the doc tile puts their DOM
-// in place.
-import { Text, type VNode, createVNode, defineComponent, h, inject } from "vue";
+// component with one root, given its node's cell: it renders when the cell gets a new view, not
+// when its list renders again, as react-wordgard's. Native widgets draw nothing: the doc tile puts
+// their DOM in place.
+import {
+  Text,
+  type VNode,
+  createVNode,
+  defineComponent,
+  h,
+  inject,
+  onBeforeUpdate,
+  onUnmounted,
+  shallowRef,
+} from "vue";
 import { Attributes, Elt, type Node } from "wordgard/doc";
 
 import { type ChildView, type NodeView, uneditable } from "../../../../src/decorations/iterDeco.js";
@@ -12,6 +22,7 @@ import { isReactShape, nodePos, shapeAttributes } from "../../../../src/decorati
 import { attributedWidget, isReactWidget } from "../../../../src/decorations/widgetType.js";
 import { isReactWrapper } from "../../../../src/decorations/wrapperType.js";
 import { localTagName } from "../../../../src/helpers/elt.js";
+import type { NodeCell } from "../../../../src/renderStore.js";
 import { drawnRoot, viewRoot } from "../../../../src/viewRoots.js";
 import type { DecoElt } from "../../../../src/wordgardInternals.js";
 import { NodeWrappersKey } from "../../contexts/EditorContext.js";
@@ -19,7 +30,7 @@ import { decorationProps, eltProps } from "../../helpers/props.js";
 import { type DOMRef, withRef } from "../../helpers/refs.js";
 import { updateInFlush } from "../../sync.js";
 import { vueWords } from "../../words.js";
-import { renderChildViews } from "../ChildNodeViews.js";
+import { type DrawnList, drawList, renderChildViews } from "../ChildNodeViews.js";
 import { NodeWrapperView } from "../NodeWrapperView.js";
 import { ShapeView } from "../ShapeView.js";
 import { WidgetView } from "../WidgetView.js";
@@ -31,7 +42,7 @@ import { WrapperView } from "../WrapperView.js";
 type NodeDraw = {
   node: Node;
   views: readonly ChildView[] | null;
-  content: () => VNode[];
+  content: (views: readonly ChildView[]) => VNode[];
   selected: boolean;
   // It has node wrappers, whose attributes fall through to its root element.
   wrapped: boolean;
@@ -59,12 +70,15 @@ const renderShape = (
   if (isReactShape(elt))
     return h(ShapeView, { key, elt, node, content: draw.views, selected, outerRef: ref });
   if (isReactWrapper(elt)) {
-    const wrapped = (wrappedRef: DOMRef) => renderWrapped(draw, elt, inner, wrappedRef);
+    // Drawn in the wrapper's own render, which can put it elsewhere: the
+    // content's vnodes are made anew.
+    const fresh = { ...draw, content: renderChildViews };
+    const wrapped = (wrappedRef: DOMRef) => renderWrapped(fresh, elt, inner, wrappedRef);
     return h(WrapperView, { key, elt, node, wrapped, selected, outerRef: ref });
   }
   const children: VNode[] = [];
   elt.children.forEach((child, i) => {
-    if (child === 0) children.push(...draw.content());
+    if (child === 0) children.push(...(draw.views ? draw.content(draw.views) : []));
     else if (typeof child == "string") children.push(createVNode(Text, { key: i }, child));
     else if (child instanceof Elt) children.push(renderShape(draw, child, inner, i));
     else if (isReactWidget(child))
@@ -111,17 +125,17 @@ const drawView = (
   { node, shape, children }: NodeView,
   wrapped: boolean,
   ref: DOMRef,
-  widgetRef: DOMRef
+  widgetRef: DOMRef,
+  content: NodeDraw["content"]
 ): VNode => {
   if (!(shape instanceof Elt)) return h(WidgetView, { widget: shape, outerRef: widgetRef });
   const views = node.isPlot ? children : null;
-  const content = () => (views ? renderChildViews(views) : []);
   const draw = { node, views, content, selected: isSelected(shape), wrapped };
   return renderShape(draw, shape, true, undefined, ref, true);
 };
 
 export const DefaultNodeView = defineComponent(
-  (props: { view: NodeView }) => {
+  (props: { cell: NodeCell }) => {
     // A reconfiguration changing the wrappers draws a node whose view is kept.
     const wrappers = inject(NodeWrappersKey, null);
     updateInFlush();
@@ -139,16 +153,49 @@ export const DefaultNodeView = defineComponent(
       viewRoot(dom);
       widgetRef(dom);
     };
-    let nodeProps = { node: props.view.node, getPos };
+    // Its cell's view, which the cell's listener sets inside the flush. One
+    // per node: a hook's state would cost each a watcher.
+    let cell = props.cell;
+    const drawn = shallowRef(cell.view);
+    const redraw = () => {
+      drawn.value = cell.view;
+    };
+    cell.listener = redraw;
+    const unlisten = () => {
+      if (cell.listener == redraw) cell.listener = null;
+    };
+    // Before the render, where setting `drawn` doesn't schedule it again.
+    onBeforeUpdate(() => {
+      if (props.cell == cell) return;
+      unlisten();
+      cell = props.cell;
+      cell.listener = redraw;
+      redraw();
+    });
+    onUnmounted(unlisten);
+    // The content's vnodes and the shape they were drawn in, kept while both
+    // are: the same shape puts them in the same place.
+    let content: { shape: DecoElt; list: DrawnList } | null = null;
+    let nodeProps = { node: cell.view.node, getPos };
     return () => {
-      const { view } = props;
+      const view = drawn.value;
       const components = wrappers?.value.of(view.node.type);
       wrapped = !!components;
-      const drawing = () => drawView(view, wrapped, rootRef, widgetRef);
+      // Node wrappers draw it in their own render, which can put it elsewhere.
+      const last = components ? null : content;
+      content = null;
+      const { shape } = view;
+      const list = (views: readonly ChildView[]) => {
+        if (components || !(shape instanceof Elt)) return renderChildViews(views);
+        const next = drawList(views, last?.shape.eq(shape) ? last.list : null);
+        content = { shape, list: next };
+        return next.vnodes;
+      };
+      const drawing = () => drawView(view, wrapped, rootRef, widgetRef, list);
       if (!components) return drawing();
       if (nodeProps.node != view.node) nodeProps = { node: view.node, getPos };
       return h(NodeWrapperView, { components, index: 0, nodeProps, draw: drawing });
     };
   },
-  { props: ["view"] }
+  { props: ["cell"] }
 );

@@ -211,7 +211,11 @@ const keepSame = (
         sameMark(match.mark, view.mark)
       )
         keepSame(store, match.children, view.children);
-      if (match?.type == "node" && found.type == "node") moveCell(store, match, found);
+      if (match?.type == "node" && found.type == "node") {
+        moveCell(store, match, found);
+        // Vue's list draws nothing for a native widget's node.
+        if (isNative(match) != isNative(found)) sameShape = false;
+      }
       if (found != before[i]) {
         changed = true;
         if (found.type != "node" || match != before[i]) sameShape = false;
@@ -226,6 +230,9 @@ const keepSame = (
   if (sameShape) shapes.set(after, shapeOf(before));
   return after;
 };
+
+// A node a native widget draws, which no component draws.
+const isNative = ({ shape }: NodeView) => !(shape instanceof Elt) && !isReactWidget(shape);
 
 const isPoint = (view: ChildView | undefined) => view?.type == "buffer" || view?.type == "widget";
 

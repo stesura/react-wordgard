@@ -74,19 +74,39 @@ export const syncMixin: ComponentOptions = {
   },
 };
 
-// Renders the pending components whose state changed, parents first, and
-// says whether it rendered any.
+// Renders the pending components whose state changed, parents first (by uid,
+// as Vue's queue: a parent is created before its children), and says whether
+// it rendered any. A child its parent rendered is no longer dirty, nor is one
+// unmounted earlier in the loop (its effect stopped; Vue sets `isUnmounted`
+// after its patch). Those a render records join the queue in their place.
 export const flushUpdates = (context: AppContext) => {
   const set = pending.get(context);
+  if (!set?.size) return false;
+  const queue = [...set].sort((a, b) => a.uid - b.uid);
+  set.clear();
   let rendered = false;
-  while (set?.size) {
-    let next: ComponentInternalInstance | null = null;
-    for (const instance of set) if (!next || instance.uid < next.uid) next = instance;
-    if (!next) break;
-    set.delete(next);
-    if (next.isUnmounted || !next.effect.dirty) continue;
+  for (let at = 0; at < queue.length; at++) {
+    const next = queue[at];
+    if (!next || next.isUnmounted || !next.effect.dirty) continue;
     next.update();
     rendered = true;
+    for (const added of set) insert(queue, added, at + 1);
+    set.clear();
   }
   return rendered;
+};
+
+const insert = (
+  queue: ComponentInternalInstance[],
+  instance: ComponentInternalInstance,
+  from: number
+) => {
+  let low = from;
+  let high = queue.length;
+  while (low < high) {
+    const mid = (low + high) >> 1;
+    if ((queue[mid]?.uid ?? 0) < instance.uid) low = mid + 1;
+    else high = mid;
+  }
+  queue.splice(low, 0, instance);
 };

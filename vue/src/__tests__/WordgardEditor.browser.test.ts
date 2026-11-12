@@ -1,14 +1,15 @@
 // Adapted from react-wordgard's WordgardEditor.browser.test.tsx and useEditorField.browser.test.tsx
 // for Vue: an editor in the app's components (WordgardEditor, WordgardDoc), and the composables
 // over it. Components outside the document render in Vue's next tick, not inside the editor's
-// update: the tests wait for it. React's "renders" tests wait for per-node updates (Phase 5 of the
-// Vue plan); StrictMode and WordgardScope have no Vue counterpart.
+// update: the tests wait for it. StrictMode and WordgardScope have no Vue counterpart.
 import {
   type App,
   type Component,
+  type ComponentOptions,
   computed,
   createApp,
   defineComponent,
+  getCurrentInstance,
   h,
   inject,
   nextTick,
@@ -21,14 +22,16 @@ import {
 } from "vue";
 import { Leaf, Plot } from "wordgard/doc";
 import { Decoration, Widget, Wordgard } from "wordgard/editor";
-import { basicSchema, image } from "wordgard/schema";
+import { basicSchema, blockquote, bulletList, image } from "wordgard/schema";
 import { GardState, Transaction } from "wordgard/state";
-import { Image, Paragraph, Strong } from "wordgard/types";
+import { Blockquote, Heading, Image, Paragraph, Strong } from "wordgard/types";
 
 import { docTileOf, drawing } from "../../../src/testing/tiles.js";
 import { VueDocTile } from "../VueDocTile.js";
 import { WordgardDoc } from "../components/WordgardDoc.js";
+import { NodeContent } from "../components/NodeContent.js";
 import { WordgardEditor } from "../components/WordgardEditor.js";
+import { createShape } from "../decorations/VueShapeType.js";
 import { createWidgetTypeWithRender } from "../decorations/VueWidgetType.js";
 import { useEditorEffect } from "../hooks/useEditorEffect.js";
 import { useEditorEventListener } from "../hooks/useEditorEventListener.js";
@@ -36,6 +39,7 @@ import { useEditorField, useEditorFieldEntry } from "../hooks/useEditorField.js"
 import { useEditorLayoutEffect } from "../hooks/useEditorLayoutEffect.js";
 import { useEditorState } from "../hooks/useEditorState.js";
 import { useWordgard } from "../hooks/useWordgard.js";
+import { watchRenders } from "../testing/renders.js";
 
 const img = "data:image/gif;base64,R0lGODlhAQABAAAAACw=";
 
@@ -485,6 +489,160 @@ describe("WordgardEditor", () => {
     await nextTick();
     expect(wg.contentDOM.childNodes.length).toBe(0);
     error.mockRestore();
+  });
+});
+
+describe("renders", () => {
+  // What each update rendered again, in order: a node's view by its node's
+  // name, other components by their `name`.
+  const updated: string[] = [];
+  const counting: ComponentOptions = {
+    beforeUpdate: () => {
+      const instance = getCurrentInstance();
+      const node = Reflect.get(Reflect.get(instance?.props.cell ?? {}, "view") ?? {}, "node");
+      const name = node instanceof Plot || node instanceof Leaf ? node.name : instance?.type.name;
+      if (name) updated.push(name);
+    },
+  };
+  const editor = (html: string, extra: GardState.Extension = []) => {
+    editors.length = 0;
+    const app = createApp({
+      components: { WordgardEditor, WordgardDoc, Grab },
+      setup: () => ({ html, config: [basicSchema(), blockquote(), bulletList(), extra] }),
+      template: `
+        <WordgardEditor :doc="html" :config="config">
+          <Grab />
+          <WordgardDoc />
+        </WordgardEditor>`,
+    });
+    app.mixin(counting);
+    apps.push(app);
+    app.mount(container());
+    const wg = editors.at(-1);
+    if (!wg) throw new Error("No editor");
+    return wg;
+  };
+  const renders = (wg: Wordgard, spec: Transaction.Spec) => {
+    const rendered = watchRenders(wg.contentDOM);
+    updated.length = 0;
+    edit(wg, spec);
+    return rendered();
+  };
+  // Drawn as plain Wordgard draws the same state.
+  const asWordgard = (wg: Wordgard) => {
+    const reference = Wordgard.create({ state: wg.state, parent: container() });
+    reference.flush();
+    // `drawing` compares the tiles too, quadratic in a list's length.
+    expect(wg.contentDOM.innerHTML).toBe(reference.contentDOM.innerHTML);
+  };
+  const text = (at: number) => ({ changes: { from: at, insert: [Leaf.text("x")] } });
+
+  it("renders only the block typed in and its ancestors, from the first keystroke", () => {
+    const wg = editor(
+      "<p>one</p><blockquote><p>two</p></blockquote><ul><li><p>three</p></li></ul>"
+    );
+    const typed = (from: number) => renders(wg, text(from)).nodes.map((node) => node.name);
+    expect(typed(16)).toEqual(["BulletList", "ListItem", "Paragraph"]);
+    expect(typed(17)).toEqual(["BulletList", "ListItem", "Paragraph"]);
+    expect(typed(8)).toEqual(["Blockquote", "Paragraph"]);
+    expect(typed(2)).toEqual(["Paragraph"]);
+    expect(
+      wg.state.doc.content.map((node) => (node instanceof Plot ? node.textContent() : ""))
+    ).toEqual(["oxne", "txwo", "txxhree"]);
+  });
+
+  it("renders no list but the text's for a keystroke, and the lists whose shape changes", () => {
+    const wg = editor("<p>one</p><blockquote><p>two</p><p>three</p></blockquote><p>four</p>");
+    const lists = (spec: Transaction.Spec) => renders(wg, spec).lists;
+    expect(lists(text(2))).toBe(1);
+    expect(lists(text(9))).toBe(1);
+    // A paragraph more in the blockquote: its list, not the document's.
+    expect(lists({ changes: { from: 7, insert: [Paragraph.create([Leaf.text("new")])] } })).toBe(2);
+    expect(lists({ changes: { from: 0, insert: [Paragraph.create([Leaf.text("top")])] } })).toBe(2);
+    expect(wg.contentDOM.textContent).toBe("topoxnenewtxwothreefour");
+  });
+
+  it("renders the paragraph typed in among 5,000, and every paragraph once for a change to all", () => {
+    const html = Array.from({ length: 5000 }, (_, i) => `<p>paragraph ${i}</p>`).join("");
+    const wg = editor(html);
+    const middle = wg.state.doc.content.slice(0, 2500).reduce((sum, node) => sum + node.length, 4);
+    const typed = renders(wg, text(middle));
+    expect(typed.nodes.map((node) => node.name)).toEqual(["Paragraph"]);
+    expect(typed.lists).toBe(1);
+    const typedIn = wg.state.doc.content[2500];
+    expect(typedIn instanceof Plot ? typedIn.textContent() : "").toBe("parxagraph 2500");
+    renders(wg, { changes: { from: 0, to: wg.state.doc.length, add: Strong } });
+    expect(updated).toEqual(Array(5000).fill("Paragraph"));
+    asWordgard(wg);
+  });
+
+  it("renders parents first, each component once", () => {
+    const Quote = defineComponent({
+      name: "Quote",
+      props: ["nodeProps"],
+      components: { NodeContent },
+      setup: () => ({ state: useEditorState() }),
+      template: `<NodeContent :data-length="state.doc.length" />`,
+    });
+    const wg = editor("<blockquote><p>a</p><p>b</p></blockquote>", [
+      Decoration.Tag.shape(Blockquote, createShape(Quote)),
+    ]);
+    renders(wg, text(2));
+    expect(updated).toEqual(["Blockquote", "Quote", "Paragraph"]);
+    expect(wg.contentDOM.textContent).toBe("xab");
+  });
+
+  it("draws a node whose shape turns into a native widget's and back", () => {
+    const setPreview = Transaction.Effect.define<number | null>();
+    const preview = GardState.Field.define<number | null>({
+      create: () => null,
+      update: (value, tr) => {
+        for (const effect of tr.effects) if (effect.is(setPreview)) value = effect.value;
+        return value;
+      },
+    });
+    const wg = editor("<p>a</p><p>b</p><blockquote><p>c</p><p>d</p></blockquote>", [
+      preview,
+      Decoration.Point.source.of((state) => {
+        const at = state.field(preview);
+        return Decoration.Point.set(
+          at === null ? [] : [[Decoration.Point.shape(NativeLabel.of("preview")), at]]
+        );
+      }),
+    ]);
+    // At the top, then in the blockquote.
+    for (const at of [3, 10]) {
+      edit(wg, { effects: setPreview.of(at) });
+      asWordgard(wg);
+      edit(wg, { effects: setPreview.of(null) });
+      asWordgard(wg);
+    }
+  });
+
+  it("draws typing in a plot inserted twice, the same object", () => {
+    const wg = editor("<p>z</p>");
+    const quote = Blockquote.create([
+      Blockquote.create([
+        Paragraph.create([Leaf.text("one")]),
+        Paragraph.create([Leaf.text("two")]),
+      ]),
+      Paragraph.create([Leaf.text("three")]),
+    ]);
+    edit(wg, { changes: { from: 0, insert: [quote, quote] } });
+    asWordgard(wg);
+    const second = () => wg.state.doc.content[0]?.length ?? 0;
+    for (const at of [() => 3, () => second() + 3, () => 11, () => second() + 5]) {
+      edit(wg, text(at()));
+      asWordgard(wg);
+    }
+  });
+
+  it("draws typing in a node retagged with its content kept", () => {
+    const wg = editor("<h1>abc</h1><p>z</p>");
+    edit(wg, { changes: { from: 0, to: 1, insert: [Heading.of(2)] } });
+    asWordgard(wg);
+    edit(wg, text(2));
+    asWordgard(wg);
   });
 });
 

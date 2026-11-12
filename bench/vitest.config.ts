@@ -23,13 +23,20 @@ export default defineConfig(({ mode }) => {
     // Apart from the tests' cache, which holds React's development build.
     cacheDir: `node_modules/.vite-bench-${nodeEnv}`,
     plugins: [react()],
-    define: { "process.env.NODE_ENV": JSON.stringify(nodeEnv) },
+    define: {
+      "process.env.NODE_ENV": JSON.stringify(nodeEnv),
+      // Vue's bundler build asks for its feature flags.
+      __VUE_OPTIONS_API__: "true",
+      __VUE_PROD_DEVTOOLS__: "false",
+      __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: "false",
+    },
     optimizeDeps: {
       include: [
         "react",
         "react-dom",
         "react-dom/client",
         "@handlewithcare/react-prosemirror",
+        "vue",
         "wordgard/command",
         "wordgard/doc",
         "wordgard/editor",

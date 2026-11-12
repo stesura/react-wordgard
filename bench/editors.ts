@@ -1,7 +1,8 @@
-// The editors the benchmarks compare: react-wordgard, plain Wordgard,
-// react-prosemirror (@handlewithcare/react-prosemirror from npm) and plain
-// ProseMirror. All get the same document (documents.ts), alike schemas
-// (schemas.ts) and their own history.
+// The editors the benchmarks compare: react-wordgard, vue-wordgard (the Vue
+// trial, vue/), plain Wordgard, react-prosemirror
+// (@handlewithcare/react-prosemirror from npm) and plain ProseMirror. All get
+// the same document (documents.ts), alike schemas (schemas.ts) and their own
+// history.
 import {
   ProseMirrorDoc,
   ProseMirror as ReactProseMirror,
@@ -21,6 +22,7 @@ import { EditorState, TextSelection, type Transaction } from "prosemirror-state"
 import { EditorView } from "prosemirror-view";
 import React, { createElement } from "react";
 import { type Root, createRoot } from "react-dom/client";
+import { type App, createApp, defineComponent, h } from "vue";
 import { Command, enter } from "wordgard/command";
 import { Leaf, Plot } from "wordgard/doc";
 import { Wordgard } from "wordgard/editor";
@@ -29,6 +31,11 @@ import { GardState } from "wordgard/state";
 import { Strong } from "wordgard/types";
 
 import { WordgardDoc, WordgardEditor, useEditorEffect as useWordgardEffect } from "../src/index.js";
+import {
+  WordgardDoc as VueWordgardDoc,
+  WordgardEditor as VueWordgardEditor,
+  useEditorEffect as useVueWordgardEffect,
+} from "../vue/src/index.js";
 import { replacement, searchTerm } from "./documents.js";
 import { pmPlugins, wgPlugins } from "./plugins.js";
 import { FontSize, Indent, pmSchema, wgSchema } from "./schemas.js";
@@ -37,7 +44,12 @@ export { documentHTML, styledHTML } from "./documents.js";
 
 export const smoke = import.meta.env.MODE.includes("smoke");
 export const development = import.meta.env.MODE.endsWith("development");
-export const sizes = smoke ? [50] : [50, 500, 1500];
+// `VITE_BENCH_SIZES=5000` runs the sizes given instead.
+const sizesGiven = String(import.meta.env.VITE_BENCH_SIZES ?? "")
+  .split(",")
+  .filter(Boolean)
+  .map(Number);
+export const sizes = sizesGiven.length ? sizesGiven : smoke ? [50] : [50, 500, 1500];
 
 // A bulk edit over every paragraph, in one transaction: an indent, replacing
 // the search term as Replace All does, or setting the font size of all the
@@ -210,6 +222,26 @@ const reactWordgard: Mount = (html, parent, plugins) => {
   });
 };
 
+// Mounted as an app does, as react-wordgard is above.
+const vueWordgard: Mount = (html, parent, plugins) => {
+  const { state, loaded, at } = wgState(html, plugins);
+  return new Promise((resolve) => {
+    let app: App | null = null;
+    timings.start = now();
+    const Ready = defineComponent(() => {
+      useVueWordgardEffect((wg) => {
+        wg.flush();
+        parent.getBoundingClientRect();
+        timings.load = now() - timings.start;
+        resolve(wgEditor(wg, loaded, at, () => app?.unmount()));
+      });
+      return () => null;
+    });
+    app = createApp(() => h(VueWordgardEditor, { state }, () => [h(VueWordgardDoc), h(Ready)]));
+    app.mount(parent);
+  });
+};
+
 const pmDoc = (html: string) => {
   const dom = document.createElement("div");
   dom.innerHTML = html;
@@ -345,6 +377,7 @@ const reactProseMirror: Mount = (html, parent, plugins) => {
 
 const all: [string, Mount][] = [
   ["react-wordgard", reactWordgard],
+  ["vue-wordgard", vueWordgard],
   ["Wordgard", wordgard],
   ["react-prosemirror", reactProseMirror],
   ["ProseMirror", proseMirror],
