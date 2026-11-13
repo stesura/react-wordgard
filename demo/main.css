@@ -57,6 +57,14 @@ main {
   background: #ffffffb0;
   outline: 1px solid currentColor;
 }
+/* Svelte keeps a space between elements on separate lines, which the editor's pre-wrap would draw:
+   a blank line between the title bar and the body. The content needs pre-wrap. */
+.callout {
+  white-space: normal;
+}
+.callout-body {
+  white-space: pre-wrap;
+}
 .callout-body > :first-child {
   margin-top: 4px;
 }

@@ -236,6 +236,9 @@ block's comment) must stay out of the document's content.
     `Decoration.Tag.widget(Paragraph, "start", LineNumber.of(null))`.
   - In a node holding blocks, chrome sits around the content element, in elements of its own;
     `{#if}` and `{#each}` there are fine.
+  - Chrome inherits the editor's `white-space: pre-wrap`, which draws the space Svelte keeps
+    between elements on separate lines (a blank line between a title bar and the content element):
+    give the root `white-space: normal` and the content element `white-space: pre-wrap`.
   - A component may move its content element (an `{#if}` putting `contentDOMRef` on another
     element): the content's DOM moves with it.
 - No outro transitions on a root: the leaving root is still there when its replacement comes.

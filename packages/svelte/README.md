@@ -310,6 +310,9 @@ comment) may land among the document's nodes.
   to change. In a textblock or a mark, the content element holds only the content; chrome beside a
   paragraph's text is a widget at its `"start"` or `"end"`. In a node holding blocks, chrome sits
   around the content element, in elements of its own.
+- Chrome inherits the editor's `white-space: pre-wrap`, which draws the space Svelte keeps between
+  elements on separate lines: a blank line between a title bar and the content element. Give the
+  root `white-space: normal` and the content element `white-space: pre-wrap`.
 - A component may move its content element (`contentDOMRef` on another element, from its own
   state): the content's DOM moves into it.
 - Node parameters: `nodeProps.node.tag.param` for a node with content, `node.param` for a leaf;
