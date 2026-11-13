@@ -2,7 +2,7 @@
 // for Svelte: Svelte shapes, wrappers, marks and widgets, written as users write them. After each
 // change, Wordgard's next flush must find nothing to redraw, and the tiles must be what a fresh
 // editor builds.
-import { tick } from "svelte";
+import { mount, tick, unmount } from "svelte";
 import { Leaf } from "wordgard/doc";
 import { Decoration, Widget, type Wordgard } from "wordgard/editor";
 import { basicSchema, blockquote, image } from "wordgard/schema";
@@ -17,6 +17,8 @@ import { createWidgetType } from "../decorations/SvelteWidgetType.js";
 import { createWrapper } from "../decorations/SvelteWrapperType.js";
 import Badge from "./fixtures/Badge.svelte";
 import Callout from "./fixtures/Callout.svelte";
+import { box } from "../helpers/box.svelte.js";
+import Focuser from "./fixtures/Focuser.svelte";
 import Frame from "./fixtures/Frame.svelte";
 import HeadingView from "./fixtures/Heading.svelte";
 import HeadingRoot from "./fixtures/HeadingRoot.svelte";
@@ -275,6 +277,61 @@ describe("Svelte shapes", () => {
     wg.dispatch({ changes: { from: 2, insert: [Leaf.text("x")] } });
     wg.flush();
     expect(wg.contentDOM.innerHTML).toBe("<h2>ax</h2><p>b</p>");
+  });
+
+  // Its content is drawn outside the component's effects, later: the editor read from an effect
+  // in the same Svelte flush waits for it.
+  it("lets an effect read the editor while a shape moves its content", async () => {
+    const wg = create();
+    const on = box(false);
+    const app = mount(Focuser, { target: document.createElement("div"), props: { wg, on } });
+    control(wg).set("deep", true);
+    on.current = true;
+    await tick();
+    await Promise.resolve();
+    void unmount(app);
+    wg.flush();
+    initial.deep = true;
+    expect(drawn(wg)).toEqual(fresh(wg));
+    typeInto(wg, textIn(wg, ".deep b p"), 0, "x");
+    wg.flush();
+    expect(wg.state.doc.toString()).toContain("xbc");
+  });
+
+  it("draws the rest, then the document anew, when one content element is wrong", () => {
+    const wg = create({
+      doc: "<p>a</p>",
+      config: [
+        basicSchema(),
+        blockquote(),
+        Decoration.Tag.shape(Blockquote, CalloutShape.of("div")),
+        Decoration.Tag.shape(Heading, createShape(Labelled)),
+      ],
+    });
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    wg.dispatch({
+      changes: {
+        from: 3,
+        insert: [
+          Blockquote.create([Paragraph.create([Leaf.text("x")])]),
+          Heading.of(1).create([Leaf.text("y")]),
+          Blockquote.create([Paragraph.create([Leaf.text("z")])]),
+        ],
+      },
+    });
+    expect(() => wg.flush()).toThrow("content element is drawn empty");
+    expect([...wg.contentDOM.querySelectorAll(".body")].map((body) => body.textContent)).toEqual([
+      "x",
+      "z",
+    ]);
+    const heading = wg.state.doc.content.findIndex((node) => node.name == "Heading");
+    let from = 0;
+    for (const node of wg.state.doc.content.slice(0, heading)) from += node.length;
+    wg.dispatch({ changes: { from, to: from + (wg.state.doc.content[heading]?.length ?? 0) } });
+    wg.flush();
+    spy.mockRestore();
+    expect(wg.contentDOM.querySelector(".label")).toBeNull();
+    expect(drawn(wg)).toEqual(fresh(wg));
   });
 
   it("refuses chrome in a root that holds the content", () => {

@@ -1,7 +1,7 @@
 // Not in react-wordgard, where a decoration's component is an element of React's tree: a Svelte
 // decoration's component mounted as a root part (helpers/mountRoot.ts), with its decoration's
 // context, its errors reported. Shared by ShapeView, WrapperView, SvelteMarkView and WidgetView.
-import type { DecorationHandlers } from "@stesura/wordgard-view";
+import { type DecorationHandlers, rootReplaced } from "@stesura/wordgard-view";
 import { type DecorationContextValue, DecorationKey } from "../contexts/DecorationContext.js";
 import { box } from "../helpers/box.svelte.js";
 import type { AnyComponent } from "../helpers/mountRoot.js";
@@ -61,8 +61,9 @@ export const mountDecoration = (
   mounted.replaced = (root) => {
     const old = part.dom;
     part.dom = mounted.root = root;
+    rootReplaced(old, root);
     rooted(root);
-    replaceRoot(part, old, root);
+    return () => replaceRoot(part, old, root);
   };
   rooted(mounted.root);
   return part;

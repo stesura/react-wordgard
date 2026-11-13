@@ -8,6 +8,7 @@ import type { Attributes } from "wordgard/doc";
 
 import {
   type ChildView,
+  type NodeWrappers,
   type Words,
   cellOf,
   childViewKeys,
@@ -15,7 +16,7 @@ import {
   shapeOf,
 } from "@stesura/wordgard-view";
 import { createElement, placeNodes, setAttributes } from "../helpers/dom.js";
-import type { Holder } from "../helpers/mountRoot.js";
+import type { AnyComponent, Holder } from "../helpers/mountRoot.js";
 import { SeparatorHackView } from "./SeparatorHackView.js";
 import { TextNodeView } from "./TextNodeView.js";
 import { TrailingHackView } from "./TrailingHackView.js";
@@ -24,19 +25,26 @@ import { MarkView } from "./marks/MarkView.js";
 import { DefaultNodeView, type NodePart, destroyNode } from "./nodes/DefaultNodeView.js";
 
 // What one document's drawing shares: its document, the nodes whose cells got
-// a view in this commit (drawn once their lists are), where components are
-// mounted, and how a component's error is reported. `contexts` are those a
+// a view in this commit (drawn once their lists are), the nodes drawn (drawn
+// again when the node wrappers change), where components are
+// mounted, the node wrappers of the state drawn, and how a component's error
+// is reported. `contexts` are those a
 // component mounted here gets: the editor's, or those of the component whose
 // content this is.
 export type DrawContext = {
   readonly doc: Document;
   readonly dirty: Set<NodePart>;
+  readonly nodes: Set<NodePart>;
   readonly words: Words;
   readonly holder: Holder;
+  readonly wrappers: { current: NodeWrappers<AnyComponent> | null };
   readonly contexts: Map<unknown, unknown>;
   readonly failed: (error: unknown) => void;
   // Run once Svelte has run the effects of what was drawn (its attachments).
   readonly settle: (() => void)[];
+  // Runs `run` with the `settle` queue: in the commit, or outside it before
+  // Wordgard reads the DOM, or in a microtask, never inside an effect.
+  readonly defer: (run: () => void) => void;
 };
 
 export type TextPart = {

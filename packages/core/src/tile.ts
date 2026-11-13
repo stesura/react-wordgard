@@ -21,6 +21,7 @@ import { type RenderStore, publishCells } from "./renderStore.js";
 import { viewRoots } from "./viewRoots.js";
 import type { Words } from "./words.js";
 import { contentOf, isComponentShape, shapeOfRoot, sortRecords } from "./decorations/shapeType.js";
+import { currentRoot, tiledRoot } from "./decorations/replacedRoots.js";
 import { attributedWidget, isComponentWidget, widgetRoots } from "./decorations/widgetType.js";
 import { isComponentWrapper } from "./decorations/wrapperType.js";
 import { markOfTile, markTiles } from "./decorations/markType.js";
@@ -68,6 +69,10 @@ export type Renderer = {
   readonly redrawsAll: (before: GardState, after: GardState) => boolean;
   // How errors name the framework, and their advice.
   readonly words: Words;
+  // Puts in place what components drew on their own, before the DOM
+  // observer's records are read (Svelte's roots replaced in its holder), and
+  // says whether it could: the shapes are rebuilt later if not.
+  readonly settle?: () => boolean;
 };
 
 // A renderer drawing in the app's tree: `prepare` hands it the first layout,
@@ -899,7 +904,8 @@ const reactMarkTile = (
     throw new Error(`A ${words.name} mark's content element is outside it`);
   // Content React remounted in another element: its widget DOM, which React
   // doesn't remove, comes out, to be reused from the pool or dropped.
-  const old = dom.wgTile && markContents.get(dom.wgTile);
+  const owner = tiledRoot(dom).wgTile;
+  const old = owner && markContents.get(owner);
   const moved = !!old && old.dom != content;
   if (old && moved) removeWidgetDOM(old, content);
   let contentTile: Tile | null = null;
@@ -973,13 +979,15 @@ const reactShapeTile = (
   if (flag) makeUneditable(dom);
   // Content React remounted in another element: the widget DOM placed in the
   // old one, which React doesn't remove, comes out (to be reused from the
-  // pool, or dropped), and the old content's widgets make the pool.
-  const old = !handle.wrapper && dom.wgTile ? contentTile(dom.wgTile) : null;
+  // pool, or dropped), and the old content's widgets make the pool. A root
+  // the component replaced has them on the root it replaced.
+  const owner = tiledRoot(dom).wgTile;
+  const old = !handle.wrapper && owner ? contentTile(owner) : null;
   const moved = old && old.dom != content ? old : null;
   if (moved) for (const child of moved.children) if (widgetDOM.has(child.dom)) child.dom.remove();
   // The same for what a wrapper wrapped: React may have remounted it, or made
   // its element structure (same name, so React kept it, widget DOM included).
-  if (handle.wrapper && content && dom.wgTile) removeWidgetDOM(dom.wgTile, content);
+  if (handle.wrapper && content && owner) removeWidgetDOM(owner, content);
   // What a wrapper wraps: the node's shape or an element in it, or the widget
   // drawing the node.
   const wrappedTile = (element: Element, after: number): Tile => {
@@ -1080,7 +1088,7 @@ const nodeTileOf = (root: Element) => {
 };
 
 const holdsText = (root: Element) => {
-  const tile = nodeTileOf(root);
+  const tile = nodeTileOf(tiledRoot(root));
   const view = tile && tileViews.get(tile);
   return !view || !isContainer(view.node);
 };
@@ -1579,8 +1587,9 @@ const replaceTile = (old: Tile, tile: Tile, context: BuildContext) => {
 // remounted it.
 const rebuildShape = (old: Tile, wg: Wordgard) => {
   const view = tileViews.get(old);
+  const dom = old.dom instanceof Element ? currentRoot(old.dom) : old.dom;
   // Gone with content an earlier rebuild found remounted.
-  if (!old.dom.isConnected) return;
+  if (!dom.isConnected) return;
   if (!view || !old.parent || !(view.shape instanceof Elt)) return;
   const context = rebuildContext(wg);
   const { node, shape, children } = view;
@@ -1592,7 +1601,7 @@ const rebuildShape = (old: Tile, wg: Wordgard) => {
       addChildTiles(tile, node, children, cursor, context, pool, contentStart, false);
   };
   const tag = node.isPlot ? node.tag : node;
-  const tile = shapeTile(shape, tag, node.length, elementOf(old.dom, node.name), {
+  const tile = shapeTile(shape, tag, node.length, elementOf(dom, node.name), {
     inEditable: true,
     container: isContainer(node),
     blocks: holdsBlocks(node),
@@ -1610,7 +1619,8 @@ const rebuildShape = (old: Tile, wg: Wordgard) => {
 const rebuildMark = (old: Tile, wg: Wordgard) => {
   const found = markViews.get(old);
   const mark = markOfTile.get(old);
-  if (!old.dom.isConnected || !found || !mark || !old.parent) return;
+  const dom = old.dom instanceof Element ? currentRoot(old.dom) : old.dom;
+  if (!dom.isConnected || !found || !mark || !old.parent) return;
   const { view, plot } = found;
   const context = rebuildContext(wg);
   const oldContent = markContents.get(old);
@@ -1633,8 +1643,26 @@ const rebuildMark = (old: Tile, wg: Wordgard) => {
     if (holdsBlocks(plot)) addBlockSeparators(tile, cursor, context);
   };
   const flags = old.flags & (TileFlag.Wrapper | TileFlag.Spanning);
-  const tile = reactMarkTile(view, mark, flags, elementOf(old.dom, "a mark"), context, fill, false);
+  const tile = reactMarkTile(view, mark, flags, elementOf(dom, "a mark"), context, fill, false);
   markViews.set(tile, found);
+  replaceTile(old, tile, context);
+};
+
+// The same for a widget whose component replaced its root: a tile over the
+// new root, connected anew.
+const rebuildWidget = (old: WidgetTile, wg: Wordgard) => {
+  const dom = old.dom instanceof Element ? currentRoot(old.dom) : old.dom;
+  if (dom == old.dom || !(dom instanceof Element) || !dom.isConnected || !old.parent) return;
+  const { WidgetTile } = getTileClasses();
+  const context = rebuildContext(wg);
+  const flags = (old.flags & ~TileFlag.Uneditable) | uneditableFlag(old.widget, dom);
+  const tile = synced(new WidgetTile(old.widget, old.tag, flags, dom, old.length));
+  const view = tileViews.get(old);
+  if (view) {
+    tileViews.set(tile, view);
+    viewTiles.set(view, tile);
+  }
+  context.toConnect.push(tile);
   replaceTile(old, tile, context);
 };
 
@@ -1646,15 +1674,26 @@ const shapeObservers = new WeakMap<
   { observer: MutationObserver; changed: Set<Element>; discard: () => void }
 >();
 
+// What the renderer has left to put in place first (`Renderer.settle`):
+// whether it could.
+const settle = (wg: Wordgard) => roots.get(wg.contentDOM)?.renderer.settle?.() ?? true;
+
 export const observeShapes = (wg: Wordgard, queue: (records: MutationRecord[]) => void) => {
   const changed = new Set<Element>();
   // Wordgard also takes records outside the flush (`focus`, through `clear`):
   // the shapes are rebuilt there too, before it reads the tiles.
   class ShapeObserver extends MutationObserver {
     takeRecords() {
+      const settled = settle(wg);
       const kept = sortRecords(super.takeRecords(), changed, holdsText);
-      rebuildShapes(wg);
+      // Else rebuilt once the renderer has put its DOM in place.
+      if (settled) rebuildShapes(wg);
       return kept;
+    }
+
+    // Records not delivered yet, unsorted.
+    pending() {
+      return super.takeRecords();
     }
 
     // What the rebuild itself moved (widget DOM, strays), not an edit.
@@ -1663,9 +1702,10 @@ export const observeShapes = (wg: Wordgard, queue: (records: MutationRecord[]) =
     }
   }
   const observer = new ShapeObserver((records) => {
-    const kept = sortRecords(records, changed, holdsText);
+    const settled = settle(wg);
+    const kept = sortRecords([...records, ...observer.pending()], changed, holdsText);
     if (kept.length) queue(kept);
-    rebuildShapes(wg);
+    if (settled) rebuildShapes(wg);
   });
   shapeObservers.set(wg, { observer, changed, discard: () => observer.discard() });
   return observer;
@@ -1693,15 +1733,30 @@ export const rebuildShapes = (wg: Wordgard) => {
 };
 
 // A node holding several changed roots (a React wrapper and the shape it
-// wraps) is rebuilt once, whole. A React mark's tile is rebuilt on its own.
+// wraps) is rebuilt once, whole. A React mark's tile is rebuilt on its own, as
+// is a widget's whose root was replaced. A replaced root's tiles are the old
+// root's.
 const rebuildRoots = (changed: ReadonlySet<Element>, wg: Wordgard) => {
+  const { WidgetTile } = getTileClasses();
   const tiles = new Set<Tile>();
   for (const root of changed) {
-    const mark = root.wgTile && markOfTile.has(root.wgTile) ? root.wgTile : undefined;
-    const tile = root.isConnected ? (mark ?? nodeTileOf(root)) : undefined;
+    if (!root.isConnected) continue;
+    const tiled = tiledRoot(root);
+    const own = tiled.wgTile;
+    const alone =
+      own && (markOfTile.has(own) || (own instanceof WidgetTile && tiled != root)) ? own : null;
+    const tile = alone ?? nodeTileOf(tiled);
     if (tile) tiles.add(tile);
   }
-  for (const tile of tiles)
+  // The deepest first: an ancestor rebuilt keeps its content's tiles, which
+  // must be over the content's current DOM (a nested root replaced).
+  const depth = (tile: Tile) => {
+    let found = 0;
+    for (let at = tile.parent; at; at = at.parent) found++;
+    return found;
+  };
+  for (const tile of [...tiles].sort((a, b) => depth(b) - depth(a)))
     if (markOfTile.has(tile)) rebuildMark(tile, wg);
+    else if (tile instanceof WidgetTile) rebuildWidget(tile, wg);
     else rebuildShape(tile, wg);
 };

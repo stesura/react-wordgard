@@ -1,7 +1,8 @@
 // Adapted from react-wordgard's DefaultNodeView (by way of vue-wordgard's) for Svelte: a node draws
 // as its decorated shape (buildNodeShape), its content in the hole, Svelte shapes, wrappers and
-// widgets as their components. It listens to its node's cell, so it draws again when the cell gets
-// a new view, not when its list is drawn again, as react-wordgard's.
+// widgets as their components, inside its node wrappers (NodeWrapperView). It listens to its node's
+// cell, so it draws again when the cell gets a new view, not when its list is drawn again, as
+// react-wordgard's.
 import { Attributes, Elt, type Node } from "wordgard/doc";
 
 import {
@@ -10,9 +11,11 @@ import {
   type NodeCell,
   type NodeView,
   attributedWidget,
+  drawnRoot,
   isComponentShape,
   isComponentWidget,
   isComponentWrapper,
+  nodePos,
   shapeAttributes,
   uneditable,
   viewRoot,
@@ -27,13 +30,16 @@ import {
   fill,
   owners,
 } from "../ChildNodeViews.js";
+import type { AnyComponent } from "../../helpers/mountRoot.js";
+import { type NodeProps, NodeWrapperView, type Wrapping } from "../NodeWrapperView.js";
 import { ShapeView } from "../ShapeView.js";
 import { TextNodeView } from "../TextNodeView.js";
 import { WidgetView } from "../WidgetView.js";
 import { WrapperView } from "../WrapperView.js";
 
 // A node as drawn: its cell, the view it was drawn from, and its shape's
-// parts, `dom` their root. `context` is the one it was drawn in.
+// parts, `dom` their root. `context` is the one it was drawn in. Its node
+// wrappers, and the attributes they gave its root, when it has some.
 export type NodePart = {
   readonly kind: "node";
   readonly key: string;
@@ -44,6 +50,11 @@ export type NodePart = {
   alive: boolean;
   context: DrawContext;
   readonly listener: () => void;
+  wrapping: Wrapping | null;
+  wrapped: Attributes | null;
+  // Its root, for its wrappers' `getPos`.
+  readonly root: { root: Element | null };
+  nodeProps: NodeProps;
 };
 
 // What every part of a node's shape is drawn with.
@@ -148,36 +159,79 @@ const isSelected = (shape: DecoElt): boolean =>
   (Attributes.get(shape.attrs, "class") ?? "").split(" ").includes("wg-selected-node") ||
   shape.children.some((child) => child instanceof Elt && isSelected(child));
 
-const draw = (part: NodePart) => {
+const sameComponents = (a: readonly AnyComponent[] | null, b: readonly AnyComponent[] | null) =>
+  a == b || (!!a && !!b && a.length == b.length && a.every((component, i) => component == b[i]));
+
+// Its node wrappers' attributes changed: its root gets them.
+const rewrapped = (part: NodePart) => () => {
+  const attrs = part.wrapping?.attributes();
+  if (part.alive && attrs && !Attributes.eq(attrs, part.wrapped ?? Attributes.none))
+    draw(part, true);
+};
+
+// `force` draws the view drawn already, for its wrappers' attributes.
+const draw = (part: NodePart, force = false) => {
   const view = part.cell.view;
-  if (view == part.drawn) return;
-  part.drawn = view;
   const { context } = part;
+  const components = context.wrappers.current?.of(view.node.type) ?? null;
+  const rewrap = !sameComponents(components, part.wrapping?.components ?? null);
+  if (view == part.drawn && !rewrap && !force) return;
+  part.drawn = view;
   const { node, shape, children } = view;
   const old = part.dom;
-  const before = part.tree ?? undefined;
+  const last = rewrap ? part.wrapping : null;
   // Now a native widget: drawn by the doc tile. A node's cell can publish
   // before its list drops it.
   if (!(shape instanceof Elt) && !isComponentWidget(shape)) {
     if (part.tree) destroyPart(part.tree);
     part.tree = null;
+    part.wrapping?.destroy();
+    part.wrapping = part.wrapped = null;
     old?.parentNode?.removeChild(old);
     return;
   }
+  if (part.nodeProps.node != node) {
+    part.nodeProps = { node, getPos: part.nodeProps.getPos };
+    if (!rewrap) part.wrapping?.update(part.nodeProps);
+  }
+  // Other wrappers: the node is drawn anew, inside them.
+  if (rewrap)
+    part.wrapping = components
+      ? NodeWrapperView(components, part.nodeProps, context, rewrapped(part))
+      : null;
+  const { wrapping } = part;
+  const inner = wrapping ? { ...context, contexts: wrapping.contexts } : context;
+  const wrapped = (part.wrapped = wrapping?.attributes() ?? null);
+  const before = rewrap ? undefined : (part.tree ?? undefined);
+  // A wrapped node's root takes its wrappers' attributes: ours, as a Svelte
+  // shape's root's are (sortRecords drops those records).
+  const rooted = (root: Element) => {
+    part.root.root = root;
+    if (wrapping) drawnRoot(root);
+  };
   const tree =
     shape instanceof Elt
       ? renderShape(
           { node, views: node.isPlot ? children : null, selected: isSelected(shape) },
-          shape,
+          wrapped
+            ? Elt.create(shape.tagName, Attributes.merge(shape.attrs, wrapped), shape.children)
+            : shape,
           true,
           before,
           "",
-          context
+          inner,
+          rooted
         )
-      : WidgetView(before, "", { widget: shape, attrs: [], selected: false }, context);
+      : WidgetView(
+          before,
+          "",
+          { widget: shape, attrs: wrapped ?? [], selected: false, rooted },
+          inner
+        );
   // Drawn on its own (its cell changed), in place of its old root.
   if (old && tree.dom && old != tree.dom) old.parentNode?.replaceChild(tree.dom, old);
   if (part.tree && part.tree != tree) destroyPart(part.tree);
+  last?.destroy();
   part.tree = tree;
   owners.set(tree, part);
   if (tree.dom instanceof Element && tree.kind == "element") viewRoot(tree.dom);
@@ -192,8 +246,10 @@ const listen = (part: NodePart, cell: NodeCell) => {
 
 export const destroyNode = (part: NodePart) => {
   part.alive = false;
+  part.context.nodes.delete(part);
   if (part.cell.listener == part.listener) part.cell.listener = null;
   if (part.tree) destroyPart(part.tree);
+  part.wrapping?.destroy();
 };
 
 // Draws the nodes whose cells got a view, after their lists: a node still
@@ -215,6 +271,7 @@ export const DefaultNodeView = (
     draw(before);
     return before;
   }
+  const root: { root: Element | null } = { root: null };
   const part: NodePart = {
     kind: "node",
     key,
@@ -227,8 +284,13 @@ export const DefaultNodeView = (
     alive: true,
     context,
     listener: () => context.dirty.add(part),
+    wrapping: null,
+    wrapped: null,
+    root,
+    nodeProps: { node: cell.view.node, getPos: nodePos(root, context.words.name) },
   };
   cell.listener = part.listener;
+  context.nodes.add(part);
   draw(part);
   return part;
 };

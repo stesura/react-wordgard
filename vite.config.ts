@@ -8,11 +8,21 @@ import { type Plugin, defaultClientConditions, defaultServerConditions } from "v
 import { defineConfig } from "vitest/config";
 import type { BrowserConfigOptions } from "vitest/node";
 
-const browser = (): BrowserConfigOptions => ({
+// `chromiumFlags` for Chromium's V8: svelte-wordgard's teardown test calls `gc()`.
+const browser = (chromiumFlags?: string): BrowserConfigOptions => ({
   enabled: true,
   provider: playwright(),
   headless: true,
-  instances: [{ browser: "chromium" }, { browser: "firefox" }, { browser: "webkit" }],
+  instances: [
+    chromiumFlags
+      ? {
+          browser: "chromium",
+          provider: playwright({ launchOptions: { args: [`--js-flags=${chromiumFlags}`] } }),
+        }
+      : { browser: "chromium" },
+    { browser: "firefox" },
+    { browser: "webkit" },
+  ],
 });
 
 // Wordgard's own browser tests, copied unchanged from its repo.
@@ -153,7 +163,7 @@ export default defineConfig({
             "test/skipInBrowser.ts",
             "test/view-svelte/skipPending.ts",
           ],
-          browser: browser(),
+          browser: browser("--expose-gc"),
         },
       },
     ],

@@ -3,7 +3,13 @@
 import { computed, defineComponent, getCurrentInstance, provide } from "vue";
 import type { Widget } from "wordgard/editor";
 
-import { VOID, createDecorationHandlers, decorationRoot, widgetRoot } from "@stesura/wordgard-view";
+import {
+  VOID,
+  createDecorationHandlers,
+  decorationRoot,
+  rootReplaced,
+  widgetRoot,
+} from "@stesura/wordgard-view";
 import { ContentKey, WrappedKey } from "../contexts/ContentContext.js";
 import { DecorationKey, DecorationRootKey } from "../contexts/DecorationContext.js";
 import { drawWidget, widgetElement } from "../decorations/VueWidgetType.js";
@@ -39,6 +45,9 @@ export const WidgetView = defineComponent(
     provide(WrappedKey, null);
     const ref = mergeRefs(
       (dom) => {
+        // Kept through a detach, to tell a root the component replaced.
+        if (!dom) return;
+        if (root) rootReplaced(root, dom);
         root = dom;
       },
       widgetRoot,

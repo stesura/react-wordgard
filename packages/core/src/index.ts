@@ -32,6 +32,7 @@ export {
   nodePos,
   shapeAttributes,
 } from "./decorations/shapeType.js";
+export { rootReplaced } from "./decorations/replacedRoots.js";
 export {
   attributedWidget,
   defineWidgetType,

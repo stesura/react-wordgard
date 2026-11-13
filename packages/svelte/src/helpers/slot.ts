@@ -2,7 +2,9 @@
 // Svelte component marks an element with an attachment it's given (`contentDOMRef`,
 // `wrappedDOMRef`), and we draw into it. The attachment runs in the component's own context: what
 // we draw there (Svelte decorations in a shape's content) gets the component's contexts, as React's
-// children get their parent's.
+// children get their parent's. It's drawn later, outside the attachment's effect (`defer`): a root
+// mounted in an effect would be that effect's child, which Svelte 5.57 can stop updating when a
+// block around the attachment goes in the same flush.
 import { getAllContexts } from "svelte";
 import type { Attachment } from "svelte/attachments";
 
@@ -43,17 +45,23 @@ export const createSlot = (
     changed(dom);
     render(dom, inner, fresh);
   };
+  // The element the last attachment run was given, until its cleanup.
+  let given: Element | null = null;
   const attach: Attachment<Element> = (dom) => {
     if (destroyed) return;
     attached = true;
+    given = dom;
     let contexts: Map<unknown, unknown> | null = null;
     try {
       contexts = new Map(getAllContexts());
     } catch {
       // Outside a component's context: the decoration's own.
     }
-    take(dom, contexts);
+    context.defer(() => {
+      if (given == dom && !destroyed) take(dom, contexts);
+    });
     return () => {
+      if (given == dom) given = null;
       if (element != dom) return;
       element = null;
       changed(null);

@@ -2,5 +2,7 @@
   "$schema": "https://json.schemastore.org/tsconfig",
   "extends": "./tsconfig.base.json",
   // The packages type-check themselves (turbo run typecheck); this is the rest.
-  "include": ["demo", "test/*.ts", "*.ts"]
+  "include": ["demo", "test/*.ts", "*.ts"],
+  // svelte-check reads the Svelte demo's components (demo/svelte/tsconfig.json).
+  "exclude": ["demo/svelte"]
 }

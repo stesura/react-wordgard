@@ -7,6 +7,7 @@ import { Attributes, type Node as DocNode, Elt } from "wordgard/doc";
 
 import { isDrawnRoot } from "../viewRoots.js";
 import { ignoresMutation } from "./decorationHandlers.js";
+import { rootReplaced, swapsRoots } from "./replacedRoots.js";
 
 // A shape a component draws: for `Decoration.Tag.shape`, a node's shape, its
 // root the node type's own outer element, an atom where the type's shape is.
@@ -72,16 +73,27 @@ const wrapped = new WeakSet<Element>();
 // Every element that was a shape's content element: typing never adds or
 // removes one, React moving a shape's content does.
 const everContent = new WeakSet<Element>();
+// Content elements the component moved the content out of, into another
+// element it already drew (an attachment or ref set conditionally).
+const formerContents = new WeakSet<Element>();
+const lastContents = new WeakMap<ShapeHandle, Element>();
 
 export const shapeOfRoot = (dom: Element) => roots.get(dom);
 
 export const contentOf = (handle: ShapeHandle) =>
   handle.content ?? (handle.wrapper || handle.atom ? null : handle.root);
 
+// The last root each handle had, through React's `null` between two.
+const lastRoots = new WeakMap<ShapeHandle, Element>();
+
 const rootRef = (handle: ShapeHandle) => (dom: Element | null) => {
   if (handle.root) roots.delete(handle.root);
   handle.root = dom;
-  if (dom) roots.set(dom, handle);
+  if (!dom) return;
+  roots.set(dom, handle);
+  const last = lastRoots.get(handle);
+  if (last) rootReplaced(last, dom);
+  lastRoots.set(handle, dom);
 };
 
 // Whether the shape a root draws is an atom, recorded when React commits it.
@@ -94,10 +106,13 @@ export const createShapeHandle = () => {
   const contentDOMRef = (dom: Element | null) => {
     if (handle.content) contents.delete(handle.content);
     handle.content = dom;
-    if (dom) {
-      contents.set(dom, handle);
-      everContent.add(dom);
-    }
+    if (!dom) return;
+    contents.set(dom, handle);
+    everContent.add(dom);
+    const last = lastContents.get(handle);
+    if (last && last != dom) formerContents.add(last);
+    formerContents.delete(dom);
+    lastContents.set(handle, dom);
   };
   return { handle, ref: rootRef(handle), contentDOMRef };
 };
@@ -154,6 +169,7 @@ const shapeOf = (node: Node | null) => {
 };
 
 const movesContent = (record: MutationRecord) =>
+  (record.target instanceof Element && formerContents.has(record.target)) ||
   [...record.addedNodes, ...record.removedNodes].some(
     (node) => node instanceof Element && everContent.has(node)
   );
@@ -167,7 +183,8 @@ const movesContent = (record: MutationRecord) =>
 // the browser's typing never adds or removes children of the content element
 // itself, so those records are React's too; `inline` says whether a shape's
 // content is text. Typing in an empty textblock in the same task as a commit
-// moving its content would be taken for React's (a limit).
+// moving its content would be taken for React's (a limit). A root the
+// component replaced (replacedRoots.ts) counts as its shape changed.
 export const sortRecords = (
   records: readonly MutationRecord[],
   changed: Set<Element>,
@@ -184,6 +201,10 @@ export const sortRecords = (
     }
   const keeps = (record: MutationRecord) => {
     const { target } = record;
+    if (swapsRoots(record)) {
+      for (const node of record.addedNodes) if (node instanceof Element) changed.add(node);
+      return false;
+    }
     if (record.type == "attributes") {
       if (!(target instanceof Element)) return true;
       return (

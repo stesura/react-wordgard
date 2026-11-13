@@ -8,12 +8,15 @@ import { SvelteDocTile } from "./SvelteDocTile.js";
 
 export class SvelteWordgard extends RenderedWordgard {
   // An editor drawn on its own, outside the app's components.
-  static create = (spec: Wordgard.Spec) => new SvelteWordgard(spec);
+  static create = (spec: Wordgard.Spec) => new SvelteWordgard(spec, false);
+
+  // An editor WordgardEditor hosts: WordgardDoc draws its document.
+  static host = (spec: Wordgard.Spec) => new SvelteWordgard(spec, true);
 
   // Wordgard's own tests build tile trees through `Wordgard.DocTile`.
   static DocTile = SvelteDocTile;
 
-  constructor(spec: Wordgard.Spec) {
-    super(spec, SvelteDocTile, false);
+  constructor(spec: Wordgard.Spec, hosted = false) {
+    super(spec, SvelteDocTile, hosted);
   }
 }

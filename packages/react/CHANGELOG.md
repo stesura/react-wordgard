@@ -10,6 +10,8 @@ react-wordgard's framework-free part is now a package of its own, `@stesura/word
 
 ### Bug fixes
 
+A React shape, wrapper, mark or widget whose component replaces its root element from its own state (another `key`) keeps the editor working: its tiles are rebuilt over the new root, where the next update threw.
+
 An element a React shape or wrapper draws beside its content, made uneditable as chrome, is editable again once the component moves its content, or what it wraps, into it.
 
 ## 0.3.0 (2026-11-11)

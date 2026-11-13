@@ -4,7 +4,13 @@ import React, { memo, useMemo, useRef, useState } from "react";
 import type { Widget } from "wordgard/editor";
 
 import { DecorationContext } from "../contexts/DecorationContext.js";
-import { VOID, createDecorationHandlers, decorationRoot, widgetRoot } from "@stesura/wordgard-view";
+import {
+  VOID,
+  createDecorationHandlers,
+  decorationRoot,
+  rootReplaced,
+  widgetRoot,
+} from "@stesura/wordgard-view";
 import { DecorationRootContext } from "../contexts/DecorationRootContext.js";
 import { drawWidget, widgetElement } from "../decorations/ReactWidgetType.js";
 import { componentProps, useAttrsRecord } from "../helpers/index.js";
@@ -36,6 +42,10 @@ export const WidgetView = memo(
       () =>
         mergeRefs(
           (dom) => {
+            // Kept through React's `null`, to tell a root the component
+            // replaced from its own state.
+            if (!dom) return;
+            if (root.current) rootReplaced(root.current, dom);
             root.current = dom;
           },
           widgetRoot,
