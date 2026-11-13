@@ -1,8 +1,9 @@
-// The benchmarks' own Vitest config, kept apart from `npm test`. React's
-// production build unless the mode ends in "development"; modes containing
-// "smoke" run small documents, to check the benchmark works, and modes
-// starting with "heap" or "profile" run the heap breakdown or the keystroke's
-// CPU profile instead of the timings.
+// The benchmarks' own Vitest config, kept apart from `npm test`. React's, Vue's
+// and Svelte's production builds unless the mode ends in "development"; modes
+// containing "smoke" run small documents, to check the benchmark works, and
+// modes starting with "heap" or "profile" run the heap breakdown or the
+// keystroke's CPU profile instead of the timings.
+import { svelte } from "@sveltejs/vite-plugin-svelte";
 import react from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
 import { fileURLToPath } from "node:url";
@@ -17,13 +18,14 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 
 export default defineConfig(({ mode }) => {
   const nodeEnv = mode.endsWith("development") ? "development" : "production";
-  // Read by Vite's dependency optimizer, which bundles React.
+  // Read by Vite's dependency optimizer, which bundles React, and by Vite's
+  // `isProduction`, which picks Svelte's build.
   process.env.NODE_ENV = nodeEnv;
   return {
     root,
     // Apart from the tests' cache, which holds React's development build.
     cacheDir: `node_modules/.vite-bench-${nodeEnv}`,
-    plugins: [react()],
+    plugins: [react(), svelte()],
     // The views from their src, as the tests.
     resolve: { conditions: ["@stesura/source", ...defaultClientConditions] },
     define: {

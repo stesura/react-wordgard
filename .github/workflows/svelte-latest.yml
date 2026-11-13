@@ -1,0 +1,63 @@
+name: svelte-latest
+
+# svelte-wordgard relies on Svelte's behaviour, which no contract covers (where it puts anchors,
+# flushSync from inside its effects, what mount does with its anchor): a patch release can change
+# it. Weekly, on Svelte's latest release, without saving it: a failure names the assumption a
+# release broke (svelteBehaviour.browser.test.ts) before a user finds it, and a pass is what widening
+# the peer range rests on. Scheduled workflows run on master.
+on:
+  schedule:
+    - cron: "0 5 * * 1"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  playwright:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: version
+        run: echo "version=$(node -p "require('./package-lock.json').packages['node_modules/playwright'].version")" >> "$GITHUB_OUTPUT"
+
+  svelte-latest:
+    needs: playwright
+    runs-on: ubuntu-latest
+
+    container:
+      image: mcr.microsoft.com/playwright:v${{ needs.playwright.outputs.version }}-noble
+      options: --user 1001
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Past svelte-wordgard's `~` peer range, which npm would refuse.
+      - name: Switch to Svelte's latest release
+        run: |
+          npm i --no-save --legacy-peer-deps svelte@latest
+          echo "Svelte $(node -p "require('svelte/package.json').version")" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Svelte's behaviour
+        run: npx vitest run --project "view-svelte*" packages/svelte/src/__tests__/svelteBehaviour.browser.test.ts
+
+      # Development, production and async mode.
+      - name: The Svelte view's tests
+        run: npx vitest run --project "view-svelte*"
+
+      - name: HMR on the demo's dev server
+        run: npm run test:svelte-hmr
+
+      - name: Types
+        run: npm run typecheck -w @stesura/svelte-wordgard

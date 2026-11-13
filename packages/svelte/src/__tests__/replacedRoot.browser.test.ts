@@ -2,13 +2,14 @@
 // replaces its root from its own state (a {#key} at its top). Svelte draws the new root in the
 // holder, which puts it in place; the tiles are rebuilt over it before Wordgard reads them, so the
 // next flush keeps them, and the document stays editable.
-import { flushSync, tick } from "svelte";
+import { flushSync } from "svelte";
 import { Leaf } from "wordgard/doc";
 import { Decoration, type Wordgard } from "wordgard/editor";
 import { basicSchema, blockquote } from "wordgard/schema";
 import type { GardState } from "wordgard/state";
 import { Blockquote, Link } from "wordgard/types";
 
+import { tick } from "../testing/tick.js";
 import { drawn, flushKeeps, textIn, typeInto } from "../../../../test/editing.js";
 import { SvelteWordgard } from "../SvelteWordgard.js";
 import { createMarkShape } from "../decorations/SvelteMarkType.js";

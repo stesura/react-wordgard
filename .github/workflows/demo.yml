@@ -34,11 +34,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Pages serves the site under /react-wordgard/, the Vue demo under /react-wordgard/vue/.
+      # Pages serves the site under /react-wordgard/, the Vue demo under /react-wordgard/vue/ and
+      # the Svelte demo under /react-wordgard/svelte/.
       - name: Build the demos
         run: |
           npx vite build --base /react-wordgard/ --outDir demo-dist
           npx vite build --config demo/vue/vite.config.ts --base /react-wordgard/vue/ --outDir ../../demo-dist/vue
+          npx vite build --config demo/svelte/vite.config.ts --base /react-wordgard/svelte/ --outDir ../../demo-dist/svelte
 
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -4,7 +4,7 @@
 // the components' own state. After each step, the tiles and DOM must be a fresh editor's for the
 // same state, its components starting as the edited editor's are. Seeded: a failure names its
 // seed and the steps that led to it.
-import { flushSync, tick } from "svelte";
+import { flushSync } from "svelte";
 import { type ChangeSet, Leaf, type Mark, Plot } from "wordgard/doc";
 import { Decoration, type Wordgard } from "wordgard/editor";
 import {
@@ -18,6 +18,7 @@ import {
 import { GardState, Transaction } from "wordgard/state";
 import { Blockquote, Emphasis, Heading, Image, Link, Paragraph, Strong } from "wordgard/types";
 
+import { tick } from "../testing/tick.js";
 import { drawn, flushKeeps, typeInto } from "../../../../test/editing.js";
 import { SvelteWordgard } from "../SvelteWordgard.js";
 import { createMarkShape } from "../decorations/SvelteMarkType.js";

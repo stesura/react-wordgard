@@ -2,13 +2,13 @@
 // components around a node's drawing that draw no element, their root a WrappedNode. After each
 // change, Wordgard's next flush must find nothing to redraw, and the tiles must be what a fresh
 // build over the same DOM gives.
-import { tick } from "svelte";
 import { Leaf, Node } from "wordgard/doc";
 import { Decoration, type Wordgard } from "wordgard/editor";
 import { basicSchema, blockquote, horizontalRule } from "wordgard/schema";
 import { GardState } from "wordgard/state";
 import { Blockquote, HorizontalRule, Paragraph } from "wordgard/types";
 
+import { tick } from "../testing/tick.js";
 import { drawn, flushKeeps, textIn, typeInto } from "../../../../test/editing.js";
 import { SvelteWordgard } from "../SvelteWordgard.js";
 import { nodeWrapper, svelteNodeWrappers } from "../decorations/SvelteNodeWrapper.js";

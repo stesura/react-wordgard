@@ -3,7 +3,7 @@
 //
 //   npm run release:prepare -- <version>   CHANGELOGs and versions set, checks
 //                                          and tests run locally, on React 18
-//                                          and 19
+//                                          and 19, and Svelte's HMR
 //   (commit and push)
 //   npm run release:publish                CI run on the pushed commit, then
 //                                          npm publish, tag, GitHub release,
@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // In publishing order: the views depend on the core.
-const packages = ["core", "react", "vue"].map((dir) => join(root, "packages", dir));
+const packages = ["core", "react", "vue", "svelte"].map((dir) => join(root, "packages", dir));
 const changelogOf = (dir) => join(dir, "CHANGELOG.md");
 const core = "@stesura/wordgard-view";
 const branch = "master";
@@ -115,6 +115,7 @@ const prepare = (version) => {
   npm("run", "check");
   npm("test");
   npm("run", "test:react19");
+  npm("run", "test:svelte-hmr");
   console.log(`\nReady: commit and push, then npm run release:publish.`);
 };
 

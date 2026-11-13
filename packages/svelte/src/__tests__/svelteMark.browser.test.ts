@@ -2,13 +2,13 @@
 // write them. After each change, Wordgard's next flush must find nothing to redraw, and the tiles
 // must be what a fresh editor builds. svelteDecorations.browser.test.ts has the first drawing and
 // the attributes a mark sets on its own.
-import { tick } from "svelte";
 import { Leaf } from "wordgard/doc";
 import { Decoration, Widget, type Wordgard } from "wordgard/editor";
 import { basicSchema, color, image } from "wordgard/schema";
 import type { GardState } from "wordgard/state";
 import { Color, Link } from "wordgard/types";
 
+import { tick } from "../testing/tick.js";
 import { composeIn, drawn, flushKeeps, textIn, typeInto } from "../../../../test/editing.js";
 import { SvelteWordgard } from "../SvelteWordgard.js";
 import { createMarkShape } from "../decorations/SvelteMarkType.js";

@@ -67,3 +67,8 @@ jobs:
 
       - name: Tests
         run: npm test
+
+      # The Svelte demo's dev server, edited mid-session. Svelte's DOM differs under HMR.
+      - name: Svelte HMR
+        if: matrix.react == 18
+        run: npm run test:svelte-hmr

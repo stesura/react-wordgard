@@ -1,7 +1,7 @@
 {
   "name": "react-wordgard-monorepo",
   "private": true,
-  "description": "react-wordgard and vue-wordgard, React and Vue views for the Wordgard rich text editor",
+  "description": "react-wordgard, vue-wordgard and svelte-wordgard, React, Vue and Svelte views for the Wordgard rich text editor",
   "author": "Edoardo Caratti",
   "repository": {
     "type": "git",
@@ -21,7 +21,7 @@
     "check:lint": "eslint .",
     "check:deps": "depcruise packages demo bench test scripts",
     "check:format": "prettier --check .",
-    "check:bench": "tsc -p bench",
+    "check:bench": "tsc -p bench && svelte-check --tsconfig bench/tsconfig.json --fail-on-warnings",
     "fix": "eslint --fix . && prettier --write .",
     "demo": "vite",
     "demo:preview": "vite build --outDir demo-dist && vite preview --outDir demo-dist",
@@ -48,6 +48,7 @@
     "@eslint/js": "^10.0.1",
     "@handlewithcare/react-prosemirror": "^3.2.11",
     "@stesura/react-wordgard": "*",
+    "@stesura/svelte-wordgard": "*",
     "@stesura/vue-wordgard": "*",
     "@sveltejs/package": "^3.0.2",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",

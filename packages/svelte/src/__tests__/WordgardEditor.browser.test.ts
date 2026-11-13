@@ -3,13 +3,14 @@
 // (WordgardEditor, WordgardDoc), and the hooks over it. Components outside the document update
 // after the editor's flush, in Svelte's next microtask: the tests wait for it. Where Vue's counted
 // its components' renders, these count Svelte's effects, and the DOM an update touches.
-import { type Component, flushSync, mount, tick, unmount } from "svelte";
+import { type Component, flushSync, mount, unmount } from "svelte";
 import { Leaf, Plot } from "wordgard/doc";
 import { Decoration, Widget, Wordgard } from "wordgard/editor";
 import { basicSchema, blockquote, bulletList, image } from "wordgard/schema";
 import { GardState, Transaction } from "wordgard/state";
 import { Blockquote, Heading, Image, Paragraph, Strong } from "wordgard/types";
 
+import { tick } from "../testing/tick.js";
 import { drawn } from "../../../../test/editing.js";
 import { docTileOf, drawing } from "../../../../test/tiles.js";
 import { SvelteDocTile } from "../SvelteDocTile.js";

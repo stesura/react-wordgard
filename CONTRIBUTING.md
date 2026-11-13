@@ -1,16 +1,18 @@
-# Contributing to react-wordgard and vue-wordgard
+# Contributing to react-wordgard, vue-wordgard and svelte-wordgard
 
 ## Project setup
 
-This repository holds three packages, npm workspaces under `packages/`, written in TypeScript and
+This repository holds four packages, npm workspaces under `packages/`, written in TypeScript and
 published as ES modules only:
 
-- `packages/core`, `@stesura/wordgard-view`: the view without a framework, shared by the two below;
+- `packages/core`, `@stesura/wordgard-view`: the view without a framework, shared by the three below;
 - `packages/react`, `@stesura/react-wordgard`;
-- `packages/vue`, `@stesura/vue-wordgard`.
+- `packages/vue`, `@stesura/vue-wordgard`;
+- `packages/svelte`, `@stesura/svelte-wordgard`, which ships `.svelte` files built by
+  `svelte-package` rather than tsup.
 
 Each has its `src/index.ts` as its public API. The views reach the core through its entry only.
-`demo/` (with `demo/vue/`), `bench/`, `test/` (Wordgard's copied tests and the shared test setup)
+`demo/` (with `demo/vue/` and `demo/svelte/`), `bench/`, `test/` (Wordgard's copied tests and the shared test setup)
 and `scripts/` are the repository's.
 
 It uses:
@@ -33,8 +35,11 @@ You need Node 22.12 or later. Run `npm install` to install dependencies, and
 
 Check types, lint, imports and formatting with `npm run check`, and fix what can be fixed with
 `npm run fix`. Build with `npm run build`. Run the tests with `npm test`, and the demos with
-`npm run demo` (React) and `npm run demo:vue`. The lockfile pins React 18: `npm run test:react19`
-type-checks and tests on React 19, as CI does.
+`npm run demo` (React), `npm run demo:vue` and `npm run demo:svelte`. The lockfile pins React 18:
+`npm run test:react19` type-checks and tests on React 19, as CI does. Svelte's view runs in its
+development, production and async builds (`view-svelte`, `view-svelte-production`,
+`view-svelte-async`); `npm run test:svelte-hmr` edits the Svelte demo's components on its dev
+server, as CI does too.
 
 `test/wordgard/` holds Wordgard's own tests, copied unchanged: don't edit them.
 `npm run update-wordgard` updates Wordgard and copies them again.

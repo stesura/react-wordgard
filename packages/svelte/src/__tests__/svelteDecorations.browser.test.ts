@@ -2,13 +2,14 @@
 // for Svelte: Svelte shapes, wrappers, marks and widgets, written as users write them. After each
 // change, Wordgard's next flush must find nothing to redraw, and the tiles must be what a fresh
 // editor builds.
-import { mount, tick, unmount } from "svelte";
+import { mount, unmount } from "svelte";
 import { Leaf } from "wordgard/doc";
 import { Decoration, Widget, type Wordgard } from "wordgard/editor";
 import { basicSchema, blockquote, image } from "wordgard/schema";
 import type { GardState } from "wordgard/state";
 import { Blockquote, Heading, Image, Link, Paragraph } from "wordgard/types";
 
+import { tick } from "../testing/tick.js";
 import { composeIn, drawn, flushKeeps, textIn, typeInto } from "../../../../test/editing.js";
 import { SvelteWordgard } from "../SvelteWordgard.js";
 import { createMarkShape } from "../decorations/SvelteMarkType.js";

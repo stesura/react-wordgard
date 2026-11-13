@@ -142,6 +142,49 @@ smaller than the spread between runs.
 
 **Verdict:** no regression from the split.
 
+## svelte-wordgard joins (2026-11-13)
+
+svelte-wordgard (`@stesura/svelte-wordgard`, Svelte 5.57.3) joined the benchmark, mounted as an
+app does (`bench/svelte/`), its production build (`editors.ts` checks it). Same machine, browser
+and method as above.
+
+### At 1,500 paragraphs, without plugins
+
+`npm run bench`, one run; its plugin pass was noisy (Wordgard's own first interaction 125 ms,
+against 76.4 without plugins), so it's left out.
+
+| | react-wordgard | vue-wordgard | svelte-wordgard | Wordgard | react-prosemirror | ProseMirror |
+|---|---|---|---|---|---|---|
+| To first interaction | 112 | 121 | 117 | 76.4 | 808 | 63.7 |
+| Keystroke | 1.0 | 0.9 | 0.8 | 0.7 | 29.6 | 0.5 |
+| Allocated per keystroke (KB) | 300 | 268 | 276 | 198 | 2,870 | 52.3 |
+| Enter | 1.8 | 2.0 | 2.2 | 1.1 | 30.7 | 0.6 |
+| Bold all | 164 | 164 | 153 | 99.0 | 482 | 92.0 |
+| Indent every paragraph | 64.4 / 33.0 | 80.8 / 41.8 | 61.2 / 32.4 | 39.6 / 7.6 | 416 / 582 | 119 / 37.8 |
+| Replace All | 103 / 48.8 | 106 / 41.1 | 97.8 / 37.8 | 73.5 / 9.7 | 475 / 568 | 58.3 / 14.1 |
+| Font size of all the text | 147 / 52.1 | 140 / 48.7 | 133 / 47.9 | 97.2 / 19.9 | 968 / 2,338 | 201 / 87.9 |
+
+### At 5,000 paragraphs
+
+`VITE_BENCH_SIZES=5000 VITE_BENCH_EDITORS=vue-wordgard,svelte-wordgard,Wordgard npm run bench`,
+medians of 3 runs, without plugins / with them; times in ms.
+
+| | vue-wordgard | svelte-wordgard | Wordgard |
+|---|---|---|---|
+| To first interaction | 430 / 455 | 441 / 458 | 269 / 284 |
+| Keystroke | 4.8 / 4.3 | 5.1 / 5.0 | 3.8 / 4.2 |
+| Allocated per keystroke (KB) | 777 / 883 | 785 / 896 | 624 / 725 |
+| Enter | 9.6 / 9.3 | 11.9 / 11.2 | 5.7 / 5.8 |
+| Bold all | 627 / 732 | 600 / 729 | 386 / 465 |
+| Indent every paragraph | 311 / 397 | 284 / 355 | 170 / 253 |
+| Replace All | 437 / 651 | 390 / 651 | 277 / 486 |
+| Font size of all the text | 487 / 599 | 476 / 596 | 343 / 409 |
+
+**Verdict:** svelte-wordgard costs what vue-wordgard does. A keystroke's time differs by less than
+the spread between runs (vue-wordgard's alone ranged from 3.6 to 7.0 ms), and its allocations by
+1–1.5%; the bulk edits are as fast or faster (at 1,500 paragraphs they allocate less too). Enter is the exception, about 2 ms
+slower at 5,000 paragraphs in every run (Svelte's plan, open points).
+
 ## What is compared
 
 | Editor | What it is |

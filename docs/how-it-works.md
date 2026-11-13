@@ -1,8 +1,8 @@
-# How react-wordgard and vue-wordgard work (2026-11-12)
+# How react-wordgard, vue-wordgard and svelte-wordgard work (2026-11-13)
 
-How the libraries draw Wordgard with React and Vue, end to end, and the decisions behind it. Most of
-it is told for React, the first view; [Vue](#vue) says where Vue differs. Keep this file in step
-when the design changes.
+How the libraries draw Wordgard with React, Vue and Svelte, end to end, and the decisions behind it.
+Most of it is told for React, the first view; [Vue](#vue) and [Svelte](#svelte) say where they
+differ. Keep this file in step when the design changes.
 
 ## The idea in one paragraph
 
@@ -18,21 +18,22 @@ the like) from `coordsAtPos`, in `useEditorEffect` or `useEditorLayoutEffect`.
 
 ## The packages
 
-Three npm workspaces under `packages/`, released together at one version:
+Four npm workspaces under `packages/`, released together at one version:
 
 - `core` (`@stesura/wordgard-view`): everything that doesn't depend on a framework: the
   `Wordgard` subclass, the doc tile, the layout, the tile build, the decoration registrations,
   the stores. A framework plugs in through a renderer (`Renderer` in `tile.ts`). Not for apps:
   its API is what the views need, and changes with them.
-- `react` (`@stesura/react-wordgard`) and `vue` (`@stesura/vue-wordgard`): a renderer each, the
-  components it renders, the factories, the hooks or composables. Each depends on the core at its
-  exact version.
+- `react` (`@stesura/react-wordgard`), `vue` (`@stesura/vue-wordgard`) and `svelte`
+  (`@stesura/svelte-wordgard`): a renderer each, the components it renders, the factories, the hooks
+  or composables. Each depends on the core at its exact version.
 
 The views reach the core through its entry (`core/src/index.ts`), as they will from npm. In the
 workspace, every package's `exports` lead with an `@stesura/source` condition pointing at its
 `src`, which TypeScript, Vite, Vitest and dependency-cruiser are given: types, tests, the demos and
 the benchmark run on the working tree, never on a build. tsup builds each package's `dist`
-(turbo orders the builds), at `npm pack`.
+(turbo orders the builds), at `npm pack`; svelte-wordgard ships its `.svelte` files for the app's
+Svelte to compile, built by `svelte-package`.
 
 ## The pieces
 
@@ -57,6 +58,7 @@ Paths are under `packages/`.
 | `core/src/words.ts`, `react/src/words.ts` | How the core's errors name the framework and what they advise, given by its renderer. |
 | `core/src/wordgardInternals.ts` | The only file typing Wordgard's internals (with two `@ts-expect-error` in `RenderedWordgard.ts`). |
 | `vue/src/` | vue-wordgard, the same pieces for Vue: [Vue](#vue). |
+| `svelte/src/` | svelte-wordgard, the same pieces for Svelte, with a DOM renderer of its own: [Svelte](#svelte). |
 
 ## Creating an editor
 
@@ -391,6 +393,67 @@ patch: Vue sets template refs in a post-flush job, too late for the build.
 `container._vnode`, `instance.update()` and a component's `effect.scheduler`, `vnode.memo`, a
 component's `provides`, and the app context's `optionsCache`, `propsCache` and `emitsCache`.
 
+## Svelte
+
+svelte-wordgard (`packages/svelte/src/`) is the same design over the same core: `SvelteWordgard`
+extends `RenderedWordgard`, `SvelteDocTile` is its renderer, and the tile build, the record sorting,
+the layout, the keys and the cells are the core's. What differs comes from Svelte's templates,
+which can't draw Wordgard's lists: every element holding a block, a component or a snippet gets an
+anchor (an empty text node for an `{#each}`, a comment for the others), and `mount` puts one in its
+target. Wordgard reads positions by DOM child index and removes nodes without a tile, so none may
+sit among a content tile's children.
+
+- **A DOM renderer of our own.** Nothing Wordgard draws is a Svelte template.
+  `components/ChildNodeViews.ts` draws a plot's children as keyed parts (text, mark elements, hack
+  nodes, nodes) over the core's keys, `DefaultNodeView.ts` a node's shape `Elt`, `MarkView.ts` a
+  mark's element; `helpers/dom.ts` sets attributes only when they change, with Wordgard's
+  namespaces, and `placeNodes` orders our nodes with as few moves as it can, leaving the others
+  (widget DOM, a composition's text node) where they are. A text node is written only when its
+  text differs from what we last wrote. Per-node updates come from the cells: a list keeping its
+  shape isn't drawn, and a node whose cell got a new view draws itself after the lists. An element
+  of another tag in place of one (a mark's `strong` becoming `em`, a heading's level) takes the old
+  one's children, as Wordgard's own update does.
+- **A root per component.** Each Svelte decoration is mounted (`mount`) inside
+  `components/Decoration.svelte`, a `<svelte:boundary>` reporting to `failed`, with the editor's
+  element as `target` (where Svelte's delegated events listen) and an anchor in a detached holder
+  (`helpers/mountRoot.ts`): what Svelte puts beside the root stays in the holder, and the root
+  element, the only one, is moved into place. Its contexts are passed by hand: `WordgardDoc`'s, or
+  the enclosing component's, read where its `contentDOMRef` runs. A root Svelte replaces (a block at
+  the component's top switching, `<svelte:element>`'s tag changing, an HMR update) is drawn in the
+  holder, where a `MutationObserver` finds it; the core rebuilds the tiles over the new root
+  (`core/src/decorations/replacedRoots.ts`). The renderer unmounts nested roots, putting each root
+  back in the holder first: Svelte removes an effect's nodes by siblings, wherever the first is.
+- **Content by attachment.** A component marks its content element with `contentDOMRef`, and a
+  wrapper what it wraps with `wrappedDOMRef` (`helpers/slot.ts`); the renderer draws there once the
+  attachment ran, from its own queue rather than inside the attachment's effect (a root mounted
+  there would be that effect's child, which Svelte can stop updating), drained in the commit before
+  Wordgard reads the DOM. A node wrapper is mounted with no root element: its `WrappedNode` hands
+  the node its contexts and its attributes (`components/NodeWrapperView.ts`).
+- **The commit.** The renderer commits in `flushSync`, which runs every pending effect of the page:
+  components outside the document get the state after the flush (`helpers/publish.ts`), so their
+  effects run outside it. A flush forced from inside a reaction (`getAbortSignal()` doesn't throw
+  there) is refused with `RefusedUpdate`, as Vue's from a component. An error a component throws,
+  in a later update of its own too, reaches its boundary; the document is drawn anew at the next
+  update.
+
+**Hosting.** `WordgardEditor` creates the editor (`SvelteWordgard.host`) and sets it as a context;
+on the server (`esm-env`'s `BROWSER`) it creates none and draws nothing, and its children are drawn
+in the browser as the page hydrates, which discards the server's empty `{#if}` branch.
+`WordgardDoc` draws a `div`, puts the editor in it from an attachment, then draws the document
+inside Wordgard's `observer.ignore`, with its own contexts. Unmounting it unmounts every component
+the document drew.
+
+**Svelte behaviour it relies on**, none of it API (the peer is `~5.57.3`): where `mount` puts what,
+given an anchor; a single-element root updated and unmounted after it moved; a replaced root drawn
+in the holder; `<svelte:element>`'s comment and inner text node; delegated events through the
+target; when attachments run, run again and are torn down; `flushSync` from an attachment; a
+boundary's `onerror` timing; a root mounted inside an effect being its child; `$effect.pre` running
+at setup; an effect's nodes removed by siblings, and the old root of nested blocks left in place.
+`packages/svelte/src/__tests__/svelteBehaviour.browser.test.ts` checks each, in the development,
+production and async builds (the `view-svelte`, `view-svelte-production` and `view-svelte-async`
+projects); `.github/workflows/svelte-latest.yml` runs them weekly on Svelte's latest release, and
+`npm run test:svelte-hmr` drives HMR on the demo's dev server.
+
 ## Decisions
 
 | Decision | Why |
@@ -410,9 +473,12 @@ component's `provides`, and the app context's `optionsCache`, `propsCache` and `
 | Chrome as uneditable widget tiles. | Wordgard's own model for a shape's elements around its hole. |
 | Replace Wordgard's `MutationObserver`; rebuild changed shapes from the records, no layout effect. | A component's own commits must never reach Wordgard as edits; a component re-rendering alone doesn't run its parent's effects. |
 | Hook event listeners run before keymaps (highest precedence). | As react-prosemirror's `handleDOMEvents`; Stesura needs keydown first. |
-| One repository, three packages: the core published on its own, the views pinning it exactly, all released at one version. | The core reaches Wordgard's internals for both views: one change runs both views' tests, and an app gets one copy of it. |
+| One repository, four packages: the core published on its own, the views pinning it exactly, all released at one version. | The core reaches Wordgard's internals for every view: one change runs every view's tests, and an app gets one copy of it. |
 | Vue's document drawn with `render()` into a content element whose `_vnode` is seeded, committed with `instance.update()` inside the flush. | No anchors among Wordgard's tiles; Vue would otherwise commit after the flush, read by Wordgard as edits. Both are Vue internals. |
 | Vue's content is a component (`NodeContent`), not a slot. | A slot puts anchors in the content element, beside the text. |
+| Svelte's document drawn by a DOM renderer of our own; each Svelte decoration a root of its own (`mount`), its anchor in a detached holder, its root element moved into place. | Svelte's templates put an anchor in any element holding a list, a block or a component, and `mount` one in its target: none can sit among Wordgard's tiles. Zero-length tiles for anchors would have changed the core for every view. |
+| A Svelte decoration marks its content element with an attachment (`contentDOMRef`), never `{@render children()}`. | A snippet leaves a comment where it renders. |
+| Svelte's view tested in its development, production and async builds, and weekly on Svelte's latest release. | It relies on Svelte's behaviour (anchors, `flushSync`, `mount`), which no contract covers and which differs between builds. |
 
 ## What we depend on in Wordgard
 
@@ -421,6 +487,7 @@ All typed in `packages/core/src/wordgardInternals.ts`, re-read after `npm run up
 (swapped in the constructor), and, since React shapes, the `DOMObserver`'s `observer` and `queue`
 and `scheduleFlush`. A Wordgard release changing any of these can break us: the peer is pinned
 exactly, and the copied Wordgard tests (`test/wordgard/`, the `view` project runs them on
-`ReactWordgard`, and `view-vue` on `VueWordgard`) are the alarm at `npm run update-wordgard`. Some of this would go if Wordgard
+`ReactWordgard`, `view-vue` on `VueWordgard`, `view-svelte` on `SvelteWordgard`) are the alarm at
+`npm run update-wordgard`. Some of this would go if Wordgard
 took the renderer from the subclass before its first draw, mapped positions over bare change
 sections publicly, or offered a renderer interface.

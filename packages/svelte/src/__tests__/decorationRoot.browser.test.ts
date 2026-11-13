@@ -1,11 +1,12 @@
 // Adapted from vue-wordgard's decorationRoot.browser.test.ts for Svelte. Wordgard's attributes
 // reach the root only through the spread: the component merges its own with them as it likes.
-import { mount, tick, unmount } from "svelte";
+import { mount, unmount } from "svelte";
 import { Decoration, type Wordgard } from "wordgard/editor";
 import { basicSchema, blockquote, horizontalRule, image } from "wordgard/schema";
 import { GardSelection, type GardState } from "wordgard/state";
 import { Blockquote, Heading, HorizontalRule, Image, Link, Paragraph } from "wordgard/types";
 
+import { tick } from "../testing/tick.js";
 import { drawn, flushKeeps, textIn, typeInto } from "../../../../test/editing.js";
 import { SvelteWordgard } from "../SvelteWordgard.js";
 import DecorationRoot from "../components/DecorationRoot.svelte";

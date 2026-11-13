@@ -2,7 +2,6 @@
 // widgets, written as users write them (fixtures/shape/). The cases svelteDecorations already
 // covers aren't repeated. After each change, Wordgard's next flush must find nothing to redraw, and
 // the tiles must be what a fresh build over the same DOM gives.
-import { tick } from "svelte";
 import { Elt, Leaf } from "wordgard/doc";
 import { Decoration, Widget, type Wordgard } from "wordgard/editor";
 import { alignment, basicSchema, blockquote, figure, image, imageResizing } from "wordgard/schema";
@@ -20,6 +19,7 @@ import {
   TableRow,
 } from "wordgard/types";
 
+import { tick } from "../testing/tick.js";
 import { composeIn, drawn, flushKeeps, textIn, typeInto } from "../../../../test/editing.js";
 import { docTileOf } from "../../../../test/tiles.js";
 import { SvelteWordgard } from "../SvelteWordgard.js";

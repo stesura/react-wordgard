@@ -1,5 +1,5 @@
-// The editors the benchmarks compare: react-wordgard, vue-wordgard (the Vue
-// trial, vue/), plain Wordgard, react-prosemirror
+// The editors the benchmarks compare: react-wordgard, vue-wordgard,
+// svelte-wordgard, plain Wordgard, react-prosemirror
 // (@handlewithcare/react-prosemirror from npm) and plain ProseMirror. All get
 // the same document (documents.ts), alike schemas (schemas.ts) and their own
 // history.
@@ -22,6 +22,7 @@ import { EditorState, TextSelection, type Transaction } from "prosemirror-state"
 import { EditorView } from "prosemirror-view";
 import React, { createElement } from "react";
 import { type Root, createRoot } from "react-dom/client";
+import { mount, unmount } from "svelte";
 import { type App, createApp, defineComponent, h } from "vue";
 import { Command, enter } from "wordgard/command";
 import { Leaf, Plot } from "wordgard/doc";
@@ -41,6 +42,7 @@ import {
   useEditorEffect as useVueWordgardEffect,
 } from "@stesura/vue-wordgard";
 import { replacement, searchTerm } from "./documents.js";
+import SvelteEditor from "./svelte/Editor.svelte";
 import { pmPlugins, wgPlugins } from "./plugins.js";
 import { FontSize, Indent, pmSchema, wgSchema } from "./schemas.js";
 
@@ -246,6 +248,29 @@ const vueWordgard: Mount = (html, parent, plugins) => {
   });
 };
 
+// Mounted as an app does, as react-wordgard is above.
+const svelteWordgard: Mount = (html, parent, plugins) => {
+  const { state, loaded, at } = wgState(html, plugins);
+  return new Promise((resolve) => {
+    timings.start = now();
+    const app = mount(SvelteEditor, {
+      target: parent,
+      props: {
+        editorState: state,
+        ready: (wg: Wordgard) => {
+          // Svelte's development build records each element's place in its source.
+          if ("__svelte_meta" in (parent.firstElementChild ?? {}) != development)
+            throw new Error("Expected another Svelte build");
+          wg.flush();
+          parent.getBoundingClientRect();
+          timings.load = now() - timings.start;
+          resolve(wgEditor(wg, loaded, at, () => void unmount(app)));
+        },
+      },
+    });
+  });
+};
+
 const pmDoc = (html: string) => {
   const dom = document.createElement("div");
   dom.innerHTML = html;
@@ -382,6 +407,7 @@ const reactProseMirror: Mount = (html, parent, plugins) => {
 const all: [string, Mount][] = [
   ["react-wordgard", reactWordgard],
   ["vue-wordgard", vueWordgard],
+  ["svelte-wordgard", svelteWordgard],
   ["Wordgard", wordgard],
   ["react-prosemirror", reactProseMirror],
   ["ProseMirror", proseMirror],

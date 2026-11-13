@@ -5,8 +5,8 @@ import react from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
 import { fileURLToPath } from "node:url";
 import { type Plugin, defaultClientConditions, defaultServerConditions } from "vite";
-import { defineConfig } from "vitest/config";
-import type { BrowserConfigOptions } from "vitest/node";
+import { type TestProjectInlineConfiguration, defineConfig } from "vitest/config";
+import type { BrowserCommand, BrowserConfigOptions } from "vitest/node";
 
 // `chromiumFlags` for Chromium's V8: svelte-wordgard's teardown test calls `gc()`.
 const browser = (chromiumFlags?: string): BrowserConfigOptions => ({
@@ -47,6 +47,60 @@ const redirectWordgardTests = (name: string, editor: string): Plugin => ({
       ? editor
       : null,
 });
+
+// Renders a module's default export on the server, through the project's Vite server, compiled as
+// SvelteKit compiles it there: svelte-wordgard's server rendering test.
+const renderOnServer: BrowserCommand<[file: string]> = async ({ project }, file) => {
+  const { default: render } = await project.vite.ssrLoadModule(file);
+  if (typeof render != "function") throw new Error(`${file} exports no function to render`);
+  return render();
+};
+
+// Wordgard's tests again, with their editors created as SvelteWordgard, and the Svelte view's own,
+// for each way an app compiles Svelte: the view relies on Svelte's behaviour, and its DOM differs
+// between them (the Svelte plan's "Testing across Svelte's builds and releases"). Not extending
+// the root's config: its `development` condition would win over `production` (Svelte's `DEV`, from
+// esm-env).
+const svelteProject = (
+  name: string,
+  build: "development" | "production" | "async"
+): TestProjectInlineConfiguration => {
+  const mode = build == "production" ? "production" : "development";
+  return {
+    extends: false,
+    plugins: [
+      svelte({
+        compilerOptions: { dev: mode == "development", experimental: { async: build == "async" } },
+      }),
+      redirectWordgardTests(`wordgard-tests-on-svelte-wordgard-${build}`, svelteWordgardEditor),
+    ],
+    resolve: { conditions: ["@stesura/source", "module", "browser", mode] },
+    ssr: { resolve: { conditions: ["@stesura/source", "module", "node", mode] } },
+    build: { target: "esnext" },
+    optimizeDeps: {
+      include: ["wordgard/schema", "wordgard/history", "wordgard/table", "axe-core"],
+    },
+    test: {
+      name,
+      globals: true,
+      include: [
+        wordgardTests,
+        "test/view-svelte/*.test.ts",
+        "packages/svelte/src/**/*.browser.test.ts",
+      ],
+      testTimeout: 60_000,
+      // React's pending list, less what the Svelte view passes.
+      setupFiles: [
+        "test/wordgard-workspace.ts",
+        "test/skipInBrowser.ts",
+        "test/view-svelte/skipPending.ts",
+      ],
+      browser: { ...browser("--expose-gc"), commands: { renderOnServer } },
+      // For test/view-svelte/build.test.ts.
+      provide: { svelteBuild: build },
+    },
+  };
+};
 
 // Serves the demo (`npm run demo`) and configures the tests (`npm test`).
 export default defineConfig({
@@ -141,31 +195,9 @@ export default defineConfig({
           browser: browser(),
         },
       },
-      {
-        // Wordgard's tests again, with their editors created as SvelteWordgard,
-        // and the Svelte view's own.
-        extends: true,
-        plugins: [
-          svelte(),
-          redirectWordgardTests("wordgard-tests-on-svelte-wordgard", svelteWordgardEditor),
-        ],
-        test: {
-          name: "view-svelte",
-          include: [
-            wordgardTests,
-            "test/view-svelte/*.test.ts",
-            "packages/svelte/src/**/*.browser.test.ts",
-          ],
-          testTimeout: 60_000,
-          // React's pending list, less what the Svelte view passes.
-          setupFiles: [
-            "test/wordgard-workspace.ts",
-            "test/skipInBrowser.ts",
-            "test/view-svelte/skipPending.ts",
-          ],
-          browser: browser("--expose-gc"),
-        },
-      },
+      svelteProject("view-svelte", "development"),
+      svelteProject("view-svelte-production", "production"),
+      svelteProject("view-svelte-async", "async"),
     ],
   },
 });

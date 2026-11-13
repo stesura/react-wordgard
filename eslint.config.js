@@ -47,6 +47,7 @@ export default tseslint.config(
       "demo/vue/**/*.ts",
       "packages/svelte/**/*.{ts,svelte}",
       "demo/svelte/**/*.{ts,svelte}",
+      "bench/svelte/**/*.svelte",
     ],
     rules: Object.fromEntries(Object.keys(reactHooksRules).map((rule) => [rule, "off"])),
   },
