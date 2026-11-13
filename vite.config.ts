@@ -81,7 +81,18 @@ const svelteProject = (name: string, build: SvelteBuild): TestProjectInlineConfi
     ssr: { resolve: { conditions: ["@stesura/source", "module", "node", mode] } },
     build: { target: "esnext" },
     optimizeDeps: {
-      include: ["wordgard/schema", "wordgard/history", "wordgard/table", "axe-core"],
+      include: [
+        "wordgard/schema",
+        "wordgard/history",
+        "wordgard/table",
+        "axe-core",
+        // Not used here, but found mid-run in `npm test` (not in a Svelte project run alone), which
+        // reloads the browser tests on a cold cache.
+        "react",
+        "react-dom",
+        "react-dom/client",
+        "use-sync-external-store/with-selector",
+      ],
     },
     test: {
       name,
