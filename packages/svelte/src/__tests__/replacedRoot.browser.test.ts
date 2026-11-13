@@ -3,6 +3,7 @@
 // holder, which puts it in place; the tiles are rebuilt over it before Wordgard reads them, so the
 // next flush keeps them, and the document stays editable.
 import { flushSync } from "svelte";
+import { Command, enter } from "wordgard/command";
 import { Leaf } from "wordgard/doc";
 import { Decoration, type Wordgard } from "wordgard/editor";
 import { basicSchema, blockquote } from "wordgard/schema";
@@ -131,6 +132,27 @@ describe("A Svelte decoration replacing its root on its own", () => {
       expect(drawn(wg)).toEqual(fresh(wg, 2));
     });
   }
+
+  // The doc's list placed again keeping its ends (placeParts' shared ends): the
+  // root, at one end, must still be found where it was placed.
+  for (const { name, doc, config, text } of cases.slice(0, 2))
+    it(`puts a ${name}'s new root in place after a node is added beside it`, async () => {
+      const wg = create({ doc, config });
+      wg.dispatch({ selection: { anchor: 2 } });
+      Command.dispatch(wg, enter);
+      wg.flush();
+      expect(wg.contentDOM.querySelectorAll(":scope > p")).toHaveLength(2);
+      swap(wg, 1);
+      await tick();
+      await Promise.resolve();
+      expect(wg.contentDOM.querySelector("[data-key]")?.getAttribute("data-key")).toBe("1");
+      expect(flushKeeps(wg)).toBe(true);
+      expect(drawn(wg)).toEqual(fresh(wg, 1));
+      typeInto(wg, textIn(wg, text), 1, "x");
+      wg.flush();
+      expect(wg.state.doc.textContent()).toContain("x");
+      expect(drawn(wg)).toEqual(fresh(wg, 1));
+    });
 
   // Nested roots are mounted outside their parent's effects: a parent's block
   // going in the same flush doesn't stop the child updating.

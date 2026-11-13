@@ -183,7 +183,9 @@ medians of 3 runs, without plugins / with them; times in ms.
 **Verdict:** svelte-wordgard costs what vue-wordgard does. A keystroke's time differs by less than
 the spread between runs (vue-wordgard's alone ranged from 3.6 to 7.0 ms), and its allocations by
 1–1.5%; the bulk edits are as fast or faster (at 1,500 paragraphs they allocate less too). Enter is the exception, about 2 ms
-slower at 5,000 paragraphs in every run (Svelte's plan, open points).
+slower at 5,000 paragraphs in every run. Profiled since: drawing the document's 5,000-child list
+again cost svelte-wordgard's commit 4.5 ms per Enter against vue-wordgard's 1.9; it now passes over
+the children in place at either end, and takes 3.0 ms (Svelte's plan, Phase 5).
 
 ## What is compared
 

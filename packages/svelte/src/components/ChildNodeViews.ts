@@ -127,10 +127,23 @@ export const replaceRoot = (part: Part, old: Element, root: Element) => {
 // are destroyed and their DOM removed.
 export const placeParts = (parent: Element, next: readonly Part[], last: readonly Part[]) => {
   if (next == last) return;
+  // The parts both lists share at either end are placed here already, when
+  // `last` is what was (not an element's children moved to another tag's).
+  let start = 0;
+  let nextEnd = next.length;
+  let lastEnd = last.length;
+  if (placed.get(parent) == last) {
+    while (start < nextEnd && start < lastEnd && next[start] == last[start]) start++;
+    while (nextEnd > start && lastEnd > start && next[nextEnd - 1] == last[lastEnd - 1]) {
+      nextEnd--;
+      lastEnd--;
+    }
+  }
   placed.set(parent, next);
-  for (const part of next) placedIn.set(part, parent);
-  const kept = new Set(next);
-  for (const part of last) {
+  const middle = next.slice(start, nextEnd);
+  for (const part of middle) placedIn.set(part, parent);
+  const kept = new Set(middle);
+  for (const part of last.slice(start, lastEnd)) {
     if (kept.has(part)) continue;
     const { dom } = part;
     destroyPart(part);

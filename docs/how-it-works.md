@@ -451,7 +451,8 @@ boundary's `onerror` timing; a root mounted inside an effect being its child; `$
 at setup; an effect's nodes removed by siblings, and the old root of nested blocks left in place.
 `packages/svelte/src/__tests__/svelteBehaviour.browser.test.ts` checks each, in the development,
 production and async builds (the `view-svelte`, `view-svelte-production` and `view-svelte-async`
-projects); `.github/workflows/svelte-latest.yml` runs them weekly on Svelte's latest release, and
+projects); `.github/workflows/svelte-latest.yml` runs them weekly on Svelte's latest release, with
+async mode in production besides (`view-svelte-async-production`, out of `npm test`), and
 `npm run test:svelte-hmr` drives HMR on the demo's dev server.
 
 ## Decisions

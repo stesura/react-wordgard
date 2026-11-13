@@ -56,21 +56,24 @@ const renderOnServer: BrowserCommand<[file: string]> = async ({ project }, file)
   return render();
 };
 
+// As test/view-svelte/build.test.ts's `svelteBuild`.
+type SvelteBuild = "development" | "production" | "async" | "async-production";
+
 // Wordgard's tests again, with their editors created as SvelteWordgard, and the Svelte view's own,
 // for each way an app compiles Svelte: the view relies on Svelte's behaviour, and its DOM differs
 // between them (the Svelte plan's "Testing across Svelte's builds and releases"). Not extending
 // the root's config: its `development` condition would win over `production` (Svelte's `DEV`, from
 // esm-env).
-const svelteProject = (
-  name: string,
-  build: "development" | "production" | "async"
-): TestProjectInlineConfiguration => {
-  const mode = build == "production" ? "production" : "development";
+const svelteProject = (name: string, build: SvelteBuild): TestProjectInlineConfiguration => {
+  const mode = build.includes("production") ? "production" : "development";
   return {
     extends: false,
     plugins: [
       svelte({
-        compilerOptions: { dev: mode == "development", experimental: { async: build == "async" } },
+        compilerOptions: {
+          dev: mode == "development",
+          experimental: { async: build.startsWith("async") },
+        },
       }),
       redirectWordgardTests(`wordgard-tests-on-svelte-wordgard-${build}`, svelteWordgardEditor),
     ],
@@ -119,6 +122,8 @@ export default defineConfig({
       "wordgard/history",
       "wordgard/table",
       "use-sync-external-store/with-selector",
+      "react",
+      "react-dom",
       "react-dom/client",
       "axe-core",
       // `vue` in the `view-vue` project.
@@ -198,6 +203,11 @@ export default defineConfig({
       svelteProject("view-svelte", "development"),
       svelteProject("view-svelte-production", "production"),
       svelteProject("view-svelte-async", "async"),
+      // Weekly (svelte-latest.yml) and on demand, not in `npm test`: each of its two differences
+      // from development runs on its own above.
+      ...(process.env.SVELTE_ASYNC_PRODUCTION
+        ? [svelteProject("view-svelte-async-production", "async-production")]
+        : []),
     ],
   },
 });

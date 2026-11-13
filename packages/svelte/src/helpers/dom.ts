@@ -37,12 +37,28 @@ export const setAttributes = (dom: Element, next: Attributes, last: Attributes |
 // Puts `nodes` in `parent` in this order, moving as few as it can: a node
 // moved loses the selection or composition in it. The nodes not in the list
 // (widget DOM, the browser's composition) stay where they are: the doc tile
-// places them.
+// places them. The nodes in place at either end are passed over first: an
+// Enter among 5,000 paragraphs changes one or two.
 export const placeNodes = (parent: Element, nodes: readonly ChildNode[]) => {
-  const wanted = new Set(nodes);
+  let start = 0;
   let at = parent.firstChild;
-  for (const node of nodes) {
-    while (at && at != node && !wanted.has(at)) at = at.nextSibling;
+  while (start < nodes.length && at && at == nodes[start]) {
+    at = at.nextSibling;
+    start++;
+  }
+  let end = nodes.length;
+  // The first of the nodes in place at the end.
+  let stop: ChildNode | null = null;
+  for (let last = parent.lastChild; end > start && last && last == nodes[end - 1]; end--) {
+    stop = last;
+    last = last.previousSibling;
+  }
+  if (start == end) return;
+  const wanted = new Set(nodes.slice(start, end));
+  for (let i = start; i < end; i++) {
+    const node = nodes[i];
+    if (!node) continue;
+    while (at && at != stop && at != node && !wanted.has(at)) at = at.nextSibling;
     if (at == node) at = node.nextSibling;
     else parent.insertBefore(node, at);
   }

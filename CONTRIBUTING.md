@@ -38,7 +38,8 @@ Check types, lint, imports and formatting with `npm run check`, and fix what can
 `npm run demo` (React), `npm run demo:vue` and `npm run demo:svelte`. The lockfile pins React 18:
 `npm run test:react19` type-checks and tests on React 19, as CI does. Svelte's view runs in its
 development, production and async builds (`view-svelte`, `view-svelte-production`,
-`view-svelte-async`); `npm run test:svelte-hmr` edits the Svelte demo's components on its dev
+`view-svelte-async`; `SVELTE_ASYNC_PRODUCTION=1 npm test` adds async mode in production,
+`view-svelte-async-production`, which the weekly `svelte-latest` workflow runs); `npm run test:svelte-hmr` edits the Svelte demo's components on its dev
 server, as CI does too.
 
 `test/wordgard/` holds Wordgard's own tests, copied unchanged: don't edit them.

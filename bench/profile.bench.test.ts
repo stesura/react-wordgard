@@ -1,4 +1,4 @@
-// Where the time to load, to type a keystroke and to format the whole document
+// Where the time to load, to type a keystroke, to press Enter and to format the whole document
 // goes: Chromium's CPU profiler around each, in the editors of editors.ts
 // (cpuProfile.ts), by function and by script file.
 // `npm run bench:profile` (React's production build), `npm run
@@ -27,6 +27,7 @@ declare module "vitest/browser" {
 }
 
 const keystrokes = smoke ? 5 : 30;
+const enters = smoke ? 3 : 10;
 const warmup = smoke ? 1 : 5;
 const formats = smoke ? 2 : 4;
 // As in the timing benchmark: formatting all of an editor holding more than
@@ -59,6 +60,18 @@ const measure = async (mount: Mount, n: number) => {
     parent.getBoundingClientRect();
   }
   const typing = await commands.profileStop();
+  // Before Enter splits that paragraph.
+  expect(parent.querySelectorAll("p")[Math.floor(n / 2)]?.textContent).toContain(
+    "x".repeat(warmup + keystrokes)
+  );
+  for (let i = 0; i < warmup; i++) editor.enter();
+  await commands.profileStart();
+  for (let i = 0; i < enters; i++) {
+    editor.enter();
+    parent.getBoundingClientRect();
+  }
+  const entering = await commands.profileStop();
+  expect(parent.querySelectorAll("p").length).toBe(n + warmup + enters);
   let formatting: CpuProfile | null = null;
   if (held < formatLimit) {
     await commands.profileStart();
@@ -68,13 +81,10 @@ const measure = async (mount: Mount, n: number) => {
     }
     formatting = await commands.profileStop();
   }
-  expect(parent.querySelectorAll("p")[Math.floor(n / 2)]?.textContent).toContain(
-    "x".repeat(warmup + keystrokes)
-  );
   editor.destroy();
   parent.remove();
   await settle();
-  return { load, typing, formatting };
+  return { load, typing, entering, formatting };
 };
 
 // A profile's times, in ms per one of `count` runs.
@@ -109,7 +119,7 @@ const table = (title: string, profile: CpuProfile, count: number, what: string) 
   ].join("\n");
 };
 
-it("profiles load, a keystroke and formatting the whole document", async () => {
+it("profiles load, a keystroke, Enter and formatting the whole document", async () => {
   const build = reactBuild();
   // A first mount compiles each editor's code: done here, so it isn't counted.
   for (const [, mount] of editors) await measure(mount, 20);
@@ -117,10 +127,11 @@ it("profiles load, a keystroke and formatting the whole document", async () => {
   for (const n of sizes)
     for (const [name, mount] of editors) {
       const title = `${n} paragraphs, ${name}`;
-      const { load, typing, formatting } = await measure(mount, n);
+      const { load, typing, entering, formatting } = await measure(mount, n);
       const output = [
         table(title, load, 1, "to load"),
         table(title, typing, keystrokes, "per keystroke"),
+        table(title, entering, enters, "per Enter"),
         formatting
           ? table(title, formatting, formats, "per whole-document format change")
           : `${title}: formatting skipped (> ${formatLimit} MB held)`,
@@ -135,7 +146,7 @@ it("profiles load, a keystroke and formatting the whole document", async () => {
   console.log(
     [
       `React ${React.version}, ${build} build, ${navigator.userAgent}`,
-      `CPU profiles of mounting, then of ${keystrokes} keystrokes after ${warmup} unprofiled, per keystroke, then of ${formats} whole-document format changes (bold on, off), per change. "With callees" counts a recursive function's outermost call only.`,
+      `CPU profiles of mounting, then of ${keystrokes} keystrokes after ${warmup} unprofiled, per keystroke, then of ${enters} Enters after ${warmup} unprofiled, per Enter, then of ${formats} whole-document format changes (bold on, off), per change. "With callees" counts a recursive function's outermost call only.`,
       "",
       ...tables.flatMap((output) => [output, ""]),
     ].join("\n")

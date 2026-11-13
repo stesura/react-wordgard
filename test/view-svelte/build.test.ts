@@ -7,11 +7,13 @@ import Plain from "../../packages/svelte/src/__tests__/fixtures/Plain.svelte";
 
 declare module "vitest" {
   export interface ProvidedContext {
-    svelteBuild: "development" | "production" | "async";
+    svelteBuild: "development" | "production" | "async" | "async-production";
   }
 }
 
 const build = inject("svelteBuild");
+const production = build.includes("production");
+const async = build.startsWith("async");
 
 describe(`view-svelte project (${build})`, () => {
   it("compiles components for its build", () => {
@@ -19,25 +21,23 @@ describe(`view-svelte project (${build})`, () => {
     const root = mount(Plain, { target, props: { n: 1 } });
     flushSync();
     // Svelte's development build records each element's place in its source.
-    expect("__svelte_meta" in (target.firstElementChild ?? {})).toBe(build != "production");
+    expect("__svelte_meta" in (target.firstElementChild ?? {})).toBe(!production);
     void unmount(root);
     target.remove();
   });
 
   it("runs Svelte's runtime for its build", () => {
     // Svelte's production runtime throws a link to the error only, its development runtime the text.
-    expect(() => getAbortSignal()).toThrow(
-      build == "production" ? /^https:/ : /`getAbortSignal\(\)`/
-    );
+    expect(() => getAbortSignal()).toThrow(production ? /^https:/ : /`getAbortSignal\(\)`/);
   });
 
-  it("turns async mode on in the async build only", async () => {
+  it("turns async mode on in the async builds only", async () => {
     // A component compiled with `experimental.async` imports the flag that turns it on.
     const source = await (
       await fetch(
         new URL("../../packages/svelte/src/__tests__/fixtures/Plain.svelte", import.meta.url)
       )
     ).text();
-    expect(/flags[/_]async/.test(source)).toBe(build == "async");
+    expect(/flags[/_]async/.test(source)).toBe(async);
   });
 });

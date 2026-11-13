@@ -2,7 +2,7 @@
 // and Svelte's production builds unless the mode ends in "development"; modes
 // containing "smoke" run small documents, to check the benchmark works, and
 // modes starting with "heap" or "profile" run the heap breakdown or the
-// keystroke's CPU profile instead of the timings.
+// CPU profiles instead of the timings.
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import react from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
