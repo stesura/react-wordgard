@@ -52,6 +52,18 @@ export const Editor = () => (
 - `WordgardDoc` puts the editor in the page; one per editor. Components inside `WordgardEditor`
   (toolbars, menus, sidebars, next to `WordgardDoc`) can use the hooks: below. `WordgardEditor`
   draws no DOM, so wrap as much of the page in it as needs the editor.
+- The editor fits its content by default, and the page around it scrolls. Wordgard's
+  `wg-scroller` (`wg.scrollDOM`) is for an editor that scrolls itself (`Wordgard.scrolling(height)`).
+  Its base `overflow-x: auto` still makes it a scroll box on both axes, which shows whenever
+  something overflows it: a stray scrollbar, and scroll-into-view and drag autoscroll moving it
+  instead of the page. A host that scrolls an outer element adds
+  `Wordgard.theme({ "& > wg-scroller": { overflow: "visible" } })`.
+- Server rendering (Next, Remix): no `dynamic(..., { ssr: false })` needed. On the server and while
+  the page hydrates, `WordgardEditor` creates no editor and draws nothing; its children appear
+  after hydration. Build its props so they work on the server: `doc` as HTML or
+  `schema.docFromJSON(json)`, never `GardState.create` in render. A host reading the browser
+  (`window`, `localStorage`) in render, or drawing a placeholder until the editor appears, uses
+  `useHydrated()`.
 - Don't create editors with `Wordgard.create` for a React app: react-wordgard's editor is made by
   `WordgardEditor`. In StrictMode (development) it creates the editor twice and drops one, which is
   never put in the page.

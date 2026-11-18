@@ -35,6 +35,7 @@ export { useEditorField, useEditorFieldEntry } from "./hooks/useEditorField.js";
 export { type EditorLayoutEffect, useEditorLayoutEffect } from "./hooks/useEditorLayoutEffect.js";
 export { useEditorState } from "./hooks/useEditorState.js";
 export { useEditorStateSelector } from "./hooks/useEditorStateSelector.js";
+export { useHydrated } from "./hooks/useHydrated.js";
 export { useIgnoreMutation } from "./hooks/useIgnoreMutation.js";
 export { useIsNodeSelected } from "./hooks/useIsNodeSelected.js";
 export { useMergedDOMRefs } from "./hooks/useMergedDOMRefs.js";

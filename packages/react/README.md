@@ -27,6 +27,7 @@ same view, sharing react-wordgard's core.
   - [Should I use a shape, a wrapper or both?](#should-i-use-a-shape-a-wrapper-or-both)
   - [Handing a node data without drawing it](#handing-a-node-data-without-drawing-it)
   - [Sharing the model with a server](#sharing-the-model-with-a-server)
+  - [Server rendering](#server-rendering)
   - [Accessibility](#accessibility)
   - [Limits](#limits)
 - [API](#api)
@@ -656,6 +657,42 @@ export const Editor = ({ doc }: { doc: Node.JSON }) => (
 );
 ```
 
+### Server rendering
+
+A page rendered on the server (Next's App Router, Remix) can render `WordgardEditor` without
+turning server rendering off for it: no `dynamic(..., { ssr: false })`. On the server, and while
+the page hydrates, `WordgardEditor` creates no editor and draws nothing, since Wordgard needs the
+DOM, to read its document's HTML too. Its children appear once the page has hydrated; in a page
+rendered in the browser only, at once. The component rendering it is a client component
+(`"use client"`) as soon as its props hold functions (a `config`).
+
+Its props are still built on the server: give the document as `doc` (HTML), or as JSON loaded
+with `schema.docFromJSON`; a `GardState.create({ doc: html })` in render throws there. Anything
+under `WordgardEditor` appears after hydration with it: keep what the page needs in its server
+HTML (a title, the layout) outside it, and draw a placeholder in the editor's place meanwhile.
+`useHydrated()` tells when, as it tells a host reading the browser (`window`, `localStorage`) in
+render:
+
+```tsx
+"use client";
+import { WordgardDoc, WordgardEditor, useHydrated } from "@stesura/react-wordgard";
+import { basicSchema } from "wordgard/schema";
+
+const config = [basicSchema()];
+
+export function Editor({ html }: { html: string }) {
+  const hydrated = useHydrated();
+  return (
+    <>
+      {!hydrated && <div className="editor-placeholder" />}
+      <WordgardEditor doc={html} config={config}>
+        <WordgardDoc className="editor" />
+      </WordgardEditor>
+    </>
+  );
+}
+```
+
 ### Accessibility
 
 React decorations are your components: make them accessible as you would any other. What
@@ -689,7 +726,7 @@ or `<WordgardScope>`, decoration hooks in a React decoration's component; elsewh
 ```ts
 type WordgardEditor = (
   props: Omit<Wordgard.Spec, "parent"> & { children?: ReactNode }
-) => JSX.Element;
+) => JSX.Element | null;
 ```
 
 Creates a Wordgard editor from the spec (`doc`, `config`, `selection`, `state`, `scrollTo`) and
@@ -697,7 +734,8 @@ provides it to its children. It draws no DOM of its own. The spec is read once, 
 on the editor owns its state (see
 [Accessing the state outside the editor](#accessing-the-state-outside-the-editor)). In React's
 StrictMode (development only), it creates its editor twice and drops one, which is never put in the
-page.
+page. On the server and while the page hydrates it creates no editor and draws nothing: see
+[Server rendering](#server-rendering).
 
 #### `WordgardDoc`
 
@@ -1048,6 +1086,17 @@ One ref setting several, as for a root that's also the content element (`ref` an
 `contentDOMRef`).
 
 ### Helpers
+
+#### `useHydrated`
+
+```ts
+type useHydrated = () => boolean;
+```
+
+Whether the component draws in the browser past hydration: `false` on the server and in the
+hydration pass, `true` after it, and at once in a page rendered in the browser only. It works
+anywhere, not only under `WordgardEditor`: for a host that reads the browser in render, or draws a
+placeholder until the editor appears (see [Server rendering](#server-rendering)).
 
 #### `isTrailingBreak`
 

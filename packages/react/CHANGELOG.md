@@ -6,6 +6,10 @@ The attribute registering a React shape, wrapper or mark on its `Elt` is now `da
 
 ### New features
 
+`WordgardEditor` works in a page rendered on the server: there, and while the page hydrates, it creates no editor and draws nothing, and its children appear once the page has hydrated.
+
+`useHydrated` tells a component which side of hydration it draws on.
+
 react-wordgard's framework-free part is now a package of its own, `@stesura/wordgard-view`, which react-wordgard depends on at its exact version and vue-wordgard shares; apps don't import it.
 
 ### Bug fixes

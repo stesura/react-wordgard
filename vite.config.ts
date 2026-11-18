@@ -4,7 +4,7 @@ import { svelte } from "@sveltejs/vite-plugin-svelte";
 import react from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
 import { fileURLToPath } from "node:url";
-import { type Plugin, defaultClientConditions, defaultServerConditions } from "vite";
+import { type Plugin, createServer, defaultClientConditions, defaultServerConditions } from "vite";
 import { type TestProjectInlineConfiguration, defineConfig } from "vitest/config";
 import type { BrowserCommand, BrowserConfigOptions } from "vitest/node";
 
@@ -54,6 +54,28 @@ const renderOnServer: BrowserCommand<[file: string]> = async ({ project }, file)
   const { default: render } = await project.vite.ssrLoadModule(file);
   if (typeof render != "function") throw new Error(`${file} exports no function to render`);
   return render();
+};
+
+// As renderOnServer, for react-wordgard's server rendering test, through a Vite server of its own:
+// Vitest's inlines every dependency on the server, where React's CommonJS can't run. This one loads
+// React from Node, as a framework's server does.
+const renderReactOnServer: BrowserCommand<[file: string]> = async (_, file) => {
+  const server = await createServer({
+    configFile: false,
+    // The fixture's path is relative to the repository, wherever Vitest runs from.
+    root: fileURLToPath(new URL(".", import.meta.url)),
+    appType: "custom",
+    logLevel: "error",
+    server: { middlewareMode: true, hmr: false, ws: false, watch: null },
+    ssr: { resolve: { conditions: ["@stesura/source", ...defaultServerConditions] } },
+  });
+  try {
+    const { default: render } = await server.ssrLoadModule(file);
+    if (typeof render != "function") throw new Error(`${file} exports no function to render`);
+    return render();
+  } finally {
+    await server.close();
+  }
 };
 
 // As test/view-svelte/build.test.ts's `svelteBuild`.
@@ -159,7 +181,7 @@ export default defineConfig({
           name: "browser",
           include: ["packages/{core,react}/src/**/*.browser.test.{ts,tsx}", wordgardTests],
           setupFiles: ["test/wordgard-workspace.ts", "test/skipInBrowser.ts"],
-          browser: browser(),
+          browser: { ...browser(), commands: { renderReactOnServer } },
         },
       },
       {
