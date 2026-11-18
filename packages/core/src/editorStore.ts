@@ -98,15 +98,28 @@ export const editorOf = (wg: Wordgard): Editor => {
   const listeners = new Set<() => void>();
   const fields = new Map<StateField<unknown>, FieldListeners>();
   const effects = new Set<() => void>();
+  // The effects runs of runEffects have taken and not run yet, one per run:
+  // an effect cancelled meanwhile (a scope switched by a flush an earlier
+  // effect forced) is skipped.
+  const taken: Set<() => void>[] = [];
   const measures = new Set<Measure>();
   let requested = false;
   // After a flush the DOM shows `state`, even when a dispatch since then
   // (an update listener's) has put `wg.state` ahead.
   const runEffects = () => {
     if (!wg.connected) return;
-    const pending = [...effects];
+    const pending = new Set(effects);
     effects.clear();
-    for (const effect of pending) effect();
+    taken.push(pending);
+    try {
+      // Iterating the set skips what `cancel` deletes from it.
+      for (const effect of pending) {
+        pending.delete(effect);
+        effect();
+      }
+    } finally {
+      taken.splice(taken.indexOf(pending), 1);
+    }
   };
   // Without a flush under way or pending, the DOM is up to date.
   const requestEffects = () => {
@@ -154,7 +167,10 @@ export const editorOf = (wg: Wordgard): Editor => {
       effects.add(effect);
       if (!editor.flushing) requestEffects();
     },
-    cancel: (effect) => effects.delete(effect),
+    cancel: (effect) => {
+      effects.delete(effect);
+      for (const pending of taken) pending.delete(effect);
+    },
     measures,
     requestMeasure: () => wg.scheduleDOMRead(readMeasures),
     publish: (next) => {

@@ -25,6 +25,7 @@ the model with a server, changing a node without remounting it); all of that hol
   - [Vue decorations](#vue-decorations)
   - [The component's contract](#the-components-contract)
   - [Timing](#timing)
+  - [Server rendering](#server-rendering)
   - [Limits](#limits)
 - [API](#api)
 - [Coming from react-wordgard](#coming-from-react-wordgard)
@@ -166,7 +167,32 @@ Menus and popovers: position them with your library (Floating UI) from `wg.coord
 `useEditorEffect`, shown or hidden from a `computed` over the state. To react to changes without
 rendering (autosave), add a `Wordgard.updateListener.of((update) => …)` to `config`. Components
 outside `WordgardEditor` can't use the composables: lift `WordgardEditor`, or share the editor
-through a store from `useEditorEffect` and use it directly.
+through a store from `useEditorEffect` and use it directly, or under a `WordgardScope`.
+
+`<WordgardScope :wg="wg">` gives the components in its slot an editor a `WordgardEditor` made
+elsewhere, in place of the one around them: a toolbar acting on whichever of a page's editors has
+focus. The composables under it follow when `wg` changes: states and fields switch to the new
+editor's in the same render, effects run again, listeners and layout effects move. Setup runs
+once, so `useWordgard()` gives the editor as it was then; `useWordgardRef()` gives a ref that
+follows (in development, a scope changing under a `useWordgard()` warns).
+
+```vue
+<!-- Toolbar.vue: `focused` is set from useEditorEventListener("focus", …) under each editor. -->
+<script setup lang="ts">
+import { WordgardScope } from "@stesura/vue-wordgard";
+import { focused } from "./focus.js";
+import BoldButton from "./BoldButton.vue";
+</script>
+
+<template>
+  <WordgardScope v-if="focused" :wg="focused">
+    <BoldButton />
+  </WordgardScope>
+</template>
+```
+
+A `BoldButton` under a scope that changes reads the editor through `useWordgardRef()`
+(`Command.dispatch(wg.value, toggleStrong)`).
 
 ### Vue decorations
 
@@ -326,8 +352,19 @@ Wordgard updates the DOM in its flush, on the next frame, and Vue draws the docu
 - A document component's `onMounted` runs before Wordgard's tiles exist: `useNodePos()`'s function
   throws there; call it from handlers and `useEditorEffect`.
 - Components outside the document render the state in Vue's next tick after the update, on the
-  same paint; a test reading them waits for `nextTick`.
+  same paint; a test reading them waits for `nextTick`. So do components in one editor's document
+  reading another editor (a sub-editor's chrome, a `WordgardScope`'s components): they render
+  after that editor's update, never inside it.
 - An error a component in the document throws is logged; the next update draws the document again.
+
+### Server rendering
+
+A Nuxt page (or any server-rendered app) needs no `<ClientOnly>`: on the server, and while the
+page hydrates, `WordgardEditor` creates no editor and draws nothing, since Wordgard needs the DOM.
+Its slot appears once the page has mounted, on the update after it. Its props are still built on
+the server: give the document as `doc` (HTML), or load it with `schema.docFromJSON`; a
+`GardState.create({ doc: html })` in a component's setup throws there. In a page drawn in the
+browser only, the editor is created at once, as before.
 
 ### Limits
 
@@ -340,12 +377,18 @@ Wordgard updates the DOM in its flush, on the next frame, and Vue draws the docu
 
 Everything is exported from `@stesura/vue-wordgard`.
 
-- Components: `WordgardEditor`, `WordgardDoc`, `DecorationRoot`, `NodeContent`, `WrappedNode`.
+- Components: `WordgardEditor`, `WordgardDoc`, `WordgardScope`, `DecorationRoot`, `NodeContent`,
+  `WrappedNode`.
 - Factories: `createShape`, `createWrapper`, `createMarkShape`, `createWidgetType`, `nodeWrapper`.
-- Editor composables, under `WordgardEditor`: `useWordgard`, `useEditorState`, `useEditorField`,
-  `useEditorFieldEntry`, `useEditorEffect`, `useEditorLayoutEffect`, `useEditorEventListener`.
+- Editor composables, under `WordgardEditor` or `WordgardScope`: `useWordgard`, `useWordgardRef`,
+  `useEditorState`, `useEditorField`, `useEditorFieldEntry`, `useEditorEffect`,
+  `useEditorLayoutEffect`, `useEditorEventListener`.
 - Decoration composables, in a decoration's component: `useNodePos`, `useIsNodeSelected`,
   `useSelectNode`, `useStopEvent`, `useIgnoreMutation`.
+- Helpers: `useMergedDOMRefs(...refs)` (one function `:ref` setting several, each given the
+  element, a component's root element on a component), `staticCopy(dom)` (a copy of what an editor
+  drew, without its ids and editor attributes), `isTrailingBreak(dom)` (the `<br>` ending a
+  textblock, not a line break's).
 - Props types: `ShapeComponentProps`, `WrapperComponentProps`, `MarkComponentProps`,
   `WidgetComponentProps`, `NodeWrapperComponentProps`.
 - `VueWordgard.create(spec)`: an editor drawn by Vue outside a component tree (tests, benchmarks).
@@ -356,17 +399,17 @@ The composables' and components' signatures and details are in their typings
 
 ## Coming from react-wordgard
 
-| react-wordgard                                                       | vue-wordgard                                              |
-| -------------------------------------------------------------------- | --------------------------------------------------------- |
-| `{children}` in `contentDOMRef`'s element                            | `<NodeContent as="…" />`, or `<DecorationRoot content />` |
-| A wrapper's `{children}`                                             | `<WrappedNode />`                                         |
-| `{...props}` and `ref` on a root drawn by hand                       | nothing: attributes fall through, the root is found       |
-| `useEditorStateSelector(selector)`                                   | `computed(() => selector(useEditorState().value))`        |
-| `useEditorEventCallback(callback)`                                   | a plain function using `useWordgard()`                    |
-| `useEditorEffect(effect, deps)`                                      | `useEditorEffect(effect, source)`                         |
-| `NodeRootProps` in a node wrapper                                    | attributes on its `<WrappedNode />`                       |
-| `WordgardScope`, `useMergedDOMRefs`, `staticCopy`, `isTrailingBreak` | none                                                      |
-| `useIsNodeSelected()` returning a boolean                            | `useIsNodeSelected()` returning a `ref`                   |
+| react-wordgard                                       | vue-wordgard                                              |
+| ---------------------------------------------------- | --------------------------------------------------------- |
+| `{children}` in `contentDOMRef`'s element            | `<NodeContent as="…" />`, or `<DecorationRoot content />` |
+| A wrapper's `{children}`                             | `<WrappedNode />`                                         |
+| `{...props}` and `ref` on a root drawn by hand       | nothing: attributes fall through, the root is found       |
+| `useEditorStateSelector(selector)`                   | `computed(() => selector(useEditorState().value))`        |
+| `useEditorEventCallback(callback)`                   | a plain function using `useWordgard()`                    |
+| `useEditorEffect(effect, deps)`                      | `useEditorEffect(effect, source)`                         |
+| `NodeRootProps` in a node wrapper                    | attributes on its `<WrappedNode />`                       |
+| `useWordgard()` under a `WordgardScope` that changes | `useWordgardRef()`                                        |
+| `useIsNodeSelected()` returning a boolean            | `useIsNodeSelected()` returning a `ref`                   |
 
 ## AI coding agents
 

@@ -3,7 +3,7 @@
 import { onUnmounted } from "vue";
 import type { Wordgard } from "wordgard/editor";
 
-import { useEditorContext } from "../contexts/EditorContext.js";
+import { currentEditor, useEditorSource } from "../contexts/EditorContext.js";
 import { useDecorationContext } from "../contexts/DecorationContext.js";
 
 /**
@@ -12,8 +12,8 @@ import { useDecorationContext } from "../contexts/DecorationContext.js";
  */
 export const useIgnoreMutation = (ignore: (wg: Wordgard, mutation: MutationRecord) => boolean) => {
   const { handlers } = useDecorationContext("useIgnoreMutation");
-  const { wg } = useEditorContext("useIgnoreMutation");
-  const callback = (record: MutationRecord) => ignore(wg, record);
+  const source = useEditorSource("useIgnoreMutation");
+  const callback = (record: MutationRecord) => ignore(currentEditor(source).wg, record);
   handlers.ignoreMutation.add(callback);
   onUnmounted(() => {
     handlers.ignoreMutation.delete(callback);

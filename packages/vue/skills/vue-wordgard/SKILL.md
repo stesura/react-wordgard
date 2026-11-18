@@ -61,6 +61,10 @@ const config = [basicSchema()];
   use the composables. `WordgardEditor` draws no element.
 - Don't create editors with `Wordgard.create` in a Vue app. `VueWordgard.create(spec)` is for
   tests and benchmarks outside a component tree.
+- Server rendering (Nuxt): no `<ClientOnly>` needed. On the server and while the page hydrates,
+  `WordgardEditor` creates no editor and draws nothing; its slot appears once the page has mounted.
+  Build its props so they work on the server: `doc` as HTML or `schema.docFromJSON(json)`, never
+  `GardState.create` in setup. In a page drawn in the browser only, the editor is created at once.
 
 ## Reading and changing the editor from components
 
@@ -97,8 +101,14 @@ const bold = () => Command.dispatch(wg, toggleStrong);
   pointer events aren't offered (add a `Wordgard.domEventHandler` to `config`). Leave typing
   (`input`, `beforeinput`, composition) to Wordgard.
 - Outside `WordgardEditor` the composables throw: lift `WordgardEditor` (it draws no element), or
-  put the editor in a store from `useEditorEffect` and use it directly there. There is no
-  `WordgardScope`.
+  put the editor in a store from `useEditorEffect` and use it directly there, or put what needs
+  the composables under `<WordgardScope :wg="wg">`.
+- `<WordgardScope :wg="wg">` gives the components in its slot an editor a `WordgardEditor` made
+  elsewhere, in place of the one around them (a toolbar following the focused editor, set from
+  `useEditorEventListener("focus", …)` in each). The composables under it follow when `wg`
+  changes: states and fields switch, effects run again, listeners and layout effects move.
+  `useWordgard()` gives the editor as it was in setup (development warns when the scope changes
+  after): under a changing scope, use `useWordgardRef()`, a ref that follows.
 - To react to changes without rendering (autosave), add a
   `Wordgard.updateListener.of((update) => …)` to `config`.
 - Save with `wg.state.doc.toJSON()`, load with `state.schema.docFromJSON(json)` as `doc`.
@@ -117,7 +127,8 @@ const bold = () => Command.dispatch(wg, toggleStrong);
   refused and drawn on the next frame. Use one of the two composables, or an event handler.
 - `read` returning `undefined` skips the write and Wordgard's second measure.
 - Components outside the document render a new state in Vue's next tick (same paint); in tests,
-  `await nextTick()` before reading them.
+  `await nextTick()` before reading them. So do components in one editor's document reading
+  another editor (a sub-editor's chrome, under a `WordgardScope`).
 - Menus and popovers: position them with your library (Floating UI) from a virtual anchor built
   from `wg.coordsAtPos(pos)` in `useEditorEffect`; show or hide them from a `computed`.
 
@@ -340,6 +351,12 @@ remounts when the node is replaced whole, changes type or moves to another paren
   an event it stops, Wordgard's handlers and keymaps are skipped and the browser's default goes
   ahead. Controls in chrome need it.
 - `useIgnoreMutation((wg, record) => ignore)`: Wordgard doesn't read the DOM mutations it claims.
+- `useMergedDOMRefs(...refs)`: one function `:ref` setting several refs or functions, each given
+  the element (a component's root element: on `DecorationRoot`, the decoration's root).
+- `isTrailingBreak(dom)` tells the `<br>` Wordgard ends a textblock with from a line break's, from
+  the editor's tiles; `staticCopy(dom)` copies what an editor drew (no ids, no `contenteditable`, no
+  selection classes), its trailing breaks classed `wg-trailing-break`, to lay out elsewhere. Mount
+  copies `inert`: they keep the editor's focusable chrome.
 
 ## Accessibility
 
@@ -349,16 +366,17 @@ remounts when the node is replaced whole, changes type or moves to another paren
 
 ## Coming from react-wordgard
 
-| react-wordgard                                                       | vue-wordgard                                              |
-| -------------------------------------------------------------------- | --------------------------------------------------------- |
-| `{children}` in `contentDOMRef`'s element                            | `<NodeContent as="…" />`, or `<DecorationRoot content />` |
-| A wrapper's `{children}`                                             | `<WrappedNode />`                                         |
-| `{...props}` and `ref` on a root drawn by hand                       | nothing: attributes fall through                          |
-| `useEditorStateSelector(selector)`                                   | `computed` over `useEditorState()`                        |
-| `useEditorEventCallback(callback)`                                   | a plain function using `useWordgard()`                    |
-| `useEditorEffect(effect, deps)`                                      | `useEditorEffect(effect, source)`                         |
-| `NodeRootProps` in a node wrapper                                    | attributes on its `<WrappedNode />`                       |
-| `WordgardScope`, `useMergedDOMRefs`, `staticCopy`, `isTrailingBreak` | none                                                      |
+| react-wordgard                                       | vue-wordgard                                              |
+| ---------------------------------------------------- | --------------------------------------------------------- |
+| `{children}` in `contentDOMRef`'s element            | `<NodeContent as="…" />`, or `<DecorationRoot content />` |
+| A wrapper's `{children}`                             | `<WrappedNode />`                                         |
+| `{...props}` and `ref` on a root drawn by hand       | nothing: attributes fall through                          |
+| `useEditorStateSelector(selector)`                   | `computed` over `useEditorState()`                        |
+| `useEditorEventCallback(callback)`                   | a plain function using `useWordgard()`                    |
+| `useEditorEffect(effect, deps)`                      | `useEditorEffect(effect, source)`                         |
+| `NodeRootProps` in a node wrapper                    | attributes on its `<WrappedNode />`                       |
+| `useWordgard()` under a `WordgardScope` that changes | `useWordgardRef()`                                        |
+| `useMergedDOMRefs(...refs)`, a ref callback          | `useMergedDOMRefs(...refs)`, a function `:ref`            |
 
 ## When something fails
 

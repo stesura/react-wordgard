@@ -12,32 +12,44 @@ import {
   type ComponentOptions,
   getCurrentInstance,
   onBeforeMount,
-  onUnmounted,
 } from "vue";
 
 import type { EditorValue } from "@stesura/wordgard-view";
 
 const pending = new WeakMap<AppContext, Set<ComponentInternalInstance>>();
 const tracked = new WeakSet<ComponentInternalInstance>();
-// The documents' app contexts. A component outside them (a toolbar reading the
-// editor's state) renders when Vue schedules it, in the same tick.
-const documents = new WeakSet<AppContext>();
+// The documents' app contexts, and their editors. A component outside them (a
+// toolbar reading the editor's state) renders when Vue schedules it, in the
+// same tick.
+const documents = new WeakMap<AppContext, EditorValue>();
 
-export const syncContext = (context: AppContext) => {
-  documents.add(context);
+export const syncContext = (context: AppContext, editor: EditorValue) => {
+  documents.set(context, editor);
 };
 
 /**
- * What the calling component runs when the editor publishes a state: `update` at once in the
- * document, where it commits inside the flush; elsewhere once the flush is done. The commit's
- * render() runs Vue's pending callbacks: a watcher outside the document would run mid-flush, where
- * a dispatch throws.
+ * Called in setup, where the component's document is known: subscribes it to an editor's
+ * publishing (`subscribe`), returning the unsubscribe. `update` runs at once for the editor whose
+ * document the component is in, where it commits inside the flush; for any other editor once that
+ * editor's flush is done (a component under a WordgardScope may be in another editor's document).
+ * The commit's render() runs Vue's pending callbacks: a watcher run there would run mid-flush,
+ * where a dispatch throws.
  */
-export const onPublish = ({ afterFlush, cancel }: EditorValue, update: () => void) => {
+export const publisher = () => {
   const instance = getCurrentInstance();
-  if (instance && documents.has(instance.appContext)) return update;
-  onUnmounted(() => cancel(update));
-  return () => afterFlush(update);
+  const home = instance ? documents.get(instance.appContext) : undefined;
+  return (
+    editor: EditorValue,
+    subscribe: (listener: () => void) => () => void,
+    update: () => void
+  ) => {
+    if (editor == home) return subscribe(update);
+    const unsubscribe = subscribe(() => editor.afterFlush(update));
+    return () => {
+      unsubscribe();
+      editor.cancel(update);
+    };
+  };
 };
 
 // Once its render effect exists, which is after setup.

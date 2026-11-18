@@ -5,6 +5,7 @@ export { DecorationRoot } from "./components/DecorationRoot.js";
 export { NodeContent } from "./components/NodeContent.js";
 export { WordgardDoc } from "./components/WordgardDoc.js";
 export { WordgardEditor } from "./components/WordgardEditor.js";
+export { WordgardScope } from "./components/WordgardScope.js";
 export { WrappedNode } from "./components/WrappedNode.js";
 export {
   type MarkComponentProps,
@@ -32,9 +33,11 @@ export { useEditorEventListener } from "./hooks/useEditorEventListener.js";
 export { useEditorField, useEditorFieldEntry } from "./hooks/useEditorField.js";
 export { type EditorLayoutEffect, useEditorLayoutEffect } from "./hooks/useEditorLayoutEffect.js";
 export { useEditorState } from "./hooks/useEditorState.js";
+export { useMergedDOMRefs } from "./hooks/useMergedDOMRefs.js";
 export { useIgnoreMutation } from "./hooks/useIgnoreMutation.js";
 export { useIsNodeSelected } from "./hooks/useIsNodeSelected.js";
 export { useNodePos } from "./hooks/useNodePos.js";
 export { useSelectNode } from "./hooks/useSelectNode.js";
 export { useStopEvent } from "./hooks/useStopEvent.js";
-export { useWordgard } from "./hooks/useWordgard.js";
+export { useWordgard, useWordgardRef } from "./hooks/useWordgard.js";
+export { isTrailingBreak, staticCopy } from "@stesura/wordgard-view";

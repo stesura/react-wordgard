@@ -1,7 +1,7 @@
 // Adapted from react-wordgard's WordgardEditor.browser.test.tsx and useEditorField.browser.test.tsx
 // for Vue: an editor in the app's components (WordgardEditor, WordgardDoc), and the composables
 // over it. Components outside the document render in Vue's next tick, not inside the editor's
-// update: the tests wait for it. StrictMode and WordgardScope have no Vue counterpart.
+// update: the tests wait for it. StrictMode has no Vue counterpart; WordgardScope has its own file.
 import {
   type App,
   type Component,

@@ -6,8 +6,7 @@ import { GardSelection, GardState } from "wordgard/state";
 import { HorizontalRule, Paragraph } from "wordgard/types";
 
 import { ReactWordgard } from "../ReactWordgard.js";
-import { staticCopy } from "../helpers/staticCopy.js";
-import { isTrailingBreak } from "../helpers/trailingBreak.js";
+import { isTrailingBreak, staticCopy } from "@stesura/wordgard-view";
 
 // A block id drawn as `id`, as Stesura's kit draws it.
 const BlockId = Mark.Type.define<string>("BlockId", {

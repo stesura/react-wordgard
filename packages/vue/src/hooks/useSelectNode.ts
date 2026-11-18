@@ -2,7 +2,8 @@
 import { onUnmounted, watch } from "vue";
 import type { Wordgard } from "wordgard/editor";
 
-import { useEditorContext } from "../contexts/EditorContext.js";
+import type { EditorValue } from "@stesura/wordgard-view";
+import { currentEditor, useEditorSource } from "../contexts/EditorContext.js";
 import { useIsNodeSelected } from "./useIsNodeSelected.js";
 
 const noop = () => {};
@@ -16,14 +17,25 @@ export const useSelectNode = (
   deselectNode: (wg: Wordgard) => void = noop
 ) => {
   const selected = useIsNodeSelected();
-  const editor = useEditorContext("useSelectNode");
+  const source = useEditorSource("useSelectNode");
+  // The editor `run` is scheduled on.
+  let editor: EditorValue | null = null;
   let was = false;
   const run = () => {
     if (selected.value == was) return;
     was = selected.value;
-    if (was) selectNode(editor.wg);
-    else deselectNode(editor.wg);
+    const { wg } = currentEditor(source);
+    if (was) selectNode(wg);
+    else deselectNode(wg);
   };
-  watch(selected, () => editor.afterFlush(run), { immediate: true, flush: "sync" });
-  onUnmounted(() => editor.cancel(run));
+  watch(
+    selected,
+    () => {
+      editor?.cancel(run);
+      editor = currentEditor(source);
+      editor.afterFlush(run);
+    },
+    { immediate: true, flush: "sync" }
+  );
+  onUnmounted(() => editor?.cancel(run));
 };

@@ -42,6 +42,8 @@ export {
 export { defineWrapper, isComponentWrapper } from "./decorations/wrapperType.js";
 export { type EditorValue, editorOf, findEditor, type StateField } from "./editorStore.js";
 export { attrsToRecord, localTagName, namespaced } from "./helpers/elt.js";
+export { staticCopy } from "./helpers/staticCopy.js";
+export { isTrailingBreak } from "./helpers/trailingBreak.js";
 export { childViewKeys } from "./reactKeys.js";
 export { type NodeCell, cellOf } from "./renderStore.js";
 export { RenderedWordgard } from "./RenderedWordgard.js";

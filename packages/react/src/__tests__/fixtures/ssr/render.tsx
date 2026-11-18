@@ -1,4 +1,4 @@
-// Loaded on the server, through the test project's Vite server (vite.config.ts's `renderReactOnServer`
+// Loaded on the server, through the test project's Vite server (vite.config.ts's `renderOnNodeServer`
 // command): Page as a framework renders it there.
 import React from "react";
 import { renderToString } from "react-dom/server";

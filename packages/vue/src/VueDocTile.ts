@@ -82,7 +82,9 @@ const documentContext = (
   context.config.errorHandler = errorHandler;
   context.mixins = [...app.mixins, syncMixin];
   context.provides = Object.create(provides);
-  context.provides[EditorKey] = editorOf(wg);
+  const editor = editorOf(wg);
+  // Not a WordgardScope's the host is drawn under.
+  context.provides[EditorKey] = editor;
   context.provides[NodeWrappersKey] = wrappers;
   // Not those of a decoration the host is drawn in (a sub-editor's).
   for (const key of [ContentKey, WrappedKey, DecorationKey, DecorationRootKey])
@@ -92,7 +94,7 @@ const documentContext = (
     propsCache: new WeakMap(),
     emitsCache: new WeakMap(),
   });
-  syncContext(context);
+  syncContext(context, editor);
   return context;
 };
 

@@ -1,10 +1,32 @@
 // Adapted from react-wordgard's useEditorField for Vue: a `computed` over the store's per-field
 // subscriptions, which keeps its last value while `isEqual` says so.
-import { type ComputedRef, computed, onUnmounted, shallowRef } from "vue";
+import { type ComputedRef, computed, shallowRef } from "vue";
 
 import type { StateField } from "@stesura/wordgard-view";
-import { useEditorContext } from "../contexts/EditorContext.js";
-import { onPublish, updateInFlush } from "../sync.js";
+import { currentEditor, followEditor, useEditorSource } from "../contexts/EditorContext.js";
+import { publisher, updateInFlush } from "../sync.js";
+
+// Bumped when the field changes; the computed reads it, and the editor's source, which a
+// WordgardScope changes.
+const useFieldVersion = (composable: string, field: StateField<unknown>, key?: unknown) => {
+  const source = useEditorSource(composable);
+  const subscribe = publisher();
+  const version = shallowRef(0);
+  followEditor(source, (editor) =>
+    subscribe(
+      editor,
+      (listener) => editor.store.subscribeField(field, listener, key),
+      () => {
+        version.value++;
+      }
+    )
+  );
+  updateInFlush();
+  return () => {
+    void version.value;
+    return currentEditor(source).store.getState();
+  };
+};
 
 // Overloads: without `select` the result is the field's value, which an arrow can't type
 // without a cast.
@@ -24,22 +46,9 @@ export function useEditorField<T, Result>(
   select?: (value: T) => Result,
   isEqual?: (a: T | Result, b: T | Result) => boolean
 ): Readonly<ComputedRef<T | Result>> {
-  const editor = useEditorContext("useEditorField");
-  const { store } = editor;
-  // Bumped when the field changes; reading it makes the computed depend on it.
-  const version = shallowRef(0);
-  onUnmounted(
-    store.subscribeField(
-      field,
-      onPublish(editor, () => {
-        version.value++;
-      })
-    )
-  );
-  updateInFlush();
+  const state = useFieldVersion("useEditorField", field);
   return computed<T | Result>((previous) => {
-    void version.value;
-    const value = store.getState().field(field);
+    const value = state().field(field);
     const next = select ? select(value) : value;
     return previous !== undefined && isEqual?.(previous, next) ? previous : next;
   });
@@ -54,21 +63,6 @@ export const useEditorFieldEntry = <K, V>(
   field: StateField<ReadonlyMap<K, V>>,
   key: K
 ): Readonly<ComputedRef<V | undefined>> => {
-  const editor = useEditorContext("useEditorFieldEntry");
-  const { store } = editor;
-  const version = shallowRef(0);
-  onUnmounted(
-    store.subscribeField(
-      field,
-      onPublish(editor, () => {
-        version.value++;
-      }),
-      key
-    )
-  );
-  updateInFlush();
-  return computed(() => {
-    void version.value;
-    return store.getState().field(field).get(key);
-  });
+  const state = useFieldVersion("useEditorFieldEntry", field, key);
+  return computed(() => state().field(field).get(key));
 };

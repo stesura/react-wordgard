@@ -1,5 +1,6 @@
 // Not in react-prosemirror, whose trailing `<br>` carries ProseMirror's class
-// (`ProseMirror-trailingBreak`). Wordgard's has none, and react-wordgard draws Wordgard's DOM.
+// (`ProseMirror-trailingBreak`). Wordgard's has none, and react-wordgard draws Wordgard's DOM. Moved
+// from react-wordgard without change: vue-wordgard exports it too.
 import { Widget } from "wordgard/editor";
 
 /**

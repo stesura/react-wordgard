@@ -4,7 +4,7 @@
 import { onUnmounted } from "vue";
 import type { Wordgard } from "wordgard/editor";
 
-import { useEditorContext } from "../contexts/EditorContext.js";
+import { currentEditor, useEditorSource } from "../contexts/EditorContext.js";
 import { useDecorationContext } from "../contexts/DecorationContext.js";
 
 /**
@@ -15,8 +15,8 @@ import { useDecorationContext } from "../contexts/DecorationContext.js";
  */
 export const useStopEvent = (stopEvent: (wg: Wordgard, event: Event) => boolean) => {
   const { handlers } = useDecorationContext("useStopEvent");
-  const { wg } = useEditorContext("useStopEvent");
-  const stop = (event: Event) => stopEvent(wg, event);
+  const source = useEditorSource("useStopEvent");
+  const stop = (event: Event) => stopEvent(currentEditor(source).wg, event);
   handlers.stopEvent.add(stop);
   onUnmounted(() => {
     handlers.stopEvent.delete(stop);

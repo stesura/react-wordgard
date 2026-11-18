@@ -56,10 +56,10 @@ const renderOnServer: BrowserCommand<[file: string]> = async ({ project }, file)
   return render();
 };
 
-// As renderOnServer, for react-wordgard's server rendering test, through a Vite server of its own:
-// Vitest's inlines every dependency on the server, where React's CommonJS can't run. This one loads
-// React from Node, as a framework's server does.
-const renderReactOnServer: BrowserCommand<[file: string]> = async (_, file) => {
+// As renderOnServer, for react-wordgard's and vue-wordgard's server rendering tests, through a Vite
+// server of its own: Vitest's inlines every dependency on the server, where React's and Vue's
+// CommonJS can't run. This one loads them from Node, as a framework's server does.
+const renderOnNodeServer: BrowserCommand<[file: string]> = async (_, file) => {
   const server = await createServer({
     configFile: false,
     // The fixture's path is relative to the repository, wherever Vitest runs from.
@@ -181,7 +181,7 @@ export default defineConfig({
           name: "browser",
           include: ["packages/{core,react}/src/**/*.browser.test.{ts,tsx}", wordgardTests],
           setupFiles: ["test/wordgard-workspace.ts", "test/skipInBrowser.ts"],
-          browser: { ...browser(), commands: { renderReactOnServer } },
+          browser: { ...browser(), commands: { renderOnNodeServer } },
         },
       },
       {
@@ -230,7 +230,7 @@ export default defineConfig({
             "test/skipInBrowser.ts",
             "test/view/skipPending.ts",
           ],
-          browser: browser(),
+          browser: { ...browser(), commands: { renderOnNodeServer } },
         },
       },
       svelteProject("view-svelte", "development"),

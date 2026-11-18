@@ -1,6 +1,7 @@
 // Not in react-prosemirror. Stesura's core rendered its static copies (a header's on every page) by
 // serializing a fragment (`renderStaticContent`); what Wordgard draws comes partly from decorations a
-// serializer doesn't see, so the copy is taken from what the editor drew.
+// serializer doesn't see, so the copy is taken from what the editor drew. Moved from react-wordgard
+// without change: vue-wordgard exports it too.
 import { isTrailingBreak } from "./trailingBreak.js";
 
 const EDITOR_CLASSES = ["wg-selected-node", "wg-selected-cell"];

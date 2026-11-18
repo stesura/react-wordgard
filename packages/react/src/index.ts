@@ -26,8 +26,7 @@ export {
   type WrapperComponentProps,
   createWrapper,
 } from "./decorations/ReactWrapperType.js";
-export { staticCopy } from "./helpers/staticCopy.js";
-export { isTrailingBreak } from "./helpers/trailingBreak.js";
+export { isTrailingBreak, staticCopy } from "@stesura/wordgard-view";
 export { useEditorEffect } from "./hooks/useEditorEffect.js";
 export { useEditorEventCallback } from "./hooks/useEditorEventCallback.js";
 export { useEditorEventListener } from "./hooks/useEditorEventListener.js";

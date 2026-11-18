@@ -1,5 +1,5 @@
 // Not in react-prosemirror: a page with an editor rendered on the server (React's server build,
-// through vite.config.ts's `renderReactOnServer`), then hydrated in the browser. The server has no
+// through vite.config.ts's `renderOnNodeServer`), then hydrated in the browser. The server has no
 // editor (Wordgard needs the DOM); the browser draws WordgardEditor's children after hydration.
 import React from "react";
 import { flushSync } from "react-dom";
@@ -12,14 +12,15 @@ import { Page } from "./fixtures/ssr/Page.js";
 
 declare module "vitest/browser" {
   interface BrowserCommands {
-    renderReactOnServer: (file: string) => Promise<{ body: string }>;
+    renderOnNodeServer: (file: string) => Promise<{ body: string }>;
   }
 }
 
 const serverPage = () =>
-  commands.renderReactOnServer("packages/react/src/__tests__/fixtures/ssr/render.tsx");
+  commands.renderOnNodeServer("packages/react/src/__tests__/fixtures/ssr/render.tsx");
 
-describe("server rendering", () => {
+// Each test starts a Vite server: past the default timeout while the other projects run.
+describe("server rendering", { timeout: 60_000 }, () => {
   it("renders the page around the editor on the server, without the editor", async () => {
     const { body } = await serverPage();
     const page = document.createElement("div");
