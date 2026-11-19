@@ -1,6 +1,6 @@
 {
   "name": "@stesura/svelte-wordgard",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "A Svelte view for the Wordgard rich text editor",
   "keywords": [
     "svelte",
@@ -52,7 +52,7 @@
     "prepack": "svelte-package -i src -o dist && node ../../scripts/copy-skill-reference.js svelte"
   },
   "dependencies": {
-    "@stesura/wordgard-view": "0.3.0",
+    "@stesura/wordgard-view": "0.4.0",
     "esm-env": "^1.2.2"
   },
   "peerDependencies": {

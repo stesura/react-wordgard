@@ -1,6 +1,6 @@
 {
   "name": "@stesura/react-wordgard",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "A React view for the Wordgard rich text editor",
   "keywords": [
     "react",
@@ -49,7 +49,7 @@
     "prepack": "tsup"
   },
   "dependencies": {
-    "@stesura/wordgard-view": "0.3.0",
+    "@stesura/wordgard-view": "0.4.0",
     "use-sync-external-store": "^1.7.0"
   },
   "peerDependencies": {
