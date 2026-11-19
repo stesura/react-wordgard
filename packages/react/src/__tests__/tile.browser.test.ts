@@ -128,6 +128,13 @@ const withoutStrayDisconnect = (log: readonly string[]) => {
   return log.filter((_, i) => i != stray);
 };
 
+// An attribute mark whose attribute sorts before `style`.
+const Tone = Mark.Type.define<string>("Tone", {
+  validate: "string",
+  spanning: true,
+  shape: { attribute: "data-tone", value: 0 },
+});
+
 // A mark on rules, to put an element around blocks.
 const Boxed = Mark.define("Boxed", { shape: { element: "section" }, target: HorizontalRule });
 const BoxView = forwardRef<HTMLElement, MarkComponentProps<HTMLElement>>(({ children }, ref) =>
@@ -376,6 +383,7 @@ const config = [
     Nested,
     InlineAtom,
     Highlight,
+    Tone,
     Boxed,
     Marker,
     Icon,
@@ -626,6 +634,10 @@ describe("ReactDocTile", () => {
       { changes: { from: 2, insert: [Leaf.text("bold", [Strong])] } },
       { changes: { from: 4, to: 7, insert: [Leaf.text("em", [Emphasis, Strong])] } },
       { changes: { from: 1, insert: [Leaf.text("red", [Color.of("red")])] } },
+      { changes: { from: 1, to: 4, add: Tone.of("warm") } },
+      { changes: { from: 1, to: 4, add: Color.of("blue") } },
+      // Off again: a later edit makes React draw the span afresh, its attributes in another order.
+      { changes: { from: 1, to: 4, remove: Tone.of("warm") } },
       { changes: { from: 3, to: 6 } },
       { changes: { from: 2, insert: [LineBreak] } },
       { changes: { from: 1, insert: [Image.of(img, [Strong])] } },
