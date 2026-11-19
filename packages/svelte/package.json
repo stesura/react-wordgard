@@ -1,6 +1,6 @@
 {
   "name": "@stesura/svelte-wordgard",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "A Svelte view for the Wordgard rich text editor",
   "keywords": [
     "svelte",
@@ -49,10 +49,12 @@
     "build": "svelte-package -i src -o dist",
     "dev": "svelte-package -i src -o dist --watch",
     "typecheck": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
-    "prepack": "svelte-package -i src -o dist && node ../../scripts/copy-skill-reference.js svelte"
+    "prepack": "svelte-package -i src -o dist && node ../../scripts/copy-skill-reference.js svelte && node ../../scripts/pack-manifest.js strip",
+    "postpack": "node ../../scripts/pack-manifest.js restore",
+    "postpublish": "node ../../scripts/pack-manifest.js restore"
   },
   "dependencies": {
-    "@stesura/wordgard-view": "0.4.0",
+    "@stesura/wordgard-view": "0.4.1",
     "esm-env": "^1.2.2"
   },
   "peerDependencies": {

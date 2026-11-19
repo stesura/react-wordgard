@@ -27,6 +27,8 @@ This step:
 - sets the version of the four packages, and the views' dependency on the core, in their
   `package.json` and `package-lock.json`;
 - runs `npm run check` and `npm test` on React 18, which the lockfile pins;
+- runs `npm run check:pack`, which packs each package and fails if its packed `package.json`
+  names a file the tarball doesn't hold;
 - runs `npm run test:react19`, which installs React 19 without saving it, type-checks and tests,
   then reinstalls React 18;
 - runs `npm run test:svelte-hmr`, which edits the Svelte demo's components on its dev server.
@@ -71,3 +73,8 @@ git tag v<version> && git push origin v<version>
 gh release create v<version> --title <version> --notes "<changelog section>"
 gh workflow run demo.yml --ref master
 ```
+
+A package packs without its `@stesura/source` export condition (`scripts/pack-manifest.js`, in its
+`prepack`), and gets it back in `postpublish`, which a failed publish skips. `release:publish`
+restores it then; after a failed `npm publish -w <name>`, run
+`node scripts/pack-manifest.js restore packages/<dir>`.

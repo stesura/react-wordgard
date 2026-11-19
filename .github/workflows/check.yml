@@ -65,6 +65,11 @@ jobs:
       - name: Types, lint and format
         run: npm run check
 
+      # Every file the packed package.json names is in the tarball.
+      - name: Packages
+        if: matrix.react == 18
+        run: npm run check:pack
+
       - name: Tests
         run: npm test
 

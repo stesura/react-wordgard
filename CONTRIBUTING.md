@@ -26,7 +26,8 @@ It uses:
 
 How it works is in `docs/how-it-works.md`. In the workspace, packages import each other from
 their `src` (the `@stesura/source` export condition): nothing needs building to type-check, test
-or run the demos.
+or run the demos. Packing strips the condition, and `npm run check:pack` checks that every file a
+packed `package.json` names is in its tarball.
 
 ## Local development
 

@@ -42,7 +42,8 @@
     "sync-wordgard-tests": "node scripts/sync-wordgard-tests.js",
     "update-wordgard": "node scripts/update-wordgard.js",
     "release:prepare": "node scripts/release.js prepare",
-    "release:publish": "node scripts/release.js publish"
+    "release:publish": "node scripts/release.js publish",
+    "check:pack": "node scripts/check-pack.js"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

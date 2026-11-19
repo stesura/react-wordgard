@@ -113,6 +113,7 @@ const prepare = (version) => {
   npm("install");
 
   npm("run", "check");
+  npm("run", "check:pack");
   npm("test");
   npm("run", "test:react19");
   npm("run", "test:svelte-hmr");
@@ -175,8 +176,14 @@ const publish = async () => {
   prompt.close();
   if (answer.trim().toLowerCase() != "y") fail("Nothing was published.");
 
-  // In the workspaces' order, the core first. Each package builds in its prepack.
-  npm("publish", ...workspaces());
+  // In the workspaces' order, the core first. Each package builds in its prepack, and strips the
+  // source condition from its package.json until its postpublish, which a failed publish skips.
+  try {
+    npm("publish", ...workspaces());
+  } finally {
+    for (const dir of packages)
+      run(process.execPath, [join(root, "scripts/pack-manifest.js"), "restore", dir]);
+  }
   run("git", ["tag", tag]);
   run("git", ["push", "origin", tag]);
   run("gh", ["release", "create", tag, "--title", version, "--notes", notes]);

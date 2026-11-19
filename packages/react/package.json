@@ -1,6 +1,6 @@
 {
   "name": "@stesura/react-wordgard",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "A React view for the Wordgard rich text editor",
   "keywords": [
     "react",
@@ -46,10 +46,12 @@
     "build": "tsup",
     "dev": "tsup --watch --no-dts",
     "typecheck": "tsc --noEmit",
-    "prepack": "tsup"
+    "prepack": "tsup && node ../../scripts/pack-manifest.js strip",
+    "postpack": "node ../../scripts/pack-manifest.js restore",
+    "postpublish": "node ../../scripts/pack-manifest.js restore"
   },
   "dependencies": {
-    "@stesura/wordgard-view": "0.4.0",
+    "@stesura/wordgard-view": "0.4.1",
     "use-sync-external-store": "^1.7.0"
   },
   "peerDependencies": {

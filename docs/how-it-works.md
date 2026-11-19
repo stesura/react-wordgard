@@ -31,8 +31,10 @@ Four npm workspaces under `packages/`, released together at one version:
 The views reach the core through its entry (`core/src/index.ts`), as they will from npm. In the
 workspace, every package's `exports` lead with an `@stesura/source` condition pointing at its
 `src`, which TypeScript, Vite, Vitest and dependency-cruiser are given: types, tests, the demos and
-the benchmark run on the working tree, never on a build. tsup builds each package's `dist`
-(turbo orders the builds), at `npm pack`; svelte-wordgard ships its `.svelte` files for the app's
+the benchmark run on the working tree, never on a build. Packing strips the condition
+(`scripts/pack-manifest.js`, in each package's `prepack`): the tarballs hold no `src`. tsup
+builds each package's `dist` (turbo orders the builds), at `npm pack`; svelte-wordgard ships its
+`.svelte` files for the app's
 Svelte to compile, built by `svelte-package`.
 
 ## The pieces

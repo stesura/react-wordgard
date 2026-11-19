@@ -14,6 +14,9 @@ dist/
 /packages/vue/skills/vue-wordgard/references/wordgard.md
 /packages/svelte/skills/svelte-wordgard/references/wordgard.md
 
+# The workspace's package.json while npm packs the stripped one (scripts/pack-manifest.js)
+/packages/*/package.json.dev
+
 node_modules
 
 # Screenshots Vitest's browser mode takes of failing tests
