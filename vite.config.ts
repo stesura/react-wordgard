@@ -25,6 +25,11 @@ const browser = (chromiumFlags?: string): BrowserConfigOptions => ({
   ],
 });
 
+// The browser projects' server port. Vitest's default, 63315 and up (one per project), falls in
+// ports Windows reserves for Hyper-V (from 49152), where listening fails with EACCES, which Vite
+// doesn't skip as it skips a port in use.
+const browserApi = { port: 43315 };
+
 // Wordgard's own browser tests, copied unchanged from its repo.
 const wordgardTests = "test/wordgard/webtest-*.ts";
 
@@ -132,6 +137,7 @@ const svelteProject = (name: string, build: SvelteBuild): TestProjectInlineConfi
         "test/view-svelte/skipPending.ts",
       ],
       browser: { ...browser("--expose-gc"), commands: { renderOnServer } },
+      api: browserApi,
       // For test/view-svelte/build.test.ts.
       provide: { svelteBuild: build },
     },
@@ -182,6 +188,7 @@ export default defineConfig({
           include: ["packages/{core,react}/src/**/*.browser.test.{ts,tsx}", wordgardTests],
           setupFiles: ["test/wordgard-workspace.ts", "test/skipInBrowser.ts"],
           browser: { ...browser(), commands: { renderOnNodeServer } },
+          api: browserApi,
         },
       },
       {
@@ -200,6 +207,7 @@ export default defineConfig({
             "test/view/skipPending.ts",
           ],
           browser: browser(),
+          api: browserApi,
         },
       },
       {
@@ -231,6 +239,7 @@ export default defineConfig({
             "test/view/skipPending.ts",
           ],
           browser: { ...browser(), commands: { renderOnNodeServer } },
+          api: browserApi,
         },
       },
       svelteProject("view-svelte", "development"),
