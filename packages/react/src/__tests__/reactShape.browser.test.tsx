@@ -58,7 +58,7 @@ const rows = new Map<Wordgard, (exact: boolean) => void>();
 // a count of the document's blocks once there are more than two (editor
 // state), and the content in `div.body`.
 const Callout = forwardRef<HTMLDivElement, ShapeComponentProps<HTMLDivElement>>(
-  ({ nodeProps, children, ...attrs }, ref) => {
+  ({ nodeProps: { getPos, contentDOMRef }, children, ...attrs }, ref) => {
     const wg = useWordgard();
     const [bar, setBar] = useState(initial.bar);
     const [label, setLabel] = useState(initial.label);
@@ -67,10 +67,10 @@ const Callout = forwardRef<HTMLDivElement, ShapeComponentProps<HTMLDivElement>>(
       const control: Control = {
         setBar: (on) => flushSync(() => setBar(on)),
         setLabel: (label) => flushSync(() => setLabel(label)),
-        getPos: nodeProps.getPos,
+        getPos,
       };
       controls.set(wg, [...(controls.get(wg) ?? []), control]);
-    }, [wg, nodeProps.getPos]);
+    }, [wg, getPos]);
     return (
       <div {...attrs} ref={ref} data-label={label}>
         {bar && (
@@ -79,7 +79,7 @@ const Callout = forwardRef<HTMLDivElement, ShapeComponentProps<HTMLDivElement>>(
           </div>
         )}
         {blocks > 2 && <span className="count">{blocks}</span>}
-        <div className="body" ref={nodeProps.contentDOMRef}>
+        <div className="body" ref={contentDOMRef}>
           {children}
         </div>
       </div>
@@ -111,10 +111,10 @@ const RowView = forwardRef<HTMLTableRowElement, ShapeComponentProps<HTMLTableRow
 );
 
 const CellView = forwardRef<HTMLTableCellElement, ShapeComponentProps<HTMLTableCellElement>>(
-  ({ nodeProps, children, ...attrs }, ref) =>
+  ({ nodeProps: { contentDOMRef }, children, ...attrs }, ref) =>
     useContext(Exact) ? (
       <td {...attrs} ref={ref}>
-        <div className="clip" ref={nodeProps.contentDOMRef}>
+        <div className="clip" ref={contentDOMRef}>
           {children}
         </div>
       </td>
@@ -518,12 +518,12 @@ describe("React shapes", () => {
   // The content's nodes keep their views while React draws them anew: their
   // old tiles are over elements it removed.
   it("follows content React remounts in another element, from the editor state", () => {
-    const Boxed = ({ nodeProps, children }: ShapeComponentProps) => {
+    const Boxed = ({ nodeProps: { contentDOMRef }, children }: ShapeComponentProps) => {
       const boxed = useEditorStateSelector((state) => state.doc.content.length > 2);
       return (
         <DecorationRoot>
           {boxed ? (
-            <div className="box" ref={nodeProps.contentDOMRef}>
+            <div className="box" ref={contentDOMRef}>
               {children}
             </div>
           ) : (
@@ -1262,9 +1262,9 @@ describe("React shapes drawing atoms", () => {
   it("refuses a content element in an atom", () => {
     const WithContent = createShape(
       forwardRef<HTMLSpanElement, ShapeComponentProps<HTMLSpanElement>>(
-        ({ nodeProps, ...attrs }, ref) => (
+        ({ nodeProps: { contentDOMRef }, ...attrs }, ref) => (
           <span {...attrs} ref={ref}>
-            <span ref={nodeProps.contentDOMRef} />
+            <span ref={contentDOMRef} />
           </span>
         )
       )
