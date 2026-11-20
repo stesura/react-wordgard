@@ -73,3 +73,23 @@ export const composeIn = (wg: Wordgard, node: Text) => {
     end: () => fire(new CompositionEvent("compositionend")),
   };
 };
+
+// Types `data` into an empty textblock as Chromium does: its text node goes in
+// before the trailing <br>, which then goes.
+export const typeIntoEmpty = (wg: Wordgard, block: Element, data: string) => {
+  wg.focus();
+  const range = new StaticRange({
+    startContainer: block,
+    startOffset: 0,
+    endContainer: block,
+    endOffset: 0,
+  });
+  document.getSelection()?.collapse(block, 0);
+  const init = { inputType: "insertText", data };
+  const before = new InputEvent("beforeinput", init);
+  before.getTargetRanges = () => [range];
+  wg.contentDOM.dispatchEvent(before);
+  block.prepend(document.createTextNode(data));
+  if (block.lastChild instanceof HTMLBRElement) block.lastChild.remove();
+  wg.contentDOM.dispatchEvent(new InputEvent("input", init));
+};

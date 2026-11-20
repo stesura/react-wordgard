@@ -1,3 +1,9 @@
+## Unreleased
+
+### Bug fixes
+
+An editor drawn inside another editor's shape (a sub-editor in an atom's chrome) keeps the user's typing: the outer editor's shape no longer claims the inner editor's DOM changes, which left typed text doubled or threw.
+
 ## 0.4.1 (2026-11-19)
 
 ### Bug fixes

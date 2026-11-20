@@ -137,11 +137,18 @@ export const nodePos = (handle: { readonly root: Element | null }, name: string)
   return tile.posBefore;
 };
 
+// The content element of the editor `node` is in: an editor nested in a
+// shape's chrome (a sub-editor) has its own.
+const editorAround = (node: Node | null) => {
+  for (let cur = node; cur; cur = cur.parentNode) if (cur.wgTile?.isDoc) return cur;
+  return null;
+};
+
 // The React shape or wrapper whose chrome or structure `node` is in: the
 // first root found going up, unless a shape's content element or a wrapped
-// element comes first.
+// element comes first. Never one of an editor around `node`'s.
 const shapeAround = (node: Node | null): ShapeHandle | null => {
-  for (let cur = node; cur; cur = cur.parentNode) {
+  for (let cur = node; cur && !cur.wgTile?.isDoc; cur = cur.parentNode) {
     if (!(cur instanceof Element)) continue;
     if (contents.has(cur)) return null;
     const root = roots.get(cur);
@@ -161,7 +168,7 @@ const contentShape = (dom: Element) => {
 
 // The React shape or wrapper whose root, or an element inside it, `node` is.
 const shapeOf = (node: Node | null) => {
-  for (let cur = node; cur; cur = cur.parentNode) {
+  for (let cur = node; cur && !cur.wgTile?.isDoc; cur = cur.parentNode) {
     const handle = cur instanceof Element ? roots.get(cur) : undefined;
     if (handle) return handle;
   }
@@ -184,17 +191,24 @@ const movesContent = (record: MutationRecord) =>
 // itself, so those records are React's too; `inline` says whether a shape's
 // content is text. Typing in an empty textblock in the same task as a commit
 // moving its content would be taken for React's (a limit). A root the
-// component replaced (replacedRoots.ts) counts as its shape changed.
+// component replaced (replacedRoots.ts) counts as its shape changed. Records
+// in an editor nested in a shape are that editor's: `contentDOM`'s editor
+// drops them (not those on detached nodes, which Wordgard maps by their tiles).
 export const sortRecords = (
   records: readonly MutationRecord[],
   changed: Set<Element>,
-  inline: (root: Element) => boolean
+  inline: (root: Element) => boolean,
+  contentDOM: Element
 ) => {
+  const own = records.filter((record) => {
+    const editor = editorAround(record.target);
+    return !editor || editor == contentDOM;
+  });
   // Shapes whose content React moved to another element in these records (one
   // commit's: typing comes in a task of its own): what else changed in their
   // content element is React's too.
   const moved = new Set<ShapeHandle>();
-  for (const record of records)
+  for (const record of own)
     if (record.type == "childList" && movesContent(record)) {
       const handle = shapeOf(record.target);
       if (handle) moved.add(handle);
@@ -232,5 +246,5 @@ export const sortRecords = (
     return false;
   };
   // What's left is Wordgard's, unless a decoration around it claims it.
-  return records.filter((record) => keeps(record) && !ignoresMutation(record));
+  return own.filter((record) => keeps(record) && !ignoresMutation(record));
 };

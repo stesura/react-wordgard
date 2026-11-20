@@ -19,7 +19,14 @@ import {
   TableRow,
 } from "wordgard/types";
 
-import { composeIn, drawn, flushKeeps, textIn, typeInto } from "../../../../test/editing.js";
+import {
+  composeIn,
+  drawn,
+  flushKeeps,
+  textIn,
+  typeInto,
+  typeIntoEmpty,
+} from "../../../../test/editing.js";
 import { docTileOf } from "../../../../test/tiles.js";
 import { VueWordgard } from "../VueWordgard.js";
 import { DecorationRoot } from "../components/DecorationRoot.js";
@@ -232,6 +239,20 @@ const InlineFrame = defineComponent({
 const Picture = createWidgetType({
   component: defineComponent({ props: ["value"], template: `<img class="picture" alt="" />` }),
 });
+
+// An inline atom whose chrome holds another editor.
+const Box = Leaf.define("Box", {
+  inline: true,
+  shape: { element: "span", selector: "span[data-box]", attributes: { "data-box": "" } },
+});
+const BoxView = defineComponent({
+  props: ["nodeProps"],
+  setup: () => () => h(DecorationRoot, null, () => [h("span", { class: "box-host" })]),
+});
+const boxConfig = [
+  GardState.schemaElement.of([Box]),
+  Decoration.Tag.shape(Box, createShape(BoxView)),
+];
 
 const editors: VueWordgard[] = [];
 afterEach(() => {
@@ -757,6 +778,29 @@ describe("Vue shapes", () => {
       "drew <div> where its shape says <blockquote>"
     );
     error.mockRestore();
+  });
+
+  it("leaves an editor nested in an atom's chrome its own typing", async () => {
+    const wg = create({
+      doc: "<p>a<span data-box></span>b</p>",
+      config: [basicSchema(), boxConfig],
+    });
+    const host = wg.contentDOM.querySelector(".box-host");
+    if (!host) throw new Error("No box drawn");
+    // A sub-editor, as a text box's.
+    const inner = VueWordgard.create({ doc: "<p></p>", config: basicSchema(), parent: host });
+    inner.flush();
+    editors.push(inner);
+    const block = inner.contentDOM.querySelector("p");
+    if (!block) throw new Error("No paragraph");
+    typeIntoEmpty(inner, block, "x");
+    await Promise.resolve();
+    inner.flush();
+    wg.flush();
+    expect(inner.state.doc.textContent()).toBe("x");
+    expect(block.innerHTML).toBe("x");
+    expect(drawn(inner)).toEqual(drawn(create({ state: inner.state })));
+    expect(wg.state.doc.textContent()).toBe("ab");
   });
 
   it("refuses a Vue shape for a leaf, as Wordgard does a shape with a hole", () => {

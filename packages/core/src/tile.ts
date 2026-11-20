@@ -1685,7 +1685,7 @@ export const observeShapes = (wg: Wordgard, queue: (records: MutationRecord[]) =
   class ShapeObserver extends MutationObserver {
     takeRecords() {
       const settled = settle(wg);
-      const kept = sortRecords(super.takeRecords(), changed, holdsText);
+      const kept = sortRecords(super.takeRecords(), changed, holdsText, wg.contentDOM);
       // Else rebuilt once the renderer has put its DOM in place.
       if (settled) rebuildShapes(wg);
       return kept;
@@ -1703,7 +1703,12 @@ export const observeShapes = (wg: Wordgard, queue: (records: MutationRecord[]) =
   }
   const observer = new ShapeObserver((records) => {
     const settled = settle(wg);
-    const kept = sortRecords([...records, ...observer.pending()], changed, holdsText);
+    const kept = sortRecords(
+      [...records, ...observer.pending()],
+      changed,
+      holdsText,
+      wg.contentDOM
+    );
     if (kept.length) queue(kept);
     if (settled) rebuildShapes(wg);
   });

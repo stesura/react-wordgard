@@ -33,7 +33,14 @@ import { type WidgetComponentProps, createWidgetType } from "../decorations/Reac
 import { type WrapperComponentProps, createWrapper } from "../decorations/ReactWrapperType.js";
 import { useEditorStateSelector } from "../hooks/useEditorStateSelector.js";
 import { useWordgard } from "../hooks/useWordgard.js";
-import { composeIn, drawn, flushKeeps, textIn, typeInto } from "../../../../test/editing.js";
+import {
+  composeIn,
+  drawn,
+  flushKeeps,
+  textIn,
+  typeInto,
+  typeIntoEmpty,
+} from "../../../../test/editing.js";
 import { docTileOf } from "../../../../test/tiles.js";
 
 // What the components start with, and their setters, by editor, innermost
@@ -246,6 +253,21 @@ const Picture = createWidgetType({
     <img ref={ref} className="picture" alt="" />
   )),
 });
+
+// An inline atom whose chrome holds another editor.
+const Box = Leaf.define("Box", {
+  inline: true,
+  shape: { element: "span", selector: "span[data-box]", attributes: { "data-box": "" } },
+});
+const BoxView = ({ nodeProps: _, ...props }: ShapeComponentProps) => (
+  <DecorationRoot {...props}>
+    <span className="box-host" />
+  </DecorationRoot>
+);
+const boxConfig = [
+  GardState.schemaElement.of([Box]),
+  Decoration.Tag.shape(Box, createShape(BoxView)),
+];
 
 const editors: ReactWordgard[] = [];
 afterEach(() => {
@@ -703,6 +725,29 @@ describe("React shapes", () => {
       "drew <div> where its shape says <blockquote>"
     );
     error.mockRestore();
+  });
+
+  it("leaves an editor nested in an atom's chrome its own typing", async () => {
+    const wg = create({
+      doc: "<p>a<span data-box></span>b</p>",
+      config: [basicSchema(), boxConfig],
+    });
+    const host = wg.contentDOM.querySelector(".box-host");
+    if (!host) throw new Error("No box drawn");
+    // A sub-editor, as a text box's.
+    const inner = ReactWordgard.create({ doc: "<p></p>", config: basicSchema(), parent: host });
+    inner.flush();
+    editors.push(inner);
+    const block = inner.contentDOM.querySelector("p");
+    if (!block) throw new Error("No paragraph");
+    typeIntoEmpty(inner, block, "x");
+    await Promise.resolve();
+    inner.flush();
+    wg.flush();
+    expect(inner.state.doc.textContent()).toBe("x");
+    expect(block.innerHTML).toBe("x");
+    expect(drawn(inner)).toEqual(drawn(create({ state: inner.state })));
+    expect(wg.state.doc.textContent()).toBe("ab");
   });
 
   it("refuses a React shape for a leaf, as Wordgard does a shape with a hole", () => {
