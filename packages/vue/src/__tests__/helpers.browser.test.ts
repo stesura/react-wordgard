@@ -7,10 +7,11 @@ import { basicSchema, blockquote, horizontalRule, lineBreak } from "wordgard/sch
 import { GardSelection, GardState } from "wordgard/state";
 import { Blockquote, HorizontalRule, Paragraph } from "wordgard/types";
 
-import { isTrailingBreak, staticCopy } from "@stesura/wordgard-view";
+import { batch, isTrailingBreak, staticCopy } from "@stesura/wordgard-view";
 import { VueWordgard } from "../VueWordgard.js";
 import { DecorationRoot } from "../components/DecorationRoot.js";
 import { createShape } from "../decorations/VueShapeType.js";
+import { createWidgetType } from "../decorations/VueWidgetType.js";
 import { useMergedDOMRefs } from "../hooks/useMergedDOMRefs.js";
 
 // A block id drawn as `id`, as Stesura's kit draws it.
@@ -77,6 +78,32 @@ describe("staticCopy", () => {
       '<p>a<br><br class="wg-trailing-break"></p><p><br class="wg-trailing-break"></p><hr>'
     );
     expect(wg.contentDOM.querySelector("#one")).not.toBeNull();
+  });
+});
+
+describe("batch", () => {
+  it("commits what a store set in a bare DOM write draws, before the next read", () => {
+    const count = shallowRef(0);
+    const Counter = createWidgetType({
+      component: defineComponent({
+        props: ["value"],
+        setup: () => () => h(DecorationRoot, { class: "count" }, () => String(count.value)),
+      }),
+    });
+    const wg = create("<p>a</p>", [Decoration.Tag.widget(Paragraph, "start", Counter.of(null))]);
+    const shown = () => wg.contentDOM.querySelector(".count")?.textContent;
+    expect(shown()).toBe("0");
+    const reads: (string | null | undefined)[] = [];
+    // Without it, Vue's scheduler draws the change after the read: a layout engine measures stale DOM.
+    wg.scheduleDOMWrite(() => {
+      count.value = 1;
+    });
+    wg.scheduleDOMRead(() => reads.push(shown()));
+    wg.flush();
+    wg.scheduleDOMWrite(() => batch(wg, () => (count.value = 2)));
+    wg.scheduleDOMRead(() => reads.push(shown()));
+    wg.flush();
+    expect(reads).toEqual(["0", "2"]);
   });
 });
 

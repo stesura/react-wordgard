@@ -40,7 +40,7 @@ export {
   widgetRoot,
 } from "./decorations/widgetType.js";
 export { defineWrapper, isComponentWrapper } from "./decorations/wrapperType.js";
-export { type EditorValue, editorOf, findEditor, type StateField } from "./editorStore.js";
+export { batch, type EditorValue, editorOf, findEditor, type StateField } from "./editorStore.js";
 export { attrsToRecord, localTagName, namespaced } from "./helpers/elt.js";
 export { staticCopy } from "./helpers/staticCopy.js";
 export { isTrailingBreak } from "./helpers/trailingBreak.js";

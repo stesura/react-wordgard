@@ -242,6 +242,9 @@ Wordgard drives the update and React draws inside it, so there are two effect ho
 - **Never read the editor's layout (`coordsAtPos`, `posAtCoords`) in a plain React `useEffect` or
   `useLayoutEffect`**: it runs inside Wordgard's update, before the view of the new DOM exists, and
   react-wordgard refuses the update. Use one of the two hooks above.
+- A layout engine driving its own rounds from `wg.scheduleDOMWrite` (outside
+  `useEditorLayoutEffect`'s write) runs a write that sets component state in `batch(wg, change)`:
+  the components the editor draws commit before the next read phase measures them.
 - `useEditorLayoutEffect`'s `read` runs on every update: return `undefined` when nothing changed,
   which skips the write and, when no read asks for one, Wordgard's second measure. Reads run in
   registration order; an engine with ordered parts (pagination) registers one effect and drives

@@ -388,7 +388,9 @@ Everything is exported from `@stesura/vue-wordgard`.
 - Helpers: `useMergedDOMRefs(...refs)` (one function `:ref` setting several, each given the
   element, a component's root element on a component), `staticCopy(dom)` (a copy of what an editor
   drew, without its ids and editor attributes), `isTrailingBreak(dom)` (the `<br>` ending a
-  textblock, not a line break's).
+  textblock, not a line break's), `batch(wg, change)` (runs `change` and draws what the editor's
+  components draw from it at once: a store set in a `wg.scheduleDOMWrite` is in the DOM for the
+  reads after it, where Vue's scheduler would draw it later).
 - Props types: `ShapeComponentProps`, `WrapperComponentProps`, `MarkComponentProps`,
   `WidgetComponentProps`, `NodeWrapperComponentProps`.
 - `VueWordgard.create(spec)`: an editor drawn by Vue outside a component tree (tests, benchmarks).

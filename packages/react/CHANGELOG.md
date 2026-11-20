@@ -1,3 +1,9 @@
+## Unreleased
+
+### New features
+
+`batch(wg, change)` runs a change and commits what the editor's components draw from it at once, for a layout engine scheduling its own DOM writes.
+
 ## 0.4.2 (2026-11-20)
 
 ### Bug fixes

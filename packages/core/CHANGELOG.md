@@ -1,3 +1,9 @@
+## Unreleased
+
+### New features
+
+`batch(wg, change)` runs a change and commits what the editor's components draw from it through its renderer before returning; react-wordgard and vue-wordgard re-export it.
+
 ## 0.4.2 (2026-11-20)
 
 ### Bug fixes

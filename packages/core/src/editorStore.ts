@@ -91,6 +91,16 @@ type Editor = EditorValue & {
 
 const editors = new WeakMap<Wordgard, Editor>();
 
+/**
+ * Runs `change` and commits what the editor's components draw from it before
+ * returning, through its renderer (React's `flushSync`, Vue's pending
+ * updates): a store set in a bare `wg.scheduleDOMWrite` is in the DOM for the
+ * read phase after it. Only the components the editor draws (its document's
+ * app context, in Vue) commit. Throws where the renderer can't commit: inside
+ * a component's render.
+ */
+export const batch = (wg: Wordgard, change: () => void): void => editorOf(wg).batch(change);
+
 export const editorOf = (wg: Wordgard): Editor => {
   const found = editors.get(wg);
   if (found) return found;

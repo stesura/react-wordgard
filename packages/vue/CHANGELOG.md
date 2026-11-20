@@ -1,3 +1,9 @@
+## Unreleased
+
+### New features
+
+`batch(wg, change)` runs a change and draws what the editor's components draw from it at once: a store set in a `wg.scheduleDOMWrite` is in the DOM for the reads after it, where Vue's scheduler would draw it later.
+
 ## 0.4.2 (2026-11-20)
 
 ### Bug fixes

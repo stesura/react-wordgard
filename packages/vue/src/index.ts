@@ -40,4 +40,4 @@ export { useNodePos } from "./hooks/useNodePos.js";
 export { useSelectNode } from "./hooks/useSelectNode.js";
 export { useStopEvent } from "./hooks/useStopEvent.js";
 export { useWordgard, useWordgardRef } from "./hooks/useWordgard.js";
-export { isTrailingBreak, staticCopy } from "@stesura/wordgard-view";
+export { batch, isTrailingBreak, staticCopy } from "@stesura/wordgard-view";
