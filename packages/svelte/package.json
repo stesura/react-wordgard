@@ -1,6 +1,6 @@
 {
   "name": "@stesura/svelte-wordgard",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "A Svelte view for the Wordgard rich text editor",
   "keywords": [
     "svelte",
@@ -54,7 +54,7 @@
     "postpublish": "node ../../scripts/pack-manifest.js restore"
   },
   "dependencies": {
-    "@stesura/wordgard-view": "0.4.1",
+    "@stesura/wordgard-view": "0.4.2",
     "esm-env": "^1.2.2"
   },
   "peerDependencies": {

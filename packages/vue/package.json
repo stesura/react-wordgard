@@ -1,6 +1,6 @@
 {
   "name": "@stesura/vue-wordgard",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "A Vue view for the Wordgard rich text editor",
   "keywords": [
     "vue",
@@ -51,7 +51,7 @@
     "postpublish": "node ../../scripts/pack-manifest.js restore"
   },
   "dependencies": {
-    "@stesura/wordgard-view": "0.4.1"
+    "@stesura/wordgard-view": "0.4.2"
   },
   "peerDependencies": {
     "vue": "~3.5.45",

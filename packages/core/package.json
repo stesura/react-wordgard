@@ -1,6 +1,6 @@
 {
   "name": "@stesura/wordgard-view",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "The core of react-wordgard and vue-wordgard, not for direct use",
   "keywords": [
     "wordgard"
