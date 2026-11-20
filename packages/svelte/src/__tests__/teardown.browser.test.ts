@@ -98,11 +98,16 @@ describe("WordgardDoc's unmount", () => {
     // Svelte keeps its last flush's effects until the next: some other Svelte work releases them.
     void unmount(mount(Plain, { target: document.createElement("div"), props: { n: 1 } }));
     flushSync();
-    // Not `deref()` between them: it keeps its target alive until the job ends.
-    for (let i = 0; i < 10; i++) {
-      if (typeof gc == "function") gc();
-      await new Promise((resolve) => setTimeout(resolve, 20));
+    // A synchronous `gc()` scans the stack conservatively: a stale pointer there kept two editors
+    // once in CI. An asynchronous one runs in a task of its own, without the stack.
+    const alive = () => refs.map((ref, i) => (ref.deref() ? i : -1)).filter((i) => i >= 0);
+    let left = alive();
+    // A real leak never clears; a passing retainer does. `deref()` keeps its target until the end
+    // of its task, and each `gc` runs in a later one.
+    for (let i = 0; i < 20 && left.length; i++) {
+      if (typeof gc == "function") await gc({ type: "major", execution: "async" });
+      left = alive();
     }
-    expect(refs.map((ref, i) => (ref.deref() ? i : -1)).filter((i) => i >= 0)).toEqual([]);
+    expect(left).toEqual([]);
   });
 });
