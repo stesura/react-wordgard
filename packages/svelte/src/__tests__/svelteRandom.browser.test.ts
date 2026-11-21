@@ -35,7 +35,9 @@ import Picture from "./fixtures/shape/Picture.svelte";
 
 // To replay a failure: `firstSeed` its seed, `seeds` 1.
 const firstSeed = 1;
-const seeds = 20;
+// The first seed alone reaches every kind of component; more are more edit sequences, at about
+// 0.3 s each alone, run in 9 projects.
+const seeds = 10;
 const steps = 30;
 
 // mulberry32.

@@ -534,7 +534,9 @@ describe("ReactDocTile", () => {
         const answers = (wg: Wordgard) => {
           const { left, top, width, height } = wg.contentDOM.getBoundingClientRect();
           const result = [];
-          for (let y = top - 4; y < top + height + 4; y += 3)
+          // Every 6 px, three times a line: each call measures each character of a text node,
+          // over 1 ms on a long paragraph in WebKit.
+          for (let y = top - 4; y < top + height + 4; y += 6)
             for (let x = left - 4; x < left + width + 4; x += 5)
               result.push(wg.posAtCoords({ x, y }));
           for (let pos = 0; pos <= wg.state.doc.length; pos++)
@@ -544,7 +546,7 @@ describe("ReactDocTile", () => {
         expect(alone(ReactWordgard.create, doc, answers, extra)).toEqual(
           alone(Wordgard.create, doc, answers, extra)
         );
-        // Thousands of posAtCoords calls: WebKit takes over 15 s on a loaded machine.
+        // Thousands of posAtCoords calls: in WebKit, about 4 s alone, 12 s under load.
       }, 60_000);
     });
   }
@@ -1704,7 +1706,7 @@ describe("ReactDocTile", () => {
       const tile = docTileOf(react);
       // React commits a hover later, outside Wordgard's flush.
       image.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
-      await vi.waitFor(() => expect(image.className).toBe("hover"), { timeout: 10_000 });
+      await vi.waitFor(() => expect(image.className).toBe("hover"));
       react.flush();
       expect(docTileOf(react)).toBe(tile);
       edit(react, { changes: { from: 1, insert: [Leaf.text("x")] } });

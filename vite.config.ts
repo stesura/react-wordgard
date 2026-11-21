@@ -3,6 +3,7 @@
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import react from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
+import { availableParallelism } from "node:os";
 import { fileURLToPath } from "node:url";
 import { type Plugin, createServer, defaultClientConditions, defaultServerConditions } from "vite";
 import { type TestProjectInlineConfiguration, defineConfig } from "vitest/config";
@@ -29,6 +30,12 @@ const browser = (chromiumFlags?: string): BrowserConfigOptions => ({
 // ports Windows reserves for Hyper-V (from 49152), where listening fails with EACCES, which Vite
 // doesn't skip as it skips a port in use.
 const browserApi = { port: 43315 };
+
+// Vitest's default, a worker per core less one, is also its budget of open browser pages: on a
+// 20-core machine, all 18 browser instances at once ran out of memory and crashed pages, every run
+// (the test-duration plan). Six was the fastest of 4, 6 and 8 there; CI's default, below six,
+// stays. Every project needs the same.
+const maxWorkers = Math.min(6, Math.max(availableParallelism() - 1, 1));
 
 // Wordgard's own browser tests, copied unchanged from its repo.
 const wordgardTests = "test/wordgard/webtest-*.ts";
@@ -124,6 +131,7 @@ const svelteProject = (name: string, build: SvelteBuild): TestProjectInlineConfi
     test: {
       name,
       globals: true,
+      maxWorkers,
       include: [
         wordgardTests,
         "test/view-svelte/*.test.ts",
@@ -171,6 +179,7 @@ export default defineConfig({
   },
   test: {
     globals: true,
+    maxWorkers,
     projects: [
       {
         extends: true,
@@ -198,10 +207,9 @@ export default defineConfig({
         test: {
           name: "view",
           include: [wordgardTests, "test/view/*.test.ts"],
-          // Wordgard's "can handle random changes" draws 100 random documents
-          // on ReactWordgard: about 6 s in Firefox alone, past 60 s in `npm test`'s
-          // full parallel run (on React 19, in release:prepare).
-          testTimeout: 120_000,
+          // Wordgard's "can handle random changes" draws 100 random documents:
+          // on ReactWordgard, in CI's Firefox, past the 15 s default.
+          testTimeout: 60_000,
           setupFiles: [
             "test/wordgard-workspace.ts",
             "test/skipInBrowser.ts",

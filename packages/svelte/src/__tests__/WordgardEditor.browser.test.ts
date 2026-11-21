@@ -325,9 +325,7 @@ describe("WordgardEditor", () => {
     expect(document.querySelector(".leaving")).not.toBeNull();
     expect(wg.connected).toBe(true);
     edit(wg, steps[0] ?? {});
-    await vi.waitFor(() => expect(document.querySelector(".leaving")).toBeNull(), {
-      timeout: 10_000,
-    });
+    await vi.waitFor(() => expect(document.querySelector(".leaving")).toBeNull());
     expect(wg.connected).toBe(false);
     set(props, { on: true });
     const reference = plain();

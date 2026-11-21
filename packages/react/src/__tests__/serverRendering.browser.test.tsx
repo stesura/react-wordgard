@@ -40,9 +40,7 @@ describe("server rendering", { timeout: 60_000 }, () => {
     const recoverable = vi.fn();
     const root = hydrateRoot(target, <Page />, { onRecoverableError: recoverable });
     try {
-      await vi.waitFor(() => expect(target.querySelector(".editor")).not.toBeNull(), {
-        timeout: 10_000,
-      });
+      await vi.waitFor(() => expect(target.querySelector(".editor")).not.toBeNull());
       expect(warn).not.toHaveBeenCalled();
       expect(error).not.toHaveBeenCalled();
       expect(recoverable).not.toHaveBeenCalled();
