@@ -1,3 +1,9 @@
+## Unreleased
+
+### Bug fixes
+
+A widget leaving the start of a block, in the update where that block's own decorations change (a point attribute on it), is no longer drawn twice: the block kept its last layout, the widget included. Seen as a collaborator's caret left behind at the start of the paragraph being typed in.
+
 ## 0.4.3 (2026-11-20)
 
 ### New features

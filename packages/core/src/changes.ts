@@ -113,16 +113,15 @@ export const redrawn = (changes: readonly number[] | null, pos: number) => {
 };
 
 // Whether [from, to] in the new document lies in kept sections only, touching
-// no other (zero-length ones included).
+// no other (zero-length ones included). A section ending at `from` counts:
+// Wordgard joins a widget's change at a plot's content start into the redraw of
+// the plot's opening token when that token's decorations change too.
 export const isKept = (changes: readonly number[] | null, from: number, to: number) => {
   if (!changes) return false;
   const { startB, endB, ins } = indexOf(changes);
   for (let k = sectionAt(endB, from, true); k < endB.length; k++) {
-    const start = startB[k] ?? 0;
-    const end = endB[k] ?? 0;
-    if (start > to) break;
-    if (ins[k] != -1 && (end == start ? start >= from && start <= to : start < to && end > from))
-      return false;
+    if ((startB[k] ?? 0) > to) break;
+    if (ins[k] != -1) return false;
   }
   return true;
 };

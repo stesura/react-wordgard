@@ -1280,6 +1280,47 @@ describe("ReactDocTile", () => {
       }
     });
 
+    // Wordgard joins the widget's empty change into the redraw of the second
+    // paragraph's opening token, which its point attribute changing redraws.
+    it("drops a widget leaving a paragraph's start while that paragraph's attributes change", () => {
+      for (const Type of [Label, ReactLabel]) {
+        const moveTo = Transaction.Effect.define<number>();
+        const caret = GardState.Field.define<number>({
+          create: () => 5,
+          update: (pos, tr) => {
+            for (const effect of tr.effects) if (effect.is(moveTo)) return effect.value;
+            return tr.changes.mapPos(pos, -1);
+          },
+          provide: (field) =>
+            Decoration.Point.source.of((state) =>
+              Decoration.Point.set([
+                [Decoration.Point.widget(Type.of("c"), { side: -1 }), state.field(field)],
+              ])
+            ),
+        });
+        const marked = GardState.Field.define<boolean>({
+          create: () => false,
+          update: (value, tr) => value || tr.effects.some((effect) => effect.is(moveTo)),
+          provide: (field) =>
+            Decoration.Point.source.of((state) =>
+              state.field(field)
+                ? Decoration.Point.set([[Decoration.Point.attributes({ class: "marked" }), 4]])
+                : Decoration.Point.none
+            ),
+        });
+        const { wordgard, react } = both("<p>ab</p><p>cd</p>", [caret, marked]);
+        for (const wg of [wordgard, react]) {
+          wg.dispatch({ effects: moveTo.of(3) });
+          wg.flush();
+        }
+        expect(react.contentDOM.querySelectorAll(".w")).toHaveLength(1);
+        expect(react.contentDOM.innerHTML).toBe(wordgard.contentDOM.innerHTML);
+        expect(describeTile(docTileOf(react), react.contentDOM)).toEqual(
+          describeTile(docTileOf(wordgard), wordgard.contentDOM)
+        );
+      }
+    });
+
     it("keeps a widget's node when typing next to it", () => {
       const { react } = both(doc, widgets);
       const [x] = react.contentDOM.querySelectorAll(".w");

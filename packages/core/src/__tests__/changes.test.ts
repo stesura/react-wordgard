@@ -84,12 +84,7 @@ const reference = {
     return !!s && s.ins != -1;
   },
   isKept: (changes: readonly number[], from: number, to: number) =>
-    !walk(changes).some(
-      (s) =>
-        s.b <= to &&
-        s.ins != -1 &&
-        (s.endB == s.b ? s.b >= from && s.b <= to : s.b < to && s.endB > from)
-    ),
+    !walk(changes).some((s) => s.b <= to && s.endB >= from && s.ins != -1),
   pointMapper: (changes: readonly number[], pos: number) =>
     walk(changes)
       .filter((s) => s.endA >= pos && s.a <= pos)
@@ -117,6 +112,18 @@ describe("samePlace", () => {
 
   it("loses a plot whose opening token went with more", () => {
     expect(samePlace([4, -1, 2, 1, 10, -1], 5, 5)).toBe(false);
+  });
+});
+
+describe("isKept", () => {
+  // The second paragraph's content is [5, 7].
+  it("counts a redraw of the plot's opening or closing token", () => {
+    expect(isKept([4, -1, 1, -2, 11, -1], 5, 7)).toBe(false);
+    expect(isKept([7, -1, 1, -2, 8, -1], 5, 7)).toBe(false);
+  });
+
+  it("leaves out a redraw ending before the plot's opening token", () => {
+    expect(isKept([3, -1, 1, -2, 12, -1], 5, 7)).toBe(true);
   });
 });
 
