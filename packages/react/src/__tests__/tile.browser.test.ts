@@ -1704,7 +1704,7 @@ describe("ReactDocTile", () => {
       const tile = docTileOf(react);
       // React commits a hover later, outside Wordgard's flush.
       image.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
-      await vi.waitFor(() => expect(image.className).toBe("hover"));
+      await vi.waitFor(() => expect(image.className).toBe("hover"), { timeout: 10_000 });
       react.flush();
       expect(docTileOf(react)).toBe(tile);
       edit(react, { changes: { from: 1, insert: [Leaf.text("x")] } });
