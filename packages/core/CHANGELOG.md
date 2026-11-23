@@ -1,3 +1,9 @@
+## 0.4.5 (2026-11-23)
+
+### Bug fixes
+
+A node wrapper's NodeRootProps (class, style, attributes) survive the user typing inside the node: restoring the DOM after native input no longer resets them to the shape's.
+
 ## 0.4.4 (2026-11-21)
 
 ### Bug fixes

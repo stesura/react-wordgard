@@ -1,3 +1,7 @@
+## 0.4.5 (2026-11-23)
+
+No changes of its own: released with the other packages.
+
 ## 0.4.4 (2026-11-21)
 
 ### Bug fixes
