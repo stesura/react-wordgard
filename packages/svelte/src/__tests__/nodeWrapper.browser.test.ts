@@ -221,6 +221,27 @@ describe("Node wrappers", () => {
     expect(drawn(wg)).toEqual(fresh(wg));
   });
 
+  // Typing marks every ancestor of the text Dirty: restoring the DOM must
+  // leave a drawn node's attributes, which are the framework's.
+  it("keep a drawn node's attributes when the browser types in it", () => {
+    const wg = create({
+      config: [
+        basicSchema(),
+        blockquote(),
+        nodeWrapper(Blockquote, LeadWrapper),
+        nodeWrapper(Blockquote, RootLead),
+      ],
+    });
+    typeInto(wg, textIn(wg, "blockquote p"), 1, "x");
+    wg.flush();
+    expect(wg.state.doc.toString()).toContain("bxc");
+    const quote = wg.contentDOM.querySelector("blockquote");
+    expect(quote?.getAttribute("data-lead")).toBe("1");
+    expect(quote?.className).toBe("led");
+    expect(quote?.getAttribute("style")).toBe("padding-top: 1px");
+    expect(drawn(wg)).toEqual(fresh(wg));
+  });
+
   it("change a drawn node's attributes on their own, with nothing to redraw", async () => {
     const wg = create({
       config: [

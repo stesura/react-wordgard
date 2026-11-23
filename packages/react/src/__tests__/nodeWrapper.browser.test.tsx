@@ -294,6 +294,28 @@ describe("Node wrappers", () => {
     expect({ ...now, html: now.html.replace(' style=""', "") }).toEqual(fresh(wg));
   });
 
+  // Typing marks every ancestor of the text Dirty: restoring the DOM resets a
+  // Dirty element's attributes to its shape's, but a drawn node's are React's,
+  // which won't set props it already committed.
+  it("keep a drawn node's props when the browser types in it", () => {
+    const wg = create({
+      config: [
+        basicSchema(),
+        blockquote(),
+        nodeWrapper(Blockquote, LeadWrapper),
+        nodeWrapper(Blockquote, RootLead),
+      ],
+    });
+    typeInto(wg, textIn(wg, "blockquote p"), 1, "x");
+    wg.flush();
+    expect(wg.state.doc.toString()).toContain("bxc");
+    const quote = wg.contentDOM.querySelector("blockquote");
+    expect(quote?.getAttribute("data-lead")).toBe("1");
+    expect(quote?.className).toBe("led");
+    expect(quote?.getAttribute("style")).toBe("padding-top: 1px;");
+    expect(drawn(wg)).toEqual(fresh(wg));
+  });
+
   // React 18 would set the node's style string, then clear the properties the
   // dropped object had, the node's own among them.
   it("keep a drawn node's own style when they drop theirs", () => {

@@ -18,7 +18,7 @@ import { attrsToRecord, localTagName } from "./helpers/elt.js";
 import { stopsEvent } from "./decorations/decorationHandlers.js";
 import { editorOf } from "./editorStore.js";
 import { type RenderStore, publishCells } from "./renderStore.js";
-import { viewRoots } from "./viewRoots.js";
+import { isDrawnRoot, viewRoots } from "./viewRoots.js";
 import type { Words } from "./words.js";
 import { contentOf, isComponentShape, shapeOfRoot, sortRecords } from "./decorations/shapeType.js";
 import { currentRoot, tiledRoot } from "./decorations/replacedRoots.js";
@@ -1150,7 +1150,10 @@ const setAttributes = (dom: Element, attrs: Attributes) => {
 // Puts back the DOM React committed where the browser or a script changed it
 // (the tiles Wordgard's DOM observer marked Dirty), so React's diff applies to
 // it. Wordgard's `sync()` restores children and text, not attributes, and
-// keeps widget DOM, which the old tiles hold. A composition's node stays as
+// keeps widget DOM, which the old tiles hold. The root of a node drawn with
+// its wrappers' props keeps its attributes: they're React's (NodeRootProps),
+// beyond its shape's, and React sets none it already committed. Typing marks
+// every ancestor Dirty. A composition's node stays as
 // the browser left it: removing it, even for a moment, would move the
 // selection out of it. Returns the widgets that were changed, which `sync()`
 // marks clean.
@@ -1160,7 +1163,8 @@ const restore = (tile: Tile, composing: ChildNode | null) => {
   const dirty = new Set<Node>();
   const resetAttributes = (tile: Tile) => {
     if (!(tile.flags & TileFlag.Dirty)) return;
-    if (tile instanceof EltTile && !shapeTiles.has(tile)) setAttributes(tile.dom, tile.elt.attrs);
+    if (tile instanceof EltTile && !shapeTiles.has(tile) && !isDrawnRoot(tile.dom))
+      setAttributes(tile.dom, tile.elt.attrs);
     else if (tile instanceof WidgetTile) dirty.add(tile.dom);
     tile.children.forEach(resetAttributes);
   };
